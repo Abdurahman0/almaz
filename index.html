@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="uz" data-theme="velvet">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Almaz CRM</title>
+    <link
+      rel="icon"
+      href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Ccircle cx='16' cy='19' r='9' fill='none' stroke='%23D9BC7F' stroke-width='3'/%3E%3Cpath d='M16 2l5 6-5 6-5-6z' fill='%23F2DCA8'/%3E%3C/svg%3E"
+    />
+  </head>
+  <body>
+    <script>
+      // Apply persisted preset before first paint — no flash of wrong theme.
+      try {
+        var s = JSON.parse(localStorage.getItem('almaz-ui') || '{}').state || {};
+        var presets = ['velvet', 'noir', 'silk', 'marble', 'pearl'];
+        var p = s.preset || s.theme; // s.theme = legacy key
+        document.documentElement.dataset.theme = presets.indexOf(p) >= 0 ? p : 'velvet';
+      } catch (e) {}
+    </script>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

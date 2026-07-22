@@ -1,0 +1,388 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ---------------------------------------------------------------------------
+   Curated theme presets. Each preset sets EVERY token — background, surfaces,
+   text, border AND accent — as one designer-matched palette. Switching
+   data-theme swaps the whole palette at once; there is no separate accent.
+   Rules: accent is pre-tested against the preset's own bg/surface; --border
+   and --accent-soft derive from the accent hue; light presets use
+   --on-accent:#FFF with a darkened --accent-btn for AA button contrast.
+--------------------------------------------------------------------------- */
+
+/* 1. Velvet — dark emerald + champagne gold (DEFAULT) */
+:root,
+:root[data-theme='velvet'] {
+  --body-weight: 450;
+  --bg: #0f1b17;
+  --surface: #14231e;
+  --surface-2: #1a2e27;
+  --text: #f3efe6;
+  --text-muted: #93a39b;
+  --border: rgba(217, 188, 127, 0.12);
+  --border-strong: rgba(217, 188, 127, 0.28);
+  --accent: #c9a96a;
+  --accent-strong: #b8944f;
+  --accent-soft: rgba(201, 169, 106, 0.12);
+  --on-accent: #1a1710;
+  --accent-ink: var(--accent);
+  --accent-btn: var(--accent);
+  --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --bg-glass: rgba(15, 27, 23, 0.8);
+  --muted-soft: rgba(147, 163, 155, 0.1);
+  --success: #7fcf9c;
+  --success-soft: rgba(127, 207, 156, 0.12);
+  --danger: #e4a9a0;
+  --danger-soft: rgba(228, 169, 160, 0.12);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-sheen: rgba(255, 255, 255, 0.09);
+}
+
+/* 2. Noir — near-black graphite + sapphire blue */
+:root[data-theme='noir'] {
+  --body-weight: 450;
+  --bg: #0f1013;
+  --surface: #16181d;
+  --surface-2: #1c1f26;
+  --text: #edeff3;
+  --text-muted: #8b929e;
+  --border: rgba(110, 147, 200, 0.14);
+  --border-strong: rgba(110, 147, 200, 0.3);
+  --accent: #7a9ccb;
+  --accent-strong: #5f82b4;
+  --accent-soft: rgba(122, 156, 203, 0.12);
+  --on-accent: #0e141d;
+  --accent-ink: var(--accent);
+  --accent-btn: var(--accent);
+  --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --scrim: rgba(0, 0, 0, 0.65);
+  --bg-glass: rgba(15, 16, 19, 0.8);
+  --muted-soft: rgba(139, 146, 158, 0.1);
+  --success: #7fcf9c;
+  --success-soft: rgba(127, 207, 156, 0.12);
+  --danger: #e0958c;
+  --danger-soft: rgba(224, 149, 140, 0.12);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-sheen: rgba(255, 255, 255, 0.09);
+}
+
+/* 3. Silk — warm dark brown + rose gold */
+:root[data-theme='silk'] {
+  --body-weight: 450;
+  --bg: #171210;
+  --surface: #201915;
+  --surface-2: #28201a;
+  --text: #f4ede6;
+  --text-muted: #a2938a;
+  --border: rgba(212, 154, 140, 0.14);
+  --border-strong: rgba(212, 154, 140, 0.3);
+  --accent: #d49a8c;
+  --accent-strong: #be8172;
+  --accent-soft: rgba(212, 154, 140, 0.12);
+  --on-accent: #241512;
+  --accent-ink: var(--accent);
+  --accent-btn: var(--accent);
+  --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
+  --shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --scrim: rgba(0, 0, 0, 0.6);
+  --bg-glass: rgba(23, 18, 16, 0.8);
+  --muted-soft: rgba(162, 147, 138, 0.1);
+  --success: #86cf9f;
+  --success-soft: rgba(134, 207, 159, 0.12);
+  --danger: #e0a096;
+  --danger-soft: rgba(224, 160, 150, 0.12);
+  --skeleton-base: rgba(255, 255, 255, 0.04);
+  --skeleton-sheen: rgba(255, 255, 255, 0.09);
+}
+
+/* 4. Marble — warm light ivory + classic gold */
+:root[data-theme='marble'] {
+  --body-weight: 400;
+  --bg: #f4f1ea;
+  --surface: #ffffff;
+  --surface-2: #faf7f0;
+  --text: #2a2622;
+  --text-muted: #7a7468;
+  --border: rgba(60, 50, 35, 0.1);
+  --border-strong: rgba(60, 50, 35, 0.22);
+  --accent: #b8944f;
+  --accent-strong: #9c7b3e;
+  --accent-soft: rgba(184, 148, 79, 0.1);
+  --on-accent: #ffffff;
+  --accent-ink: color-mix(in srgb, var(--accent-strong) 55%, var(--text));
+  --accent-btn: color-mix(in srgb, var(--accent-strong) 85%, #000);
+  --accent-btn-hover: var(--accent-strong);
+  --shadow: 0 10px 28px rgba(60, 50, 35, 0.08);
+  --scrim: rgba(45, 40, 30, 0.4);
+  --bg-glass: rgba(244, 241, 234, 0.85);
+  --muted-soft: rgba(122, 116, 104, 0.1);
+  --success: #2e7d52;
+  --success-soft: rgba(46, 125, 82, 0.1);
+  --danger: #b04a3f;
+  --danger-soft: rgba(176, 74, 63, 0.1);
+  --skeleton-base: rgba(60, 50, 35, 0.06);
+  --skeleton-sheen: rgba(60, 50, 35, 0.12);
+}
+
+/* 5. Pearl — cool light gray + sage green */
+:root[data-theme='pearl'] {
+  --body-weight: 400;
+  --bg: #f2f3f1;
+  --surface: #ffffff;
+  --surface-2: #f7f8f6;
+  --text: #23272b;
+  --text-muted: #6f7a76;
+  --border: rgba(50, 70, 60, 0.1);
+  --border-strong: rgba(50, 70, 60, 0.22);
+  --accent: #4fa97e;
+  --accent-strong: #3e8a66;
+  --accent-soft: rgba(79, 169, 126, 0.1);
+  --on-accent: #ffffff;
+  --accent-ink: color-mix(in srgb, var(--accent-strong) 55%, var(--text));
+  --accent-btn: color-mix(in srgb, var(--accent-strong) 85%, #000);
+  --accent-btn-hover: var(--accent-strong);
+  --shadow: 0 10px 28px rgba(40, 60, 50, 0.08);
+  --scrim: rgba(35, 45, 40, 0.4);
+  --bg-glass: rgba(242, 243, 241, 0.85);
+  --muted-soft: rgba(111, 122, 118, 0.1);
+  --success: #2e7d52;
+  --success-soft: rgba(46, 125, 82, 0.1);
+  --danger: #b04a3f;
+  --danger-soft: rgba(176, 74, 63, 0.1);
+  --skeleton-base: rgba(50, 70, 60, 0.06);
+  --skeleton-sheen: rgba(50, 70, 60, 0.12);
+}
+
+@layer base {
+  html {
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+    /* Inter professional OpenType features: open digits/letters */
+    font-feature-settings: 'cv02', 'cv03', 'cv04', 'ss01';
+  }
+  body {
+    @apply bg-bg font-sans text-base text-text;
+    /* Inter variable axis: slightly heavier body on dark presets so it doesn't look thin */
+    font-weight: var(--body-weight, 400);
+    /* fallback crossfade support only — no transition:all */
+    transition: background-color 0.3s, color 0.3s;
+  }
+  *:focus-visible {
+    outline: 2px solid var(--accent-ink);
+    outline-offset: 2px;
+  }
+  input:-webkit-autofill,
+  input:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px var(--surface) inset;
+    -webkit-text-fill-color: var(--text);
+    caret-color: var(--text);
+  }
+  ::selection {
+    background: var(--accent-soft);
+  }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--border-strong) transparent;
+  }
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: var(--border-strong);
+    border-radius: 8px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: var(--text-muted);
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  main {
+    scrollbar-gutter: stable;
+  }
+  /* fully themed range slider — no native look */
+  input[type='range'] {
+    -webkit-appearance: none;
+    appearance: none;
+    height: 4px;
+    border-radius: 2px;
+    background: var(--border-strong);
+    cursor: pointer;
+  }
+  input[type='range']::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-btn);
+    border: 2px solid var(--surface);
+    box-shadow: var(--shadow);
+  }
+  input[type='range']::-moz-range-thumb {
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: var(--accent-btn);
+    border: 2px solid var(--surface);
+  }
+  /* kill native number spinners — NumberInput draws its own steppers */
+  input[type='number'] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+  }
+  input[type='number']::-webkit-inner-spin-button,
+  input[type='number']::-webkit-outer-spin-button {
+    -webkit-appearance: none;
+    margin: 0;
+  }
+}
+
+@layer components {
+  .card-velvet {
+    @apply rounded-xl border border-border bg-surface shadow-card;
+    transition: background-color 0.3s, border-color 0.3s;
+  }
+  /* Static accent gradient — brand wordmark only */
+  .brand-gradient {
+    background: linear-gradient(100deg, var(--accent-ink) 0%, var(--accent) 100%);
+    -webkit-background-clip: text;
+    background-clip: text;
+    color: transparent;
+  }
+  /* Tabular + lining figures — every numeric cell, stat, tick and price */
+  .tnum {
+    font-variant-numeric: tabular-nums lining-nums;
+  }
+  /* One floating style for every popover/dropdown/menu/tooltip */
+  .float-panel {
+    @apply rounded-lg border border-border bg-surface text-text shadow-card;
+  }
+  .float-in[data-state='open'] {
+    animation: floatIn 140ms ease-out;
+  }
+  .float-in[data-state='closed'] {
+    animation: floatOut 100ms ease-in;
+  }
+  .skeleton-gold {
+    @apply rounded-lg;
+    background: linear-gradient(
+      100deg,
+      var(--skeleton-base) 30%,
+      var(--skeleton-sheen) 50%,
+      var(--skeleton-base) 70%
+    );
+    background-size: 200% 100%;
+    animation: shimmer 1.8s linear infinite;
+  }
+}
+
+/* ---------- Circular wave theme transition (View Transitions API) ---------- */
+::view-transition-old(root),
+::view-transition-new(root) {
+  animation: none;
+  mix-blend-mode: normal;
+}
+::view-transition-old(root) {
+  z-index: 0;
+}
+::view-transition-new(root) {
+  z-index: 1;
+}
+
+@keyframes modalIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(0.96);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+@keyframes toastIn {
+  from {
+    opacity: 0;
+    transform: translateX(16px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+
+@keyframes checkDraw {
+  to { stroke-dashoffset: 0; }
+}
+@keyframes dotIn {
+  from { transform: scale(0); }
+  to { transform: scale(1); }
+}
+
+@keyframes floatIn {
+  from {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+@keyframes floatOut {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(4px) scale(0.97);
+  }
+}
+
+/* Theme icon single 360° while the wave runs */
+@keyframes spin-once {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+.animate-spin-once {
+  animation: spin-once 0.65s cubic-bezier(0.4, 0, 0.2, 1) 1;
+}
+
+/* Sections trailing behind the ring transition — 60ms steps */
+@keyframes revealSlide {
+  from {
+    opacity: 0;
+    transform: translateX(-24px);
+  }
+  to {
+    opacity: 1;
+    transform: none;
+  }
+}
+.reveal-stagger > * {
+  animation: revealSlide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+.reveal-stagger > :nth-child(1) { animation-delay: 0.25s; }
+.reveal-stagger > :nth-child(2) { animation-delay: 0.31s; }
+.reveal-stagger > :nth-child(3) { animation-delay: 0.37s; }
+.reveal-stagger > :nth-child(4) { animation-delay: 0.43s; }
+.reveal-stagger > :nth-child(5) { animation-delay: 0.49s; }
+.reveal-stagger > :nth-child(6) { animation-delay: 0.55s; }
+.reveal-stagger > :nth-child(n + 7) { animation-delay: 0.6s; }
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
