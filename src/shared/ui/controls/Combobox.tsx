@@ -92,7 +92,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
         <Popover.Portal>
           <Popover.Content
             sideOffset={4}
-            className="float-panel float-in z-40 w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
+            className="float-panel float-in z-[70] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
             onOpenAutoFocus={(e) => {
               e.preventDefault();
               (e.currentTarget as HTMLElement | null)?.querySelector('input')?.focus();

@@ -9,7 +9,7 @@ import { triggerCls } from './Select';
 
 /** Bottom-sheet on mobile, anchored popover on >=640px. */
 export const sheetCls =
-  'float-panel float-in z-40 max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!transform-none max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:[&_button]:min-h-11';
+  'float-panel float-in z-[70] max-sm:!fixed max-sm:!inset-x-0 max-sm:!bottom-0 max-sm:!top-auto max-sm:!transform-none max-sm:rounded-b-none max-sm:border-x-0 max-sm:border-b-0 max-sm:[&_button]:min-h-11';
 
 interface DatePickerProps {
   /** ISO date string yyyy-MM-dd (empty = unset). */

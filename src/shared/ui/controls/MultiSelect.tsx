@@ -85,7 +85,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(funct
         <Popover.Portal>
           <Popover.Content
             sideOffset={4}
-            className="float-panel float-in z-40 w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
+            className="float-panel float-in z-[70] w-[var(--radix-popover-trigger-width)] overflow-hidden p-0"
           >
             {options.length > 10 && (
               <div className="flex items-center gap-2 border-b border-border px-3">

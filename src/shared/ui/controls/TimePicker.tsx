@@ -54,7 +54,7 @@ export const TimePicker = forwardRef<HTMLButtonElement, TimePickerProps>(functio
           </button>
         </Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content sideOffset={4} align="start" className="float-panel float-in z-40 overflow-hidden">
+          <Popover.Content sideOffset={4} align="start" className="float-panel float-in z-[70] overflow-hidden">
             <div className="flex divide-x divide-[var(--border)]">
               <Column items={HOURS} active={h} onPick={(nh) => onChange?.(`${nh}:${m}`)} />
               <Column

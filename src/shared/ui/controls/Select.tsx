@@ -81,7 +81,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
           <RadixSelect.Content
             position="popper"
             sideOffset={4}
-            className="float-panel float-in z-40 max-h-80 w-[var(--radix-select-trigger-width)] overflow-hidden"
+            className="float-panel float-in z-[70] max-h-80 w-[var(--radix-select-trigger-width)] overflow-hidden"
           >
             <RadixSelect.ScrollUpButton className="flex h-6 items-center justify-center text-muted">
               <ChevronUp className="h-4 w-4" strokeWidth={1.5} />

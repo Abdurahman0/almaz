@@ -20,7 +20,7 @@ export function Tooltip({ content, children, side = 'top' }: TooltipProps) {
         <RadixTooltip.Content
           side={side}
           sideOffset={6}
-          className="float-in z-40 max-w-60 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text shadow-card"
+          className="float-in z-[70] max-w-60 rounded-lg border border-border bg-surface-2 px-2.5 py-1.5 text-xs text-text shadow-card"
         >
           {content}
           <RadixTooltip.Arrow className="fill-[var(--surface-2)]" width={12} height={6} />

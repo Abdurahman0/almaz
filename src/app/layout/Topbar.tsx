@@ -35,7 +35,7 @@ function NotificationsPopover() {
         <Popover.Content
           sideOffset={6}
           align="end"
-          className="float-panel float-in z-40 max-h-96 w-80 overflow-y-auto p-3"
+          className="float-panel float-in z-[70] max-h-96 w-80 overflow-y-auto p-3"
         >
           {!notifications?.length && (
             <p className="p-4 text-center text-sm text-muted">{t('common.empty.title')}</p>

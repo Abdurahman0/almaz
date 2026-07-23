@@ -31,7 +31,7 @@ function Items({ items }: { items: MenuItem[] }) {
                 <ChevronRight className="h-3.5 w-3.5 text-muted" strokeWidth={1.5} />
               </Menu.SubTrigger>
               <Menu.Portal>
-                <Menu.SubContent sideOffset={4} className="float-panel float-in z-40 min-w-40 p-1">
+                <Menu.SubContent sideOffset={4} className="float-panel float-in z-[70] min-w-40 p-1">
                   <Items items={item.submenu} />
                 </Menu.SubContent>
               </Menu.Portal>
@@ -74,7 +74,7 @@ export function DropdownMenu({ items, trigger, ariaLabel = 'Amallar' }: Dropdown
         )}
       </Menu.Trigger>
       <Menu.Portal>
-        <Menu.Content sideOffset={4} align="end" className="float-panel float-in z-40 min-w-44 p-1">
+        <Menu.Content sideOffset={4} align="end" className="float-panel float-in z-[70] min-w-44 p-1">
           <Items items={items} />
         </Menu.Content>
       </Menu.Portal>
