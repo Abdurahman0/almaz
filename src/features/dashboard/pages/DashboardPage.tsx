@@ -30,9 +30,7 @@ export default function DashboardPage() {
   const stats = useDashboardStats();
   const clients = useClients();
 
-  const vip = [...(clients.data ?? [])]
-    .sort((a, b) => b.totalPurchases - a.totalPurchases)
-    .slice(0, 4);
+  const vip = [...(clients.data ?? [])].sort((a, b) => b.total - a.total).slice(0, 4);
 
   return (
     <div>
@@ -92,10 +90,10 @@ export default function DashboardPage() {
               className="mb-3 flex items-center justify-between rounded-lg border border-border p-3 transition-colors last:mb-0 hover:border-strong"
             >
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold text-text">{c.fullName}</p>
-                <p className="text-xs text-accent-ink"><Money short value={c.totalPurchases} /></p>
+                <p className="truncate text-sm font-semibold text-text">{c.name}</p>
+                <p className="text-xs text-accent-ink"><Money short value={c.total} /></p>
               </div>
-              <HallmarkBadge tier={tierForTotal(c.totalPurchases)} size="sm" />
+              <HallmarkBadge tier={tierForTotal(c.total)} size="sm" />
             </Link>
           ))}
           {clients.isSuccess && vip.length === 0 && (

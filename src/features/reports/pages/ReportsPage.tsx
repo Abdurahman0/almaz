@@ -58,7 +58,7 @@ export default function ReportsPage() {
   }, [orders.data, products.data, range]);
 
   const topClients = [...(clients.data ?? [])]
-    .sort((a, b) => b.totalPurchases - a.totalPurchases)
+    .sort((a, b) => b.total - a.total)
     .slice(0, 5);
 
   return (
@@ -130,10 +130,10 @@ export default function ReportsPage() {
               <ol className="space-y-3">
                 {topClients.map((c) => (
                   <li key={c.id} className="flex items-center gap-3 text-sm">
-                    <HallmarkBadge tier={tierForTotal(c.totalPurchases)} size="sm" />
-                    <span className="min-w-0 flex-1 truncate text-text">{c.fullName}</span>
+                    <HallmarkBadge tier={tierForTotal(c.total)} size="sm" />
+                    <span className="min-w-0 flex-1 truncate text-text">{c.name}</span>
                     <span className="font-semibold text-accent-ink">
-                      <Money short value={c.totalPurchases} />
+                      <Money short value={c.total} />
                     </span>
                   </li>
                 ))}

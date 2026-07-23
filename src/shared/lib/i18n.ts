@@ -27,7 +27,6 @@ const uz = {
   'common.back': 'Orqaga',
   'common.next': 'Keyingi',
   'common.all': 'Barchasi',
-  'common.mock': 'Namunaviy maʼlumot',
   'common.required': "Majburiy maydon",
   // auth
   'auth.title': 'Almaz CRM',
@@ -102,7 +101,6 @@ const uz = {
   'clients.anniversary': 'Nikoh kuni',
   'clients.anniversarySoon': 'Nikoh kuni yaqin — tabriklashni unutmang!',
   'clients.history': 'Xaridlar tarixi',
-  'clients.mockNote': "API'da mijozlar bo'limi yo'q — namunaviy maʼlumotlar (shared/mocks)",
   // payments
   'payments.title': "To'lovlar",
   'payments.approve': 'Tasdiqlash',
