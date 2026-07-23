@@ -15,6 +15,7 @@ import {
 } from 'react-router-dom';
 import './ring-transition.css';
 import { useIntroStore } from '@/shared/stores/intro';
+import { SimpleTransitionLayout } from './SimpleTransition';
 
 /*
  * Almaz 3D ring page-transition for react-router-dom v6 data routers
@@ -164,7 +165,19 @@ export interface RingTransitionLayoutProps {
   showOnRedirect?: boolean;
 }
 
-export function RingTransitionLayout({
+/*
+ * The ring page transition is retired (kept intact for a later revisit) in
+ * favor of the fast fade/rise transition in SimpleTransition.tsx. Flip this
+ * to true to bring the ring crossing back.
+ */
+export const ENABLE_RING_TRANSITION = false;
+
+export function RingTransitionLayout(props: RingTransitionLayoutProps) {
+  if (ENABLE_RING_TRANSITION) return <RingTransitionLayoutRing {...props} />;
+  return <SimpleTransitionLayout />;
+}
+
+function RingTransitionLayoutRing({
   minMs = 1300,
   assetPath = '/',
   showOnRedirect = false,

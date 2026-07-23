@@ -44,3 +44,11 @@ async function extract(assetPath: string): Promise<ImageBitmap[]> {
 }
 
 export const RING_FRAME_COUNT = FRAME_COUNT;
+
+/*
+ * The Blender render sits off-center in its 512px frame: visible silhouette
+ * center measured at (179, 245) vs frame center (256, 256). Canvas renderers
+ * draw with this offset so the VISIBLE ring is geometrically centered in the
+ * element — wordmark centering and FLIP landings depend on it.
+ */
+export const RING_CENTER_OFFSET = { x: (256 - 179) / 512, y: (256 - 245) / 512 };

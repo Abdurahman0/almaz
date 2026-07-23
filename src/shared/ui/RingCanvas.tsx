@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { getRingFrames } from '@/shared/lib/ringFrames';
+import { getRingFrames, RING_CENTER_OFFSET } from '@/shared/lib/ringFrames';
 
 interface RingCanvasProps {
   /** Rendered square size in px (the render has internal padding, visible ring ~57%). */
@@ -42,11 +42,13 @@ export function RingCanvas({ size, rotationMs = 7000, assetPath = '/', className
       const a = Math.floor(f) % n;
       const b = (a + 1) % n;
       const frac = f - Math.floor(f);
+      const ox = RING_CENTER_OFFSET.x * canvas.width;
+      const oy = RING_CENTER_OFFSET.y * canvas.height;
       ctx.clearRect(0, 0, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
-      ctx.drawImage(frames[a], 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frames[a], ox, oy, canvas.width, canvas.height);
       ctx.globalAlpha = frac;
-      ctx.drawImage(frames[b], 0, 0, canvas.width, canvas.height);
+      ctx.drawImage(frames[b], ox, oy, canvas.width, canvas.height);
       ctx.globalAlpha = 1;
     };
 

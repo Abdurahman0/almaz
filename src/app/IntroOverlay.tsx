@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import { useAnimate } from 'framer-motion';
 import { useIntroStore } from '@/shared/stores/intro';
-import { getRingFrames } from '@/shared/lib/ringFrames';
+import { getRingFrames, RING_CENTER_OFFSET } from '@/shared/lib/ringFrames';
 
 /*
  * One-time post-login intro.
@@ -77,10 +77,13 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     const vh = window.innerHeight;
     const mobile = vw <= 640;
     const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660);
-    // ring center starts at the EXACT top-right corner point (100vw, 0):
-    // initially clipped by the corner, growing out of it
-    const x0 = vw / 2;
-    const y0 = -(vh / 2);
+    // Fully outside beyond the top-right corner: center at
+    // (100vw + start/2, -start/2). Matches the parked inline transform in JSX
+    // and is passed explicitly as the tween's `from` — letting framer infer
+    // the start from the inline style flashed one identity frame.
+    const START = 120;
+    const x0 = vw / 2 + START / 2;
+    const y0 = -(vh / 2) - START / 2;
 
     // canvas spin loop with mutable angular velocity; frames are guaranteed
     // decoded before this is called
@@ -101,11 +104,14 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         const f = (((angleRef.current % 1) + 1) % 1) * n;
         const a = Math.floor(f) % n;
         const b = (a + 1) % n;
+        // draw with the centering offset: visible ring = element center
+        const ox = RING_CENTER_OFFSET.x * canvas.width;
+        const oy = RING_CENTER_OFFSET.y * canvas.height;
         ctx.clearRect(0, 0, canvas.width, canvas.height);
         ctx.globalAlpha = 1;
-        ctx.drawImage(frames[a], 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(frames[a], ox, oy, canvas.width, canvas.height);
         ctx.globalAlpha = f - Math.floor(f);
-        ctx.drawImage(frames[b], 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(frames[b], ox, oy, canvas.width, canvas.height);
         ctx.globalAlpha = 1;
         raf = requestAnimationFrame(tick);
       };
@@ -118,6 +124,10 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         const frames = await getRingFrames(assetPath);
         if (disposed) return;
         startSpin(frames);
+        // let the first (large) canvas raster + layer upload complete before
+        // the tween starts — avoids a start-of-flight frame drop
+        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        if (disposed) return;
       } catch {
         onDone(); // frames unavailable: skip straight to final state
         return;
@@ -130,16 +140,20 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       const step = (el: string, kf: object, opts: object) =>
         skippedRef.current || disposed ? Promise.resolve() : animate(el as never, kf as never, opts as never);
 
-      // Phase 1 — calm entrance from beyond the top-right corner, gentle arc,
-      // growing 120px -> S, decelerating into a soft stop.
+      // Phase 1 — entrance: ONE single tween (translate+scale composed, one
+      // duration, one easing) from beyond the corner to dead center. Keyframe
+      // waypoints are forbidden here — framer eases each keyframe segment
+      // separately, which reads as a mid-flight stall.
       rpsRef.current = RPS_ENTER;
       const backdropIn = step('.intro-backdrop', { opacity: [0, 1] }, { duration: 0.3, ease: 'easeOut' });
       const glowIn = step('.intro-glow', { opacity: [0, 1] }, { duration: 0.6, ease: 'easeOut', delay: 0.7 });
       await guard(
         step(
           '.intro-ring',
-          { x: [x0, x0 * 0.32, 0], y: [y0, y0 * 0.7, 0], scale: [120 / S, 0.52, 1] },
-          { duration: ENTER_MS / 1000, ease: [0.16, 0.8, 0.26, 1], times: [0, 0.48, 1] },
+          // explicit [from, to] pairs = ONE segment, one easing — no waypoint
+          // dwell, no identity-frame flash
+          { x: [x0, 0], y: [y0, 0], scale: [START / S, 1] },
+          { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] },
         ),
         ENTER_MS,
       );
@@ -229,9 +243,7 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const vh = window.innerHeight;
   const vw = window.innerWidth;
   const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
-  // the render's visible ring center is offset inside its square frame
-  const holeCx = -0.15 * S;
-  const holeCy = -0.02 * S;
+  const START = 120;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
@@ -241,44 +253,42 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         className="intro-backdrop absolute inset-0 opacity-0"
         style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }}
       />
-      {/* ambient accent glow anchored under the ring's visible center */}
+      {/* ambient accent glow under the ring (visible ring = element center
+          thanks to the centered canvas draw) */}
       <div
         className="intro-glow absolute opacity-0"
         style={{
-          left: vw / 2 + holeCx - S * 0.75,
-          top: vh / 2 + holeCy - S * 0.75,
+          left: vw / 2 - S * 0.75,
+          top: vh / 2 - S * 0.75,
           width: S * 1.5,
           height: S * 1.5,
           background:
             'radial-gradient(closest-side, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%)',
         }}
       />
+      {/* fixed, offsetParent = viewport (no transformed/filtered ancestor);
+          parked FULLY OUTSIDE beyond the top-right corner until frame one */}
       <div
-        className="intro-ring absolute"
+        className="intro-ring fixed"
         style={{
           left: vw / 2 - S / 2,
           top: vh / 2 - S / 2,
           width: S,
           height: S,
           willChange: 'transform',
-          // parked at the exact corner point until the timeline's first frame
-          // (frames decode-await happens before animation start)
-          transform: `translate(${vw / 2}px, ${-vh / 2}px) scale(${120 / S})`,
+          transform: `translate(${vw / 2 + START / 2}px, ${-vh / 2 - START / 2}px) scale(${START / S})`,
         }}
       >
         <canvas ref={canvasRef} className="h-full w-full" style={{ width: S, height: S }} />
-        {/* wordmark inside the ring's hole, above the frames */}
-        <div
-          className="absolute text-center"
-          style={{ left: `calc(50% + ${holeCx}px)`, top: `calc(50% + ${holeCy}px)`, transform: 'translate(-50%, -50%)' }}
-        >
+        {/* wordmark: mathematically dead-centered inside the ring */}
+        <div className="absolute inset-0 grid place-items-center text-center">
           <span
             className="intro-word inline-block whitespace-nowrap font-semibold opacity-0"
             style={{
-              // sized to the minimum clear hole aperture across the held
-              // rotation arc: 112x69 of 512 -> ~0.2S wide box, two lines
+              // widest line stays well under 55% of the visible ring diameter
+              // and inside the measured hole aperture across the held frames
               fontSize: S * 0.054,
-              lineHeight: 1.15,
+              lineHeight: 1.1,
               letterSpacing: '0.3em',
               color: 'transparent',
               backgroundImage:
