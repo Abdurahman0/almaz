@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -8,6 +9,7 @@ import { RingSpin } from '@/shared/ui/RingSpin';
 import { useIsAuthenticated } from '@/shared/stores/auth';
 import { useLogin } from '../hooks';
 import { useT } from '@/shared/lib/i18n';
+import { getRingFrames } from '@/shared/lib/ringFrames';
 import type { ApiError } from '@/shared/api/client';
 
 const schema = z.object({
@@ -25,6 +27,11 @@ export default function LoginPage() {
     handleSubmit,
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
+
+  // warm the intro's spin frames while the user types credentials
+  useEffect(() => {
+    void getRingFrames().catch(() => {});
+  }, []);
 
   if (authed) return <Navigate to="/" replace />;
 

@@ -15,7 +15,7 @@ import {
 import { useUiStore } from '@/shared/stores/ui';
 import { useIntroStore } from '@/shared/stores/intro';
 import { useT, type TranslationKey } from '@/shared/lib/i18n';
-import { RingSpin } from '@/shared/ui/RingSpin';
+import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { Tooltip } from '@/shared/ui';
 
 export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationKey }> = [
@@ -49,7 +49,7 @@ export function Sidebar() {
           data-intro-logo-slot
           className={`-my-1.5 -ml-1 block h-12 w-12 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
         >
-          <RingSpin size={48} speed={0.14} />
+          <RingCanvas size={48} rotationMs={14000} />
         </span>
         {!collapsed && (
           <span className="brand-gradient text-xl font-bold tracking-tight">Almaz</span>
