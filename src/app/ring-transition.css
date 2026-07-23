@@ -27,7 +27,7 @@
   position: fixed;
   top: 50%;
   left: 0;
-  z-index: 42;
+  z-index: 43;
   width: var(--ring-size);
   height: var(--ring-size);
   pointer-events: none;
@@ -72,12 +72,14 @@
   animation: ring-fade var(--T) linear infinite;
 }
 
+/* --ring-from/--ring-to are px offsets computed per crossing (viewport +
+   ring-size dependent) so the ring, arc mask and veil share one geometry. */
 @keyframes ring-glide {
   from {
-    transform: translate(-120%, -50%);
+    transform: translate(var(--ring-from, -120%), -50%);
   }
   to {
-    transform: translate(calc(100vw + 30%), -50%);
+    transform: translate(var(--ring-to, calc(100vw + 30%)), -50%);
   }
 }
 
@@ -104,7 +106,7 @@
   top: 0;
   bottom: 0;
   left: 0;
-  z-index: 41;
+  z-index: 42;
   width: 45vw;
   pointer-events: none;
   transform: translateX(calc(-45vw - var(--ring-size)));
@@ -129,26 +131,35 @@
 
 @keyframes ring-veil-glide {
   from {
-    transform: translateX(calc(-45vw - var(--ring-size)));
+    transform: translateX(var(--veil-from, calc(-45vw - var(--ring-size))));
   }
   to {
-    transform: translateX(calc(100vw + var(--ring-size)));
+    transform: translateX(var(--veil-to, calc(100vw + var(--ring-size))));
   }
 }
 
-/* ---- The wipes ------------------------------------------------------------
- * Both wipes are transform-only: an overflow-hidden outer slides one way and
- * a counter-translated inner slides back, so the content stays put while the
- * clip edge sweeps. clip-path here fell back to main-thread paints of the
- * whole app tree every frame (~40fps); two composited transforms hold 60.
+/* ---- The wipe -------------------------------------------------------------
+ * The new page renders normally in flow. The OLD page (snapshot clone) sits
+ * above it in a fixed viewport-sized layer, masked to "everything right of
+ * the ring's trailing arc" — a static feathered SVG mask built per crossing
+ * in JS. Only mask-position animates (same bitmap, GPU re-blend), sweeping
+ * the arc left -> right in lockstep with the ring: the old page is erased at
+ * the curved boundary, the new page appears behind it.
+ *
+ * Content must never paint outside the masked element's border-box —
+ * composited child transforms escaping the box make Chromium drop the mask
+ * entirely (that killed the translate+counter-translate variant). The host
+ * is exactly viewport-sized with in-box content, so this holds by design.
+ *
+ * pointer-events none — the clone's links are dead DOM without React
+ * handlers; a stray click there would be a native full-page navigation.
  */
-
-/* Old page: erased at the ring's leading edge. */
 .ring-wipe-old {
   position: fixed;
   inset: 0;
   z-index: 40;
   overflow: hidden;
+  pointer-events: none;
 }
 
 .ring-wipe-old[hidden] {
@@ -163,56 +174,18 @@
 }
 
 .ring-root[data-crossing] .ring-wipe-old {
-  will-change: transform;
-  animation: ring-wipe-out var(--T) var(--ring-ease) both;
-}
-.ring-root[data-crossing] .ring-wipe-old > .ring-wipe-slide {
-  will-change: transform;
-  animation: ring-wipe-out-counter var(--T) var(--ring-ease) both;
+  will-change: mask-position;
+  animation: ring-arc-pos var(--T) var(--ring-ease) both;
 }
 
-@keyframes ring-wipe-out {
+@keyframes ring-arc-pos {
   from {
-    transform: translateX(0%);
+    -webkit-mask-position: var(--arc-from, -100vw) 0;
+    mask-position: var(--arc-from, -100vw) 0;
   }
   to {
-    transform: translateX(100%);
-  }
-}
-@keyframes ring-wipe-out-counter {
-  from {
-    transform: translateX(0%);
-  }
-  to {
-    transform: translateX(-100%);
-  }
-}
-
-/* New page: revealed behind the trailing edge. */
-.ring-root[data-crossing] > [data-ring-stage] {
-  overflow: hidden;
-  will-change: transform;
-  animation: ring-wipe-in var(--T) var(--ring-ease) both;
-}
-.ring-root[data-crossing] > [data-ring-stage] > .ring-stage-inner {
-  will-change: transform;
-  animation: ring-wipe-in-counter var(--T) var(--ring-ease) both;
-}
-
-@keyframes ring-wipe-in {
-  from {
-    transform: translateX(-100%);
-  }
-  to {
-    transform: translateX(0%);
-  }
-}
-@keyframes ring-wipe-in-counter {
-  from {
-    transform: translateX(100%);
-  }
-  to {
-    transform: translateX(0%);
+    -webkit-mask-position: var(--arc-to, 0) 0;
+    mask-position: var(--arc-to, 0) 0;
   }
 }
 

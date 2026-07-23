@@ -1,4 +1,11 @@
-import { useEffect, useRef, useState, useSyncExternalStore, type CSSProperties } from 'react';
+import {
+  useCallback,
+  useEffect,
+  useRef,
+  useState,
+  useSyncExternalStore,
+  type CSSProperties,
+} from 'react';
 import {
   Outlet,
   ScrollRestoration,
@@ -28,6 +35,15 @@ import './ring-transition.css';
 // native rate. playbackRate is tuned so a crossing spans ~1.5 rotations.
 const NATIVE_ROTATION_MS = 2000;
 const ROTATIONS_PER_CROSSING = 1.5;
+
+// Measured from the 512px render's alpha channel: the visible ring silhouette
+// is 273x296px centered at (179, 245) — i.e. the torus body fills ~57% of the
+// container and sits offset from its center. The reveal arc must follow the
+// VISIBLE silhouette, so all fractions are relative to the container size S.
+const RING_R_FRAC = 0.25; // trailing-arc radius (just inside the outer rim)
+const RING_CX_FRAC = -0.15; // visible-center x offset from container center
+const RING_CY_FRAC = -0.02; // visible-center y offset from container center
+const ARC_FEATHER = 14; // Gaussian stdDeviation; ~40px soft edge
 
 function subscribeToReducedMotion(onChange: () => void): () => void {
   const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -157,6 +173,7 @@ export function RingTransitionLayout({
   const navigationType = useNavigationType();
   const reducedMotion = usePrefersReducedMotion();
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const stageRef = useRef<HTMLDivElement | null>(null);
   const stageInnerRef = useRef<HTMLDivElement | null>(null);
   const hostRef = useRef<HTMLDivElement | null>(null);
@@ -179,6 +196,64 @@ export function RingTransitionLayout({
   const pendingSilent = isSilentNavigation(navigation.location?.state, showOnRedirect);
   const pending = !reducedMotion && navigation.state !== 'idle' && !pendingSilent;
 
+  /*
+   * Compute the shared crossing geometry in px and publish it as CSS vars +
+   * a static feathered arc mask on the stage. Ring glide, arc sweep and veil
+   * all interpolate between the same start/end center positions with the same
+   * duration and easing, so the arc apex stays locked to the ring's visible
+   * center on every frame — the curved boundary is always tucked under the
+   * ring's band.
+   */
+  const applyGeometry = useCallback(() => {
+    const root = rootRef.current;
+    if (!root) return;
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const S = vw <= 640 ? Math.min(0.45 * vh, 300) : Math.min(0.55 * vh, 480);
+    const r = Math.round(RING_R_FRAC * S);
+    // container-left travel: -120% of S  ->  100vw + 30% of S (as before)
+    const left0 = -1.2 * S;
+    const left1 = vw + 0.3 * S;
+    // visible ring center = container left + S/2 + measured offset
+    const cx0 = left0 + S / 2 + RING_CX_FRAC * S;
+    const cx1 = left1 + S / 2 + RING_CX_FRAC * S;
+    const cy = Math.round(vh / 2 + RING_CY_FRAC * S);
+    const OW = Math.round(vw + 2 * S); // mask canvas width; arc apex at x=OW
+    root.style.setProperty('--ring-from', `${Math.round(left0)}px`);
+    root.style.setProperty('--ring-to', `${Math.round(left1)}px`);
+    root.style.setProperty('--arc-from', `${Math.round(cx0 - OW)}px`);
+    root.style.setProperty('--arc-to', `${Math.round(cx1 - OW)}px`);
+    const veilW = Math.round(0.45 * vw);
+    root.style.setProperty('--veil-from', `${Math.round(cx0 - veilW)}px`);
+    root.style.setProperty('--veil-to', `${Math.round(cx1 - veilW)}px`);
+    // White = visible OLD page: everything right of the trailing arc. The
+    // mask sits on the fixed viewport-sized host; only mask-position animates
+    // (from --arc-from to --arc-to), sweeping the arc with the ring. The
+    // canvas is wide enough (MW) that the start frame keeps the whole
+    // viewport inside the white zone.
+    const host = hostRef.current;
+    if (!host) return;
+    const MW = Math.round(OW + vw + 2 * S);
+    const path = `M${OW} -80V${cy - r}A${r} ${r} 0 0 0 ${OW - r} ${cy}A${r} ${r} 0 0 0 ${OW} ${cy + r}V${vh + 80}H${MW + 80}V-80Z`;
+    const svg = `<svg xmlns='http://www.w3.org/2000/svg' width='${MW}' height='${vh}'><filter id='f' x='-5%' y='-5%' width='110%' height='110%'><feGaussianBlur stdDeviation='${ARC_FEATHER}'/></filter><path d='${path}' fill='#fff' filter='url(#f)'/></svg>`;
+    const url = `url("data:image/svg+xml,${encodeURIComponent(svg)}")`;
+    for (const prefix of ['mask', '-webkit-mask']) {
+      host.style.setProperty(`${prefix}-image`, url);
+      host.style.setProperty(`${prefix}-repeat`, 'no-repeat');
+      host.style.setProperty(`${prefix}-size`, `${MW}px ${vh}px`);
+    }
+  }, []);
+
+  const clearMask = useCallback(() => {
+    const host = hostRef.current;
+    if (!host) return;
+    for (const prefix of ['mask', '-webkit-mask']) {
+      host.style.removeProperty(`${prefix}-image`);
+      host.style.removeProperty(`${prefix}-repeat`);
+      host.style.removeProperty(`${prefix}-size`);
+    }
+  }, []);
+
   // Capture the old page's pixels during the first render of a new location —
   // the DOM still shows the outgoing page until React commits, so this is the
   // one moment the snapshot is guaranteed regardless of how fast the lazy
@@ -191,6 +266,9 @@ export function RingTransitionLayout({
     if (stage && !reducedMotion) {
       const el = stage.cloneNode(true) as HTMLElement;
       el.removeAttribute('data-ring-stage'); // the clone must not match live-stage selectors
+      // Dead links: without React handlers a stray click on the clone would be
+      // a native full-page navigation.
+      el.querySelectorAll('a[href]').forEach((a) => a.removeAttribute('href'));
       captureRef.current = { el, scrollY: window.scrollY };
     }
   }
@@ -229,6 +307,8 @@ export function RingTransitionLayout({
       video.play().catch(() => {});
     }
 
+    applyGeometry();
+
     // Restart the CSS animations so back-to-back navigations replay cleanly.
     for (const el of [
       stageRef.current,
@@ -253,25 +333,35 @@ export function RingTransitionLayout({
       activeRef.current = false;
       setCrossing(false);
     }, Math.round(minMs * 1.85));
-  }, [location.key, minMs, navigationType, reducedMotion, showOnRedirect]);
+  }, [applyGeometry, location.key, minMs, navigationType, reducedMotion, showOnRedirect]);
 
-  // Idle: stop the spin and drop the snapshot.
+  // Idle: stop the spin, drop the snapshot and the arc mask.
   useEffect(() => {
     if (crossing || pending || activeRef.current) return;
     videoRef.current?.pause();
     const slide = hostSlideRef.current;
     if (slide) slide.innerHTML = '';
-  }, [crossing, pending]);
+    clearMask();
+  }, [clearMask, crossing, pending]);
 
   // Pending loop (chunk in flight): keep the ring spinning at crossing rate.
   useEffect(() => {
     if (!pending) return;
+    applyGeometry();
     const video = videoRef.current;
     if (video) {
       video.playbackRate = (ROTATIONS_PER_CROSSING * NATIVE_ROTATION_MS) / minMs;
       video.play().catch(() => {});
     }
-  }, [pending, minMs]);
+  }, [applyGeometry, pending, minMs]);
+
+  // Keep geometry fresh if the window resizes mid-choreography.
+  useEffect(() => {
+    if (!crossing && !pending) return;
+    const onResize = () => applyGeometry();
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, [applyGeometry, crossing, pending]);
 
   useEffect(() => () => window.clearTimeout(cleanupTimerRef.current), []);
 
@@ -279,6 +369,7 @@ export function RingTransitionLayout({
 
   return (
     <div
+      ref={rootRef}
       className="ring-root"
       data-mode={mode}
       data-crossing={crossing ? 'true' : undefined}
