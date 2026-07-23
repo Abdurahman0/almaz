@@ -1,6 +1,6 @@
+import { Outlet } from 'react-router-dom';
 import { Sidebar, MobileNav } from './Sidebar';
 import { Topbar } from './Topbar';
-import { RingTransition } from '@/app/RingTransition';
 
 export function AppLayout() {
   return (
@@ -10,7 +10,7 @@ export function AppLayout() {
         <Topbar />
         <main className="w-full flex-1 px-6 pb-24 pt-8 md:pb-10 lg:px-10">
           <div className="mx-auto w-full max-w-content">
-            <RingTransition />
+            <Outlet />
           </div>
         </main>
       </div>

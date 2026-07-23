@@ -1,70 +1,64 @@
-import { lazy, Suspense } from 'react';
+import type { ComponentType } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
 import { AppLayout } from './layout/AppLayout';
 import { ProtectedRoute } from './ProtectedRoute';
-import { Skeleton } from '@/shared/ui';
+import { RingTransitionLayout } from './RingTransition';
 
-const LoginPage = lazy(() => import('@/features/auth/pages/LoginPage'));
-const DashboardPage = lazy(() => import('@/features/dashboard/pages/DashboardPage'));
-const InboxPage = lazy(() => import('@/features/inbox/pages/InboxPage'));
-const OrdersPage = lazy(() => import('@/features/orders/pages/OrdersPage'));
-const OrderDetailPage = lazy(() => import('@/features/orders/pages/OrderDetailPage'));
-const NewOrderPage = lazy(() => import('@/features/orders/pages/NewOrderPage'));
-const ProductsPage = lazy(() => import('@/features/products/pages/ProductsPage'));
-const ClientsPage = lazy(() => import('@/features/clients/pages/ClientsPage'));
-const PaymentsPage = lazy(() => import('@/features/payments/pages/PaymentsPage'));
-const ReportsPage = lazy(() => import('@/features/reports/pages/ReportsPage'));
-const KnowledgePage = lazy(() => import('@/features/ai/pages/KnowledgePage'));
-const SettingsPage = lazy(() => import('@/features/settings/pages/SettingsPage'));
-const UiDemoPage = lazy(() => import('@/features/dev/UiDemoPage'));
-
-function Lazy({ children }: { children: React.ReactNode }) {
-  return (
-    <Suspense
-      fallback={
-        <div className="space-y-6 p-2">
-          <Skeleton className="h-10 w-64" />
-          <Skeleton className="h-40 w-full" />
-          <Skeleton className="h-40 w-full" />
-        </div>
-      }
-    >
-      {children}
-    </Suspense>
-  );
+// route.lazy (instead of React.lazy + Suspense) keeps the router in a
+// "loading" navigation state while a page chunk downloads, so the ring
+// overlay stays up until the new page is ready to render.
+function page(load: () => Promise<{ default: ComponentType }>) {
+  return async () => ({ Component: (await load()).default });
 }
 
 export const router = createBrowserRouter([
   {
-    path: '/login',
-    element: (
-      <Lazy>
-        <LoginPage />
-      </Lazy>
-    ),
-  },
-  {
-    element: <ProtectedRoute />,
+    // Ring transition for every navigation below; guard REPLACE redirects stay silent.
+    element: <RingTransitionLayout minMs={1300} />,
     children: [
+      { path: '/login', lazy: page(() => import('@/features/auth/pages/LoginPage')) },
       {
-        element: <AppLayout />,
+        element: <ProtectedRoute />,
         children: [
-          { path: '/', element: <Lazy><DashboardPage /></Lazy> },
-          { path: '/inbox', element: <Lazy><InboxPage /></Lazy> },
-          { path: '/inbox/:conversationId', element: <Lazy><InboxPage /></Lazy> },
-          { path: '/orders', element: <Lazy><OrdersPage /></Lazy> },
-          { path: '/orders/new', element: <Lazy><NewOrderPage /></Lazy> },
-          { path: '/orders/:orderId', element: <Lazy><OrderDetailPage /></Lazy> },
-          { path: '/products', element: <Lazy><ProductsPage /></Lazy> },
-          { path: '/clients', element: <Lazy><ClientsPage /></Lazy> },
-          { path: '/payments', element: <Lazy><PaymentsPage /></Lazy> },
-          { path: '/reports', element: <Lazy><ReportsPage /></Lazy> },
-          { path: '/knowledge', element: <Lazy><KnowledgePage /></Lazy> },
-          { path: '/settings', element: <Lazy><SettingsPage /></Lazy> },
-          // Dev-only visual QA for the UI kit
-          ...(import.meta.env.DEV
-            ? [{ path: '/dev/ui', element: <Lazy><UiDemoPage /></Lazy> }]
-            : []),
+          {
+            element: <AppLayout />,
+            children: [
+              { path: '/', lazy: page(() => import('@/features/dashboard/pages/DashboardPage')) },
+              { path: '/inbox', lazy: page(() => import('@/features/inbox/pages/InboxPage')) },
+              {
+                path: '/inbox/:conversationId',
+                lazy: page(() => import('@/features/inbox/pages/InboxPage')),
+              },
+              { path: '/orders', lazy: page(() => import('@/features/orders/pages/OrdersPage')) },
+              {
+                path: '/orders/new',
+                lazy: page(() => import('@/features/orders/pages/NewOrderPage')),
+              },
+              {
+                path: '/orders/:orderId',
+                lazy: page(() => import('@/features/orders/pages/OrderDetailPage')),
+              },
+              {
+                path: '/products',
+                lazy: page(() => import('@/features/products/pages/ProductsPage')),
+              },
+              { path: '/clients', lazy: page(() => import('@/features/clients/pages/ClientsPage')) },
+              {
+                path: '/payments',
+                lazy: page(() => import('@/features/payments/pages/PaymentsPage')),
+              },
+              { path: '/reports', lazy: page(() => import('@/features/reports/pages/ReportsPage')) },
+              { path: '/knowledge', lazy: page(() => import('@/features/ai/pages/KnowledgePage')) },
+              {
+                path: '/settings',
+                lazy: page(() => import('@/features/settings/pages/SettingsPage')),
+              },
+              // Dev-only visual QA for the UI kit
+              ...(import.meta.env.DEV
+                ? [{ path: '/dev/ui', lazy: page(() => import('@/features/dev/UiDemoPage')) }]
+                : []),
+            ],
+          },
         ],
       },
     ],

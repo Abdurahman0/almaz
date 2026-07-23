@@ -355,28 +355,6 @@
   animation: spin-once 0.65s cubic-bezier(0.4, 0, 0.2, 1) 1;
 }
 
-/* Sections trailing behind the ring transition — 60ms steps */
-@keyframes revealSlide {
-  from {
-    opacity: 0;
-    transform: translateX(-24px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
-}
-.reveal-stagger > * {
-  animation: revealSlide 0.4s cubic-bezier(0.22, 1, 0.36, 1) both;
-}
-.reveal-stagger > :nth-child(1) { animation-delay: 0.25s; }
-.reveal-stagger > :nth-child(2) { animation-delay: 0.31s; }
-.reveal-stagger > :nth-child(3) { animation-delay: 0.37s; }
-.reveal-stagger > :nth-child(4) { animation-delay: 0.43s; }
-.reveal-stagger > :nth-child(5) { animation-delay: 0.49s; }
-.reveal-stagger > :nth-child(6) { animation-delay: 0.55s; }
-.reveal-stagger > :nth-child(n + 7) { animation-delay: 0.6s; }
-
 @media (prefers-reduced-motion: reduce) {
   *,
   *::before,

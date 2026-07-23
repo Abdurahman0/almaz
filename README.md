@@ -52,4 +52,4 @@ src/
 
 ## Design system — "Velvet Box"
 
-Tokens in `tailwind.config.ts` + CSS variables in `src/index.css`. Dark **Velvet** (default) and light **Marble** themes via `dark`/`light` class on `<html>`. Fonts: Cormorant Garamond (display) + Manrope (UI). Signature animations: Grand Ring page transition, crafting stepper, gold-fill payment ring, hallmark stamp tiers, count-up stats, sparkle background — all respect `prefers-reduced-motion`.
+Tokens in `tailwind.config.ts` + CSS variables in `src/index.css`. Dark **Velvet** (default) and light **Marble** themes via `dark`/`light` class on `<html>`. Fonts: Cormorant Garamond (display) + Manrope (UI). Signature animations: 3D ring page transition (Blender-rendered spin video overlay), crafting stepper, gold-fill payment ring, hallmark stamp tiers, count-up stats, sparkle background — all respect `prefers-reduced-motion`.
