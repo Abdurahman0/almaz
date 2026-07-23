@@ -1,6 +1,7 @@
 import { Outlet } from 'react-router-dom';
 import { Sidebar, MobileNav } from './Sidebar';
 import { Topbar } from './Topbar';
+import { IntroOverlay } from '../IntroOverlay';
 
 export function AppLayout() {
   return (
@@ -15,6 +16,7 @@ export function AppLayout() {
         </main>
       </div>
       <MobileNav />
+      <IntroOverlay />
     </div>
   );
 }

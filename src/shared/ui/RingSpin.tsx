@@ -24,6 +24,8 @@ export function RingSpin({ size = 96, speed = 1, assetPath = '/', className }: R
       if (query.matches) {
         video.pause();
         video.currentTime = 0;
+      } else if (document.hidden) {
+        video.pause();
       } else {
         video.playbackRate = speed;
         video.play().catch(() => {});
@@ -31,7 +33,11 @@ export function RingSpin({ size = 96, speed = 1, assetPath = '/', className }: R
     };
     apply();
     query.addEventListener('change', apply);
-    return () => query.removeEventListener('change', apply);
+    document.addEventListener('visibilitychange', apply);
+    return () => {
+      query.removeEventListener('change', apply);
+      document.removeEventListener('visibilitychange', apply);
+    };
   }, [speed]);
 
   return (

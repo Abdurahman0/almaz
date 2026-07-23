@@ -14,6 +14,7 @@ import {
   useNavigationType,
 } from 'react-router-dom';
 import './ring-transition.css';
+import { useIntroStore } from '@/shared/stores/intro';
 
 /*
  * Almaz 3D ring page-transition for react-router-dom v6 data routers
@@ -193,8 +194,12 @@ export function RingTransitionLayout({
   const activeRef = useRef(false);
   const [crossing, setCrossing] = useState(false);
 
+  // The one-time post-login intro owns the screen: no page-transition ring
+  // while it is pending or playing.
+  const introActive = useIntroStore((s) => s.stage === 'pending' || s.stage === 'playing');
+
   const pendingSilent = isSilentNavigation(navigation.location?.state, showOnRedirect);
-  const pending = !reducedMotion && navigation.state !== 'idle' && !pendingSilent;
+  const pending = !reducedMotion && !introActive && navigation.state !== 'idle' && !pendingSilent;
 
   /*
    * Compute the shared crossing geometry in px and publish it as CSS vars +
@@ -283,7 +288,7 @@ export function RingTransitionLayout({
       captureRef.current = null;
       return;
     }
-    if (reducedMotion) {
+    if (reducedMotion || introActive) {
       captureRef.current = null;
       return;
     }
@@ -333,7 +338,7 @@ export function RingTransitionLayout({
       activeRef.current = false;
       setCrossing(false);
     }, Math.round(minMs * 1.85));
-  }, [applyGeometry, location.key, minMs, navigationType, reducedMotion, showOnRedirect]);
+  }, [applyGeometry, introActive, location.key, minMs, navigationType, reducedMotion, showOnRedirect]);
 
   // Idle: stop the spin, drop the snapshot and the arc mask.
   useEffect(() => {

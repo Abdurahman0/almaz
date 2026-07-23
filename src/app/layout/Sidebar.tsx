@@ -13,8 +13,9 @@ import {
   ChevronsRight,
 } from 'lucide-react';
 import { useUiStore } from '@/shared/stores/ui';
+import { useIntroStore } from '@/shared/stores/intro';
 import { useT, type TranslationKey } from '@/shared/lib/i18n';
-import { RingMark } from '@/shared/ui/RingMark';
+import { RingSpin } from '@/shared/ui/RingSpin';
 import { Tooltip } from '@/shared/ui';
 
 export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationKey }> = [
@@ -32,6 +33,7 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
 export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggle = useUiStore((s) => s.toggleSidebar);
+  const introPlaying = useIntroStore((s) => s.stage === 'playing');
   const t = useT();
 
   return (
@@ -41,7 +43,14 @@ export function Sidebar() {
       }`}
     >
       <div className={`flex items-center gap-3 px-5 py-6 ${collapsed ? 'justify-center px-2' : ''}`}>
-        <RingMark size={34} />
+        {/* The intro's flying ring FLIP-lands exactly on this slot; the slot's
+            own ring stays hidden until the landing so there is never a double. */}
+        <span
+          data-intro-logo-slot
+          className={`-my-1.5 -ml-1 block h-12 w-12 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
+        >
+          <RingSpin size={48} speed={0.14} />
+        </span>
         {!collapsed && (
           <span className="brand-gradient text-xl font-bold tracking-tight">Almaz</span>
         )}
