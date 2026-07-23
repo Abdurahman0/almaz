@@ -29,19 +29,19 @@ const SETTLE_MS = 80;
 
 // rotations per second per phase
 const RPS_ENTER = 0.4 / (ENTER_MS / 1000); // ~0.29 — 0.4 rotation over the entrance
-const RPS_IDLE = 1 / 12; // majestic centered hold
+const RPS_IDLE = 1 / 7; // centered hold: visibly alive, still elegant
 const RPS_ROCKET = 0.5 / (FLIGHT_MS / 1000); // fast half-turn during the flight
 
 /*
  * The hole's clear aperture varies with rotation (band sweeps through it when
- * edge-on). Measured per frame: widest open arc is frames 12-17 of 30
- * (half-width 56-70px in 512-frame coords). The entrance's 0.4 rotation from
- * angle 0 arrives exactly there; the hold is snapped to frame 12 and its
- * 12s/rot drift stays inside the arc for the whole ~2s word window, so no
- * letter is ever covered by the band. Text box = the arc's minimum clear
- * aperture (112x69 frame-px) scaled to the ring size.
+ * edge-on). Measured per frame (half-widths in 512-frame coords): the widest
+ * open arc runs frames 11-17 [56,64,68,70,68,62,56]. The hold snaps to frame
+ * 11; at 1/7 rps the visible word window (~1.47s: reveal 550ms + hold 800ms
+ * with the shimmer running inside it + fade 120ms) sweeps ~6.3 frames,
+ * staying inside the arc — crossfade pairs bottom out at ~46px half-width, so
+ * the text box is sized to that worst pair and no letter is ever covered.
  */
-const HOLD_ANGLE = 12 / 30;
+const HOLD_ANGLE = 11 / 30;
 
 function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone: () => void }) {
   const [scope, animate] = useAnimate();
@@ -76,20 +76,22 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const mobile = vw <= 640;
-    const S = mobile ? 0.4 * vw : Math.min(0.62 * vh, 560);
-    // ring center starts beyond the top-right corner: (+8vw, -8vh) past it
-    const x0 = vw * 0.58; // (1.08vw) - vw/2
-    const y0 = -(vh * 0.58); // (-0.08vh) - vh/2
+    const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660);
+    // ring center starts at the EXACT top-right corner point (100vw, 0):
+    // initially clipped by the corner, growing out of it
+    const x0 = vw / 2;
+    const y0 = -(vh / 2);
 
-    // canvas spin loop with mutable angular velocity
-    const startSpin = async () => {
-      const frames = await getRingFrames(assetPath);
+    // canvas spin loop with mutable angular velocity; frames are guaranteed
+    // decoded before this is called
+    const startSpin = (frames: ImageBitmap[]) => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || disposed) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
       canvas.width = S * dpr;
       canvas.height = S * dpr;
+      ctx.imageSmoothingQuality = 'high';
       let lastT: number | null = null;
       const tick = (now: number) => {
         if (disposed) return;
@@ -109,9 +111,22 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       };
       raf = requestAnimationFrame(tick);
     };
-    void startSpin();
-
     const run = async () => {
+      // Decode-before-frame-one: every spin frame is an ImageBitmap in memory
+      // before any animation starts — no mid-flight decode stutter.
+      try {
+        const frames = await getRingFrames(assetPath);
+        if (disposed) return;
+        startSpin(frames);
+      } catch {
+        onDone(); // frames unavailable: skip straight to final state
+        return;
+      }
+      // Every awaited step is raced against a deadline: a driver that fails
+      // to start (seen with framer's backgroundPosition path in prod) must
+      // never stall the whole timeline.
+      const guard = (p: PromiseLike<unknown> | unknown, ms: number) =>
+        Promise.race([Promise.resolve(p as PromiseLike<unknown>), new Promise<void>((r) => setTimeout(r, ms + 400))]);
       const step = (el: string, kf: object, opts: object) =>
         skippedRef.current || disposed ? Promise.resolve() : animate(el as never, kf as never, opts as never);
 
@@ -120,70 +135,81 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       rpsRef.current = RPS_ENTER;
       const backdropIn = step('.intro-backdrop', { opacity: [0, 1] }, { duration: 0.3, ease: 'easeOut' });
       const glowIn = step('.intro-glow', { opacity: [0, 1] }, { duration: 0.6, ease: 'easeOut', delay: 0.7 });
-      await step(
-        '.intro-ring',
-        { x: [x0, x0 * 0.32, 0], y: [y0, y0 * 0.7, 0], scale: [120 / S, 0.52, 1] },
-        { duration: ENTER_MS / 1000, ease: [0.16, 0.8, 0.26, 1], times: [0, 0.48, 1] },
+      await guard(
+        step(
+          '.intro-ring',
+          { x: [x0, x0 * 0.32, 0], y: [y0, y0 * 0.7, 0], scale: [120 / S, 0.52, 1] },
+          { duration: ENTER_MS / 1000, ease: [0.16, 0.8, 0.26, 1], times: [0, 0.48, 1] },
+        ),
+        ENTER_MS,
       );
-      await Promise.all([backdropIn, glowIn]);
+      await guard(Promise.all([backdropIn, glowIn]), 1300);
 
-      // Phase 2 — majestic hold; wordmark composes inside the ring's hole.
-      // Snap to the face-on frame so the ~2s word window drifts only within
-      // the measured open-aperture arc (frames 12-17).
+      // Phase 2 — hold; wordmark composes inside the ring's hole. Snap to the
+      // start of the open-aperture arc so the whole word window (reveal +
+      // hold with the shimmer inside it + fade) drifts within it at 1/7 rps.
       angleRef.current = HOLD_ANGLE;
       rpsRef.current = RPS_IDLE;
-      await step(
-        '.intro-word',
-        { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] },
-        { duration: WORD_MS / 1000, ease: 'easeOut' },
+      await guard(
+        step(
+          '.intro-word',
+          { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] },
+          { duration: WORD_MS / 1000, ease: 'easeOut' },
+        ),
+        WORD_MS,
       );
-      // one shimmer sweep across the letters
-      await step(
-        '.intro-word',
-        { backgroundPosition: ['150% 0%', '-50% 0%'] },
-        { duration: SHIMMER_MS / 1000, ease: 'easeInOut' },
-      );
+      // one shimmer sweep, running concurrently inside the hold — native WAAPI
+      // (framer's backgroundPosition driver silently never started in prod)
+      if (!skippedRef.current && !disposed) {
+        document
+          .querySelector('.intro-word')
+          ?.animate(
+            [{ backgroundPosition: '150% 0%' }, { backgroundPosition: '-50% 0%' }],
+            { duration: SHIMMER_MS, easing: 'ease-in-out', fill: 'forwards' },
+          );
+      }
       if (!skippedRef.current) await new Promise((r) => setTimeout(r, HOLD_MS));
 
       // Phase 3 — rocket exit
-      await step('.intro-word', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 });
+      await guard(step('.intro-word', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 }), WORD_OUT_MS);
       const slot = document.querySelector('[data-intro-logo-slot]');
       const slotRect = slot ? slot.getBoundingClientRect() : null;
 
       // micro-anticipation: tiny shift right + 1.02 before the launch
-      await step(
-        '.intro-ring',
-        { x: S * 0.02, scale: 1.02 },
-        { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' },
+      await guard(
+        step('.intro-ring', { x: S * 0.02, scale: 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }),
+        ANTICIPATION_MS,
       );
 
       rpsRef.current = RPS_ROCKET;
-      const streaks = step('.intro-streaks', { opacity: [0, 0.85] }, { duration: 0.08 });
       const backdropOut = step('.intro-backdrop', { opacity: 0 }, { duration: 0.3, ease: 'easeOut' });
       const glowOut = step('.intro-glow', { opacity: 0 }, { duration: 0.2, ease: 'easeOut' });
       if (slotRect && slotRect.width > 0) {
         const dx = slotRect.x + slotRect.width / 2 - vw / 2;
         const dy = slotRect.y + slotRect.height / 2 - vh / 2;
         const target = slotRect.width / S;
-        await step(
-          '.intro-ring',
-          { x: dx, y: dy, scale: target * 1.04 },
-          { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
+        await guard(
+          step(
+            '.intro-ring',
+            { x: dx, y: dy, scale: target * 1.04 },
+            { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
+          ),
+          FLIGHT_MS,
         );
-        rpsRef.current = RPS_IDLE;
-        const settle = step('.intro-ring', { scale: target }, { duration: SETTLE_MS / 1000, ease: 'easeOut' });
-        const streaksOut = step('.intro-streaks', { opacity: 0 }, { duration: 0.15 });
-        await Promise.all([settle, streaksOut]);
+        rpsRef.current = 1 / 7; // relax to the sidebar idle speed on landing
+        await guard(step('.intro-ring', { scale: target }, { duration: SETTLE_MS / 1000, ease: 'easeOut' }), SETTLE_MS);
       } else {
         // mobile / no visible slot: rocket off-left, shrinking and fading
-        await step(
-          '.intro-ring',
-          { x: -vw * 0.7, scale: 0.15, opacity: 0 },
-          { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
+        await guard(
+          step(
+            '.intro-ring',
+            { x: -vw * 0.7, scale: 0.15, opacity: 0 },
+            { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
+          ),
+          FLIGHT_MS,
         );
-        await step('.intro-streaks', { opacity: 0 }, { duration: 0.15 });
       }
-      await Promise.all([backdropOut, glowOut, streaks]);
+      await guard(Promise.all([backdropOut, glowOut]), 320);
       if (!disposed) onDone();
     };
 
@@ -202,16 +228,18 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
 
   const vh = window.innerHeight;
   const vw = window.innerWidth;
-  const S = vw <= 640 ? 0.4 * vw : Math.min(0.62 * vh, 560);
+  const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
   // the render's visible ring center is offset inside its square frame
   const holeCx = -0.15 * S;
   const holeCy = -0.02 * S;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
+      {/* plain color dim — backdrop-filter blur repaints the whole page under
+          it on every animation frame and was the primary jank source */}
       <div
-        className="intro-backdrop absolute inset-0 opacity-0 backdrop-blur-[3px]"
-        style={{ background: 'color-mix(in srgb, var(--bg) 65%, transparent)' }}
+        className="intro-backdrop absolute inset-0 opacity-0"
+        style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }}
       />
       {/* ambient accent glow anchored under the ring's visible center */}
       <div
@@ -227,26 +255,18 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       />
       <div
         className="intro-ring absolute"
-        style={{ left: vw / 2 - S / 2, top: vh / 2 - S / 2, width: S, height: S }}
+        style={{
+          left: vw / 2 - S / 2,
+          top: vh / 2 - S / 2,
+          width: S,
+          height: S,
+          willChange: 'transform',
+          // parked at the exact corner point until the timeline's first frame
+          // (frames decode-await happens before animation start)
+          transform: `translate(${vw / 2}px, ${-vh / 2}px) scale(${120 / S})`,
+        }}
       >
         <canvas ref={canvasRef} className="h-full w-full" style={{ width: S, height: S }} />
-        {/* speed streaks trail to the right while rocketing left */}
-        <div
-          className="intro-streaks absolute opacity-0"
-          style={{ left: '55%', top: `${50 + (holeCy / S) * 100}%`, width: S * 1.6, height: 2 }}
-        >
-          {[-0.09, 0, 0.09].map((dy) => (
-            <span
-              key={dy}
-              className="absolute block h-px w-full"
-              style={{
-                top: dy * S,
-                background:
-                  'linear-gradient(90deg, color-mix(in srgb, var(--accent) 70%, var(--text)) 0%, transparent 90%)',
-              }}
-            />
-          ))}
-        </div>
         {/* wordmark inside the ring's hole, above the frames */}
         <div
           className="absolute text-center"

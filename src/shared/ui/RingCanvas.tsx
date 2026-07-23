@@ -15,7 +15,7 @@ interface RingCanvasProps {
  * adjacent-frame crossfade — no visible stepping even at very slow speeds.
  * Pauses when the tab is hidden; static first frame under reduced motion.
  */
-export function RingCanvas({ size, rotationMs = 14000, assetPath = '/', className }: RingCanvasProps) {
+export function RingCanvas({ size, rotationMs = 7000, assetPath = '/', className }: RingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
 
   useEffect(() => {
@@ -26,6 +26,7 @@ export function RingCanvas({ size, rotationMs = 14000, assetPath = '/', classNam
     canvas.height = size * dpr;
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
+    ctx.imageSmoothingQuality = 'high';
 
     let raf = 0;
     let frames: ImageBitmap[] | null = null;

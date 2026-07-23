@@ -14,14 +14,18 @@ export function useLogin() {
   return useMutation({
     mutationFn: async (body: LoginRequest) => {
       const tokens = await login(body);
+      // Arm the one-time intro BEFORE tokens land: setTokens flips `authed`,
+      // which immediately triggers LoginPage's <Navigate replace> — the intro
+      // must already be suppressing the page-transition ring at that point,
+      // or it flashes for a few frames. Plays only on a real login, never on
+      // refresh/restore.
+      useIntroStore.getState().request();
       setTokens(tokens.access_token, tokens.refresh_token);
       const me = await fetchMe();
       setUser(me);
       return me;
     },
     onSuccess: () => {
-      // one-time intro plays only on a real login, never on refresh/restore
-      useIntroStore.getState().request();
       const from = (location.state as { from?: string } | null)?.from ?? '/';
       navigate(from, { replace: true });
     },

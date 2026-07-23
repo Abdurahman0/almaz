@@ -49,7 +49,7 @@ export function Sidebar() {
           data-intro-logo-slot
           className={`-my-1.5 -ml-1 block h-12 w-12 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
         >
-          <RingCanvas size={48} rotationMs={14000} />
+          <RingCanvas size={48} rotationMs={7000} />
         </span>
         {!collapsed && (
           <span className="brand-gradient text-xl font-bold tracking-tight">Almaz</span>
