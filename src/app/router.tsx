@@ -14,7 +14,7 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 export const router = createBrowserRouter([
   {
     // Ring transition for every navigation below; guard REPLACE redirects stay silent.
-    element: <RingTransitionLayout minMs={1300} />,
+    element: <RingTransitionLayout minMs={1600} />,
     children: [
       { path: '/login', lazy: page(() => import('@/features/auth/pages/LoginPage')) },
       {

@@ -9,6 +9,7 @@ import { formatDateTime } from '@/shared/lib/format';
 import { useGoldRates, useSettings, useUpdateSetting } from '../hooks';
 import { GOLD_RATE_KEYS } from '../api';
 import { StaffSection } from '../components/StaffSection';
+import { CardsSection } from '../components/CardsSection';
 import { useAudit } from '../rbac';
 
 function GoldRateEditor() {
@@ -91,6 +92,10 @@ export default function SettingsPage() {
         <Card>
           <h2 className="mb-4 text-md font-semibold text-text">Oltin kursi (1 g)</h2>
           <GoldRateEditor />
+        </Card>
+
+        <Card className="h-fit">
+          <CardsSection />
         </Card>
 
         <Card>

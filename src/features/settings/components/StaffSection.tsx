@@ -3,7 +3,7 @@ import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Plus, UserRound } from 'lucide-react';
-import { Badge, Button, Card, ErrorCard, Input, Modal, Select, SkeletonRows } from '@/shared/ui';
+import { Badge, Button, Card, ErrorCard, Input, Modal, PasswordInput, Select, SkeletonRows } from '@/shared/ui';
 import { useCreateStaff, useRoles, useStaff, useToggleStaff } from '../rbac';
 
 const schema = z.object({
@@ -75,9 +75,8 @@ export function StaffSection() {
         <form onSubmit={submit} className="space-y-4" noValidate>
           <Input label="F.I.Sh." error={form.formState.errors.full_name?.message} {...form.register('full_name')} />
           <Input label="Email" type="email" error={form.formState.errors.email?.message} {...form.register('email')} />
-          <Input
+          <PasswordInput
             label="Parol"
-            type="password"
             error={form.formState.errors.password?.message}
             {...form.register('password')}
           />

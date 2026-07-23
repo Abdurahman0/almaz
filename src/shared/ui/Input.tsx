@@ -1,5 +1,6 @@
-import { forwardRef } from 'react';
+import { forwardRef, useState } from 'react';
 import type { InputHTMLAttributes, TextareaHTMLAttributes, ReactNode } from 'react';
+import { Eye, EyeOff } from 'lucide-react';
 
 const fieldCls =
   'w-full rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted transition-colors duration-150 focus:border-accent hover:border-strong';
@@ -35,6 +36,38 @@ export const Input = forwardRef<HTMLInputElement, InputProps>(
   ),
 );
 Input.displayName = 'Input';
+
+export type PasswordInputProps = Omit<InputProps, 'type'>;
+
+export const PasswordInput = forwardRef<HTMLInputElement, PasswordInputProps>(
+  ({ label, error, className = '', ...rest }, ref) => {
+    const [shown, setShown] = useState(false);
+    const Icon = shown ? EyeOff : Eye;
+    return (
+      <FieldWrap label={label} error={error}>
+        <span className="relative block">
+          <input
+            ref={ref}
+            type={shown ? 'text' : 'password'}
+            className={`${fieldCls} pr-10 ${error ? 'border-danger-soft' : ''} ${className}`}
+            {...rest}
+          />
+          <button
+            type="button"
+            aria-label={shown ? 'Parolni yashirish' : "Parolni ko'rsatish"}
+            aria-pressed={shown}
+            onMouseDown={(e) => e.preventDefault()} // keep input focus
+            onClick={() => setShown((s) => !s)}
+            className="absolute inset-y-0 right-0 flex w-10 items-center justify-center text-muted transition-colors hover:text-text"
+          >
+            <Icon className="h-4 w-4" strokeWidth={1.5} />
+          </button>
+        </span>
+      </FieldWrap>
+    );
+  },
+);
+PasswordInput.displayName = 'PasswordInput';
 
 export interface TextareaProps extends TextareaHTMLAttributes<HTMLTextAreaElement> {
   label?: string;

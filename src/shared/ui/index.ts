@@ -1,6 +1,6 @@
 export { Button } from './Button';
 export { Card, HoverCard } from './Card';
-export { Input, Textarea, FieldWrap } from './Input';
+export { Input, PasswordInput, Textarea, FieldWrap } from './Input';
 export { Modal, ConfirmDialog } from './Modal';
 export {
   Badge,
