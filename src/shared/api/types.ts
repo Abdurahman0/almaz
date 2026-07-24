@@ -79,16 +79,55 @@ export interface SettingUpdate {
 }
 
 // ---------- Catalog ----------
+/** A localized dictionary row shared by categories and the reference lists. */
+export interface Localized {
+  name_uz: string;
+  name_ru: string | null;
+}
 export interface CategoryOut {
   id: string;
-  name: string;
+  name_uz: string;
+  name_ru: string | null;
   slug: string;
   parent_id: string | null;
+  /** Price per gram (money as string) used by the weight calculator. */
+  gram_price: string | null;
 }
 export interface CategoryCreate {
-  name: string;
+  name_uz: string;
+  name_ru?: string | null;
   slug?: string | null;
   parent_id?: string | null;
+  gram_price?: number | string | null;
+}
+export type CategoryUpdate = Partial<CategoryCreate>;
+
+/** gender / material / stone — same shape reference dictionary (DB-driven CRUD). */
+export type RefKind = 'genders' | 'materials' | 'stones';
+export interface RefOut {
+  id: string;
+  name_uz: string;
+  name_ru: string | null;
+  is_active: boolean;
+  sort_order: number;
+}
+export interface RefCreate {
+  name_uz: string;
+  name_ru?: string | null;
+  is_active?: boolean;
+  sort_order?: number;
+}
+export type RefUpdate = Partial<RefCreate>;
+
+/** GET /catalog/price-calc — preview only, does not persist. */
+export interface PriceCalcOut {
+  gram_price: string | number;
+  weight_grams: string | number;
+  price: string | number;
+}
+export interface ProductMediaCreate {
+  image_url: string;
+  shortcode_or_url?: string | null;
 }
 export interface VariantOut {
   id: string;
@@ -124,29 +163,46 @@ export interface MediaOut {
 export interface ProductOut {
   id: string;
   category_id: string | null;
-  name: string;
-  gender: Gender;
-  material: string;
-  stone: string;
+  name_uz: string;
+  name_ru: string | null;
+  description_uz: string | null;
+  description_ru: string | null;
+  gender_id: string | null;
+  material_id: string | null;
+  stone_id: string | null;
+  weight_grams: string | number | null;
+  /** Base price (struck-through when discounted). */
   price: string;
-  compare_at_price: string | null;
+  /** Discounted price the customer pays; null = no discount. */
+  discount_price: string | null;
+  /** Computed: discount_price when present, else price. */
+  effective_price: string;
   status: ProductStatus;
-  description: string | null;
+  engraving_available?: boolean;
   ai_keywords: string[] | null;
   variants: VariantOut[];
   media: MediaOut[];
 }
 export interface ProductCreate {
-  name: string;
+  name_uz: string;
+  name_ru?: string | null;
+  description_uz?: string | null;
+  description_ru?: string | null;
   category_id?: string | null;
-  gender?: Gender;
-  material?: string;
-  stone?: string;
-  price: number | string;
-  compare_at_price?: number | string | null;
+  gender_id?: string | null;
+  material_id?: string | null;
+  stone_id?: string | null;
+  weight_grams?: number | string | null;
+  /** Optional: omitted -> server computes from weight_grams x category gram_price. */
+  price?: number | string | null;
+  discount_price?: number | string | null;
   status?: ProductStatus;
-  description?: string | null;
+  engraving_available?: boolean;
   ai_keywords?: string[] | null;
+  /** Simplest image attach — plain URLs. */
+  image_urls?: string[] | null;
+  /** Richer media attach with optional Instagram shortcode/permalink. */
+  media?: ProductMediaCreate[] | null;
   variants?: VariantCreate[] | null;
 }
 export type ProductUpdate = Partial<Omit<ProductCreate, 'variants'>>;

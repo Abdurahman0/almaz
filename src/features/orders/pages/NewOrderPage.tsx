@@ -10,6 +10,8 @@ import { useCreateOrder } from '../hooks';
 import { RingSizeCone, RING_SIZES } from '../components/RingSizeCone';
 import { useCustomers } from '@/features/inbox/hooks';
 import { useProducts } from '@/features/products/hooks';
+import { pickName } from '@/shared/lib/localize';
+import { useUiStore } from '@/shared/stores/ui';
 import type { ApiError } from '@/shared/api/client';
 
 const schema = z.object({
@@ -25,6 +27,7 @@ const steps = ['Mijoz', 'Mahsulot', "O'lcham", 'Tasdiqlash'] as const;
 export default function NewOrderPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState(0);
+  const lang = useUiStore((s) => s.lang);
   const customers = useCustomers();
   const products = useProducts();
   const createOrder = useCreateOrder();
@@ -141,8 +144,8 @@ export default function NewOrderPage() {
                         .filter((vr) => vr.is_active)
                         .map((vr) => ({
                           value: vr.id,
-                          label: `${p.name} · ${vr.sku}`,
-                          description: `${formatMoney(p.price)} — ${vr.available} dona mavjud`,
+                          label: `${pickName(p, lang)} · ${vr.sku}`,
+                          description: `${formatMoney(Number(p.effective_price))} — ${vr.available} dona mavjud`,
                           disabled: vr.available <= 0,
                         })),
                     )}
@@ -214,7 +217,7 @@ export default function NewOrderPage() {
           </div>
           <div className="flex justify-between border-b border-border pb-2">
             <dt className="text-muted">Mahsulot</dt>
-            <dd className="text-right text-text">{selectedProduct?.name ?? '—'}</dd>
+            <dd className="text-right text-text">{selectedProduct ? pickName(selectedProduct, lang) : '—'}</dd>
           </div>
           <div className="flex justify-between border-b border-border pb-2">
             <dt className="text-muted">Miqdor</dt>
@@ -228,7 +231,7 @@ export default function NewOrderPage() {
             <dt className="text-muted">Taxminiy summa</dt>
             <dd className="text-md tnum text-accent-ink">
               {selectedProduct ? (
-                <Money value={Number(selectedProduct.price) * (values.quantity || 1)} />
+                <Money value={Number(selectedProduct.effective_price) * (values.quantity || 1)} />
               ) : (
                 '—'
               )}

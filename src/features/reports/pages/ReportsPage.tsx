@@ -18,12 +18,15 @@ import { formatNumber } from '@/shared/lib/format';
 import { useOrders } from '@/features/orders/hooks';
 import { useProducts } from '@/features/products/hooks';
 import { useClients } from '@/features/clients/hooks';
+import { pickName } from '@/shared/lib/localize';
+import { useUiStore } from '@/shared/stores/ui';
 
 export default function ReportsPage() {
   const [range, setRange] = useState<Range>({
     from: startOfMonth(new Date()),
     to: endOfMonth(new Date()),
   });
+  const lang = useUiStore((s) => s.lang);
   const orders = useOrders(undefined, 200);
   const products = useProducts();
   const clients = useClients();
@@ -49,13 +52,13 @@ export default function ReportsPage() {
     const topProducts = Array.from(byVariant.entries())
       .map(([variantId, agg]) => {
         const product = products.data?.find((p) => p.variants.some((v) => v.id === variantId));
-        return { name: product?.name ?? `Variant ${variantId.slice(0, 8)}`, ...agg };
+        return { name: product ? pickName(product, lang) : `Variant ${variantId.slice(0, 8)}`, ...agg };
       })
       .sort((a, b) => b.revenue - a.revenue)
       .slice(0, 5);
 
     return { revenue, count: inPeriod.length, topProducts };
-  }, [orders.data, products.data, range]);
+  }, [orders.data, products.data, range, lang]);
 
   const topClients = [...(clients.data ?? [])]
     .sort((a, b) => b.total - a.total)
