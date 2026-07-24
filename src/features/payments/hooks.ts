@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as paymentsApi from './api';
-import type { PaymentCardCreate, PaymentOut, PaymentStatus } from '@/shared/api/types';
+import type { PaymentCardCreate, PaymentCardUpdate, PaymentOut, PaymentStatus } from '@/shared/api/types';
 
 export const paymentKeys = {
   all: ['payments'] as const,
@@ -52,13 +52,30 @@ export function useRejectPayment() {
 }
 
 export function useCards() {
-  return useQuery({ queryKey: paymentKeys.cards, queryFn: paymentsApi.listCards });
+  return useQuery({ queryKey: paymentKeys.cards, queryFn: () => paymentsApi.listCards() });
 }
 
 export function useCreateCard() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (body: PaymentCardCreate) => paymentsApi.createCard(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.cards }),
+  });
+}
+
+export function useUpdateCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: PaymentCardUpdate }) =>
+      paymentsApi.updateCard(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.cards }),
+  });
+}
+
+export function useDeleteCard() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => paymentsApi.deleteCard(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: paymentKeys.cards }),
   });
 }

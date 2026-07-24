@@ -61,6 +61,42 @@ api.interceptors.response.use(
   },
 );
 
+/** Standard list envelope returned by every paginated GET (migration 0010). */
+export interface Paginated<T> {
+  items: T[];
+  total: number;
+  limit: number;
+  offset: number;
+}
+
+/**
+ * Fetch a list endpoint tolerant of both the new `{items,total,limit,offset}`
+ * envelope and a legacy bare array, so rollout order never breaks the UI.
+ */
+export async function getList<T>(
+  url: string,
+  config?: Parameters<typeof api.get>[1],
+): Promise<Paginated<T>> {
+  const { data } = await api.get<Paginated<T> | T[]>(url, config);
+  if (Array.isArray(data)) {
+    return { items: data, total: data.length, limit: data.length, offset: 0 };
+  }
+  return {
+    items: data?.items ?? [],
+    total: data?.total ?? 0,
+    limit: data?.limit ?? 0,
+    offset: data?.offset ?? 0,
+  };
+}
+
+/** Unwrap just the items array (for callers that don't page). */
+export async function getItems<T>(
+  url: string,
+  config?: Parameters<typeof api.get>[1],
+): Promise<T[]> {
+  return (await getList<T>(url, config)).items;
+}
+
 export interface ApiError {
   status: number | null;
   message: string;

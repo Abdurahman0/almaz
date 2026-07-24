@@ -1,11 +1,22 @@
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Bot, Send, UserCheck } from 'lucide-react';
-import { Badge, Button, Card, EmptyState, ErrorCard, SkeletonRows } from '@/shared/ui';
+import { Bot, Search, Send, UserCheck } from 'lucide-react';
+import { Badge, Button, Card, Checkbox, EmptyState, ErrorCard, Select, SkeletonRows, type SelectOption } from '@/shared/ui';
 import { formatTime } from '@/shared/lib/format';
 import { useAuthStore } from '@/shared/stores/auth';
 import { useAssign, useConversations, useMarkRead, useMessages, useSendMessage } from '../hooks';
-import type { AiState, ConversationOut } from '@/shared/api/types';
+import type { AiState, Channel, ConversationOut, ConversationStatus } from '@/shared/api/types';
+
+const channelOptions: SelectOption[] = [
+  { value: '', label: 'Barcha kanallar' },
+  { value: 'telegram', label: 'Telegram' },
+  { value: 'instagram', label: 'Instagram' },
+];
+const statusOptions: SelectOption[] = [
+  { value: '', label: 'Barcha holatlar' },
+  { value: 'open', label: 'Ochiq' },
+  { value: 'closed', label: 'Yopilgan' },
+];
 
 const aiStateLabels: Record<AiState, string> = {
   greeting: 'Salomlashuv',
@@ -57,7 +68,28 @@ function ConversationRow({ conv, active, onClick }: {
 export default function InboxPage() {
   const { conversationId = '' } = useParams();
   const navigate = useNavigate();
-  const conversations = useConversations();
+
+  // filters
+  const [search, setSearch] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [channel, setChannel] = useState('');
+  const [status, setStatus] = useState('');
+  const [unreadOnly, setUnreadOnly] = useState(false);
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(search.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
+  const convParams = useMemo(
+    () => ({
+      q: debouncedQ || undefined,
+      channel: (channel as Channel) || undefined,
+      status: (status as ConversationStatus) || undefined,
+      unread_only: unreadOnly || undefined,
+    }),
+    [debouncedQ, channel, status, unreadOnly],
+  );
+
+  const conversations = useConversations(convParams);
   const messages = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId);
   const markRead = useMarkRead();
@@ -88,7 +120,30 @@ export default function InboxPage() {
     <div>
       <h1 className="mb-6 text-xl text-text">Xabarlar</h1>
       <Card className="grid h-[calc(100vh-220px)] min-h-[480px] grid-cols-1 overflow-hidden p-0 md:grid-cols-[320px_1fr]">
-        <div className={`overflow-y-auto border-r border-border ${conversationId ? 'hidden md:block' : ''}`}>
+        <div className={`flex flex-col overflow-hidden border-r border-border ${conversationId ? 'hidden md:flex' : ''}`}>
+          {/* Filters */}
+          <div className="space-y-2 border-b border-border p-3">
+            <div className="relative">
+              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.5} />
+              <input
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="Ism / username / ID..."
+                aria-label="Suhbat qidirish"
+                className="w-full rounded-lg border border-border bg-bg py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
+              />
+            </div>
+            <div className="flex gap-2">
+              <div className="flex-1">
+                <Select size="sm" placeholder="Kanal" options={channelOptions} value={channel} onChange={setChannel} />
+              </div>
+              <div className="flex-1">
+                <Select size="sm" placeholder="Holat" options={statusOptions} value={status} onChange={setStatus} />
+              </div>
+            </div>
+            <Checkbox checked={unreadOnly} onCheckedChange={setUnreadOnly} label="Faqat o'qilmagan" />
+          </div>
+          <div className="min-h-0 flex-1 overflow-y-auto">
           {conversations.isPending && <div className="p-4"><SkeletonRows rows={6} /></div>}
           {conversations.isError && (
             <div className="p-4">
@@ -106,6 +161,7 @@ export default function InboxPage() {
               onClick={() => navigate(`/inbox/${c.id}`)}
             />
           ))}
+          </div>
         </div>
 
         <div className={`flex min-w-0 flex-col ${conversationId ? '' : 'hidden md:flex'}`}>

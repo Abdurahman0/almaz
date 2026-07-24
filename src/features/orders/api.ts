@@ -1,4 +1,4 @@
-import { api } from '@/shared/api/client';
+import { api, getItems, getList, type Paginated } from '@/shared/api/client';
 import type {
   CheckoutLinkOut,
   DeliveryOut,
@@ -12,10 +12,22 @@ import type {
 
 export interface OrdersListParams extends ListParams {
   status?: OrderStatus;
+  customer_id?: string;
+  assigned_operator_id?: string;
+  created_by_ai?: boolean;
+  order_no?: string;
+  date_from?: string;
+  date_to?: string;
 }
 
+/** Flat orders array (dashboard / reports). */
 export async function listOrders(params: OrdersListParams = {}): Promise<OrderOut[]> {
-  return (await api.get<OrderOut[]>('/orders', { params })).data;
+  return getItems<OrderOut>('/orders', { params: { limit: 200, ...params } });
+}
+
+/** Paginated orders for the orders page. */
+export async function listOrdersPage(params: OrdersListParams = {}): Promise<Paginated<OrderOut>> {
+  return getList<OrderOut>('/orders', { params: { limit: 50, ...params } });
 }
 
 export async function getOrder(orderId: string): Promise<OrderOut> {

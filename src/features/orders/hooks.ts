@@ -1,18 +1,30 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ordersApi from './api';
+import type { OrdersListParams } from './api';
 import type { OrderCreate, OrderStatus } from '@/shared/api/types';
 
 export const orderKeys = {
   all: ['orders'] as const,
   list: (status?: OrderStatus) => ['orders', 'list', status ?? 'all'] as const,
+  page: (params: OrdersListParams) => ['orders', 'page', params] as const,
   detail: (id: string) => ['orders', 'detail', id] as const,
   delivery: (id: string) => ['orders', 'delivery', id] as const,
 };
 
-export function useOrders(status?: OrderStatus, limit = 100) {
+/** Flat orders (reports / dashboard). */
+export function useOrders(status?: OrderStatus, limit = 200) {
   return useQuery({
     queryKey: orderKeys.list(status),
     queryFn: () => ordersApi.listOrders({ status, limit }),
+  });
+}
+
+/** Paginated orders for the orders page. */
+export function useOrdersPage(params: OrdersListParams) {
+  return useQuery({
+    queryKey: orderKeys.page(params),
+    queryFn: () => ordersApi.listOrdersPage(params),
+    placeholderData: keepPreviousData,
   });
 }
 

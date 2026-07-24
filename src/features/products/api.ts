@@ -1,8 +1,11 @@
-import { api } from '@/shared/api/client';
+import { api, getItems, getList, type Paginated } from '@/shared/api/client';
 import type {
   CategoryCreate,
   CategoryOut,
   CategoryUpdate,
+  KursCreate,
+  KursOut,
+  KursUpdate,
   ListParams,
   MediaOut,
   PriceCalcOut,
@@ -23,10 +26,18 @@ import type {
 export interface ProductListParams extends ListParams {
   status?: ProductStatus;
   category_id?: string;
+  gender_id?: string;
+  material_id?: string;
+  stone_id?: string;
+  engraving_available?: boolean;
+  in_stock?: boolean;
+  min_price?: number;
+  max_price?: number;
+  q?: string;
 }
 
-export async function listProducts(params: ProductListParams = {}): Promise<ProductOut[]> {
-  return (await api.get<ProductOut[]>('/catalog/products', { params: { limit: 100, ...params } })).data;
+export async function listProducts(params: ProductListParams = {}): Promise<Paginated<ProductOut>> {
+  return getList<ProductOut>('/catalog/products', { params: { limit: 50, ...params } });
 }
 
 export async function getProduct(id: string): Promise<ProductOut> {
@@ -63,8 +74,13 @@ export async function deleteMedia(mediaId: string): Promise<void> {
 }
 
 // ---------- Categories (full CRUD) ----------
-export async function listCategories(): Promise<CategoryOut[]> {
-  return (await api.get<CategoryOut[]>('/catalog/categories')).data;
+export interface CategoryListParams extends ListParams {
+  parent_id?: string;
+  q?: string;
+}
+
+export async function listCategories(params: CategoryListParams = {}): Promise<CategoryOut[]> {
+  return getItems<CategoryOut>('/catalog/categories', { params: { limit: 1000, ...params } });
 }
 
 export async function getCategory(id: string): Promise<CategoryOut> {
@@ -85,8 +101,8 @@ export async function deleteCategory(id: string): Promise<void> {
 
 // ---------- Reference dictionaries: genders / materials / stones ----------
 export async function listRefs(kind: RefKind, onlyActive = false): Promise<RefOut[]> {
-  const params = onlyActive ? { only_active: true } : undefined;
-  return (await api.get<RefOut[]>(`/catalog/${kind}`, { params })).data;
+  const params = { limit: 1000, ...(onlyActive ? { only_active: true } : {}) };
+  return getItems<RefOut>(`/catalog/${kind}`, { params });
 }
 
 export async function createRef(kind: RefKind, body: RefCreate): Promise<RefOut> {
@@ -99,6 +115,28 @@ export async function updateRef(kind: RefKind, id: string, body: RefUpdate): Pro
 
 export async function deleteRef(kind: RefKind, id: string): Promise<void> {
   await api.delete(`/catalog/${kind}/${id}`);
+}
+
+// ---------- Kurs (per-gram price, linked to category) ----------
+export interface KursListParams extends ListParams {
+  category_id?: string;
+  is_active?: boolean;
+}
+
+export async function listKurs(params: KursListParams = {}): Promise<KursOut[]> {
+  return getItems<KursOut>('/catalog/kurs', { params: { limit: 1000, ...params } });
+}
+
+export async function createKurs(body: KursCreate): Promise<KursOut> {
+  return (await api.post<KursOut>('/catalog/kurs', body)).data;
+}
+
+export async function updateKurs(id: string, body: KursUpdate): Promise<KursOut> {
+  return (await api.patch<KursOut>(`/catalog/kurs/${id}`, body)).data;
+}
+
+export async function deleteKurs(id: string): Promise<void> {
+  await api.delete(`/catalog/kurs/${id}`);
 }
 
 // ---------- Weight -> price calculator preview ----------

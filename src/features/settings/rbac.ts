@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { api } from '@/shared/api/client';
+import { api, getItems } from '@/shared/api/client';
 import type { AuditLogOut, RoleOut, UserCreate, UserDetailOut } from '@/shared/api/types';
 
 export const rbacKeys = {
@@ -11,14 +11,14 @@ export const rbacKeys = {
 export function useStaff() {
   return useQuery({
     queryKey: rbacKeys.users,
-    queryFn: async () => (await api.get<UserDetailOut[]>('/rbac/users')).data,
+    queryFn: () => getItems<UserDetailOut>('/rbac/users', { params: { limit: 200 } }),
   });
 }
 
 export function useRoles() {
   return useQuery({
     queryKey: rbacKeys.roles,
-    queryFn: async () => (await api.get<RoleOut[]>('/rbac/roles')).data,
+    queryFn: () => getItems<RoleOut>('/rbac/roles', { params: { limit: 200 } }),
   });
 }
 
@@ -42,6 +42,6 @@ export function useToggleStaff() {
 export function useAudit() {
   return useQuery({
     queryKey: rbacKeys.audit,
-    queryFn: async () => (await api.get<AuditLogOut[]>('/audit', { params: { limit: 30 } })).data,
+    queryFn: () => getItems<AuditLogOut>('/audit', { params: { limit: 30 } }),
   });
 }

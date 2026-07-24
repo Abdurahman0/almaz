@@ -1,13 +1,16 @@
-import { useMemo, useState } from 'react';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal } from 'lucide-react';
+import { useEffect, useMemo, useState } from 'react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search } from 'lucide-react';
 import {
   Badge,
   Button,
   Card,
+  Checkbox,
   EmptyState,
   ErrorCard,
   Modal,
   PageHeader,
+  Pager,
+  Select,
   SkeletonCards,
   Money,
   productStatusLabels,
@@ -15,13 +18,22 @@ import {
   DropdownMenu,
   Tooltip,
   toast,
+  type SelectOption,
 } from '@/shared/ui';
-import { useDeleteProduct, useProducts, useRefs } from '../hooks';
+import { useCategories, useDeleteProduct, useProductsPage, useRefs } from '../hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
-import type { ProductOut, RefOut } from '@/shared/api/types';
+import type { ProductOut, ProductStatus, RefOut } from '@/shared/api/types';
+
+const PAGE_SIZE = 24;
+const statusFilterOptions: SelectOption[] = [
+  { value: '', label: 'Barcha holatlar' },
+  { value: 'active', label: 'Faol' },
+  { value: 'draft', label: 'Qoralama' },
+  { value: 'archived', label: 'Arxiv' },
+];
 
 function ProductSlot({ product, name, material, stone, onEdit, onDelete }: {
   product: ProductOut;
@@ -119,10 +131,37 @@ function useRefMap(kind: 'materials' | 'stones' | 'genders') {
 
 export default function ProductsPage() {
   const lang = useUiStore((s) => s.lang);
-  const query = useProducts();
   const deleteProduct = useDeleteProduct();
   const materials = useRefMap('materials');
   const stones = useRefMap('stones');
+  const categories = useCategories();
+
+  // filters
+  const [search, setSearch] = useState('');
+  const [debouncedQ, setDebouncedQ] = useState('');
+  const [status, setStatus] = useState('');
+  const [categoryId, setCategoryId] = useState('');
+  const [inStock, setInStock] = useState(false);
+  const [offset, setOffset] = useState(0);
+
+  useEffect(() => {
+    const t = window.setTimeout(() => setDebouncedQ(search.trim()), 300);
+    return () => window.clearTimeout(t);
+  }, [search]);
+  // any filter change resets to the first page
+  useEffect(() => setOffset(0), [debouncedQ, status, categoryId, inStock]);
+
+  const query = useProductsPage({
+    limit: PAGE_SIZE,
+    offset,
+    q: debouncedQ || undefined,
+    status: (status as ProductStatus) || undefined,
+    category_id: categoryId || undefined,
+    in_stock: inStock || undefined,
+  });
+  const products = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
+
   const [formOpen, setFormOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
   const [editing, setEditing] = useState<ProductOut | undefined>();
@@ -130,6 +169,11 @@ export default function ProductsPage() {
 
   const refName = (map: Map<string, RefOut>, id: string | null) =>
     id ? pickName(map.get(id), lang) : '';
+  const categoryOptions: SelectOption[] = [
+    { value: '', label: 'Barcha kategoriyalar' },
+    ...(categories.data ?? []).map((c) => ({ value: c.id, label: pickName(c, lang) })),
+  ];
+  const hasFilters = Boolean(debouncedQ || status || categoryId || inStock);
 
   return (
     <div>
@@ -148,37 +192,63 @@ export default function ProductsPage() {
         }
       />
 
+      {/* Filter bar */}
+      <div className="mb-5 flex flex-wrap items-center gap-3">
+        <div className="relative min-w-[200px] flex-1">
+          <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted" strokeWidth={1.5} />
+          <input
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Nomi bo'yicha qidirish (uz/ru)..."
+            aria-label="Mahsulot qidirish"
+            className="w-full rounded-lg border border-border bg-bg py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent"
+          />
+        </div>
+        <div className="w-44">
+          <Select placeholder="Kategoriya" options={categoryOptions} value={categoryId} onChange={setCategoryId} />
+        </div>
+        <div className="w-40">
+          <Select placeholder="Holat" options={statusFilterOptions} value={status} onChange={setStatus} />
+        </div>
+        <Checkbox checked={inStock} onCheckedChange={setInStock} label="Faqat mavjud" />
+      </div>
+
       {query.isPending && <SkeletonCards count={8} />}
       {query.isError && <ErrorCard error={query.error} onRetry={() => query.refetch()} />}
-      {query.isSuccess && query.data.length === 0 && (
+      {query.isSuccess && products.length === 0 && (
         <Card>
           <EmptyState
-            heading="Patnis hali bo'sh"
-            hint="Birinchi taqinchoqni qo'shing — patnis yaltirasin"
+            heading={hasFilters ? 'Hech narsa topilmadi' : "Patnis hali bo'sh"}
+            hint={hasFilters ? "Filtrlarni o'zgartiring" : 'Birinchi taqinchoqni qo\'shing — patnis yaltirasin'}
             action={
-              <Button variant="secondary" size="sm" onClick={() => setFormOpen(true)}>
-                Mahsulot qo'shish
-              </Button>
+              !hasFilters ? (
+                <Button variant="secondary" size="sm" onClick={() => setFormOpen(true)}>
+                  Mahsulot qo'shish
+                </Button>
+              ) : undefined
             }
           />
         </Card>
       )}
-      {query.isSuccess && query.data.length > 0 && (
-        <Card className="bg-surface p-6">
-          <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {query.data.map((p) => (
-              <ProductSlot
-                key={p.id}
-                product={p}
-                name={pickName(p, lang)}
-                material={refName(materials, p.material_id)}
-                stone={refName(stones, p.stone_id)}
-                onEdit={() => { setEditing(p); setFormOpen(true); }}
-                onDelete={() => setDeleting(p)}
-              />
-            ))}
-          </div>
-        </Card>
+      {query.isSuccess && products.length > 0 && (
+        <>
+          <Card className="bg-surface p-6">
+            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((p) => (
+                <ProductSlot
+                  key={p.id}
+                  product={p}
+                  name={pickName(p, lang)}
+                  material={refName(materials, p.material_id)}
+                  stone={refName(stones, p.stone_id)}
+                  onEdit={() => { setEditing(p); setFormOpen(true); }}
+                  onDelete={() => setDeleting(p)}
+                />
+              ))}
+            </div>
+          </Card>
+          <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={setOffset} />
+        </>
       )}
 
       <Modal

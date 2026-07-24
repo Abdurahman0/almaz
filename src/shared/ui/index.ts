@@ -19,6 +19,7 @@ export { RingProgress } from './RingProgress';
 export { HallmarkBadge, tierForTotal, tierOrder } from './HallmarkBadge';
 export type { ClientTier } from './HallmarkBadge';
 export { PageHeader } from './PageHeader';
+export { Pager } from './Pager';
 
 // Handmade themed controls (Radix-based) — zero native browser controls
 export { Select, type SelectOption } from './controls/Select';

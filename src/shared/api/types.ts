@@ -90,17 +90,37 @@ export interface CategoryOut {
   name_ru: string | null;
   slug: string;
   parent_id: string | null;
-  /** Price per gram (money as string) used by the weight calculator. */
-  gram_price: string | null;
+  /** Read-only: the category's most-recent active kurs (per-gram price). */
+  active_gram_price: string | null;
 }
 export interface CategoryCreate {
   name_uz: string;
   name_ru?: string | null;
   slug?: string | null;
   parent_id?: string | null;
-  gram_price?: number | string | null;
 }
 export type CategoryUpdate = Partial<CategoryCreate>;
+
+/** Kurs — per-gram price attached to a category (migration 0010). */
+export interface KursOut {
+  id: string;
+  category_id: string;
+  value: string;
+  is_active: boolean;
+  note: string | null;
+  created_at: string;
+}
+export interface KursCreate {
+  category_id: string;
+  value: number | string;
+  is_active?: boolean;
+  note?: string | null;
+}
+export interface KursUpdate {
+  value?: number | string;
+  is_active?: boolean;
+  note?: string | null;
+}
 
 /** gender / material / stone — same shape reference dictionary (DB-driven CRUD). */
 export type RefKind = 'genders' | 'materials' | 'stones';
@@ -427,4 +447,12 @@ export type DashboardAnalytics = Record<string, unknown>;
 export interface ListParams {
   limit?: number;
   offset?: number;
+}
+
+// ---------- File upload ----------
+export interface UploadedFile {
+  url: string;
+  filename: string;
+  content_type: string;
+  size: number;
 }

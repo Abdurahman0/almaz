@@ -1,4 +1,4 @@
-import { api } from '@/shared/api/client';
+import { api, getItems } from '@/shared/api/client';
 import type {
   KnowledgeCreate,
   KnowledgeOut,
@@ -6,8 +6,8 @@ import type {
   KnowledgeUpdate,
 } from '@/shared/api/types';
 
-export async function listKnowledge(type?: KnowledgeType): Promise<KnowledgeOut[]> {
-  return (await api.get<KnowledgeOut[]>('/ai/knowledge', { params: { type } })).data;
+export async function listKnowledge(type?: KnowledgeType, q?: string): Promise<KnowledgeOut[]> {
+  return getItems<KnowledgeOut>('/ai/knowledge', { params: { limit: 200, type, q } });
 }
 
 export async function createKnowledge(body: KnowledgeCreate): Promise<KnowledgeOut> {

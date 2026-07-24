@@ -1,8 +1,11 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as productsApi from './api';
+import type { ProductListParams } from './api';
 import type {
   CategoryCreate,
   CategoryUpdate,
+  KursCreate,
+  KursUpdate,
   ProductCreate,
   ProductMediaCreate,
   ProductStatus,
@@ -16,14 +19,26 @@ import type {
 export const productKeys = {
   all: ['products'] as const,
   list: (status?: ProductStatus) => ['products', 'list', status ?? 'all'] as const,
+  page: (params: ProductListParams) => ['products', 'page', params] as const,
   categories: ['catalog', 'categories'] as const,
   refs: (kind: RefKind, onlyActive: boolean) => ['catalog', kind, onlyActive] as const,
+  kurs: (categoryId?: string) => ['catalog', 'kurs', categoryId ?? 'all'] as const,
 };
 
+/** Flat product array for dropdowns/reports (no pagination UI). */
 export function useProducts(status?: ProductStatus) {
   return useQuery({
     queryKey: productKeys.list(status),
-    queryFn: () => productsApi.listProducts({ status }),
+    queryFn: () => productsApi.listProducts({ status, limit: 1000 }).then((r) => r.items),
+  });
+}
+
+/** Paginated + filtered product list for the products page. */
+export function useProductsPage(params: ProductListParams) {
+  return useQuery({
+    queryKey: productKeys.page(params),
+    queryFn: () => productsApi.listProducts(params),
+    placeholderData: keepPreviousData,
   });
 }
 
@@ -38,11 +53,52 @@ export function usePriceCalc(categoryId: string | undefined, weight: number | un
   });
 }
 
+// ---------- Kurs (per-gram price) ----------
+export function useKurs(categoryId?: string) {
+  return useQuery({
+    queryKey: productKeys.kurs(categoryId),
+    queryFn: () => productsApi.listKurs(categoryId ? { category_id: categoryId } : {}),
+  });
+}
+
+export function useCreateKurs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: KursCreate) => productsApi.createKurs(body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+    },
+  });
+}
+
+export function useUpdateKurs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: KursUpdate }) => productsApi.updateKurs(id, body),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+    },
+  });
+}
+
+export function useDeleteKurs() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => productsApi.deleteKurs(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
+      qc.invalidateQueries({ queryKey: productKeys.categories });
+    },
+  });
+}
+
 // ---------- Categories ----------
 export function useCategories() {
   return useQuery({
     queryKey: productKeys.categories,
-    queryFn: productsApi.listCategories,
+    queryFn: () => productsApi.listCategories(),
   });
 }
 

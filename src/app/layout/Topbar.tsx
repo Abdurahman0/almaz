@@ -2,7 +2,7 @@ import { Bell, LogOut } from 'lucide-react';
 import * as Popover from '@radix-ui/react-popover';
 import { useQuery } from '@tanstack/react-query';
 import { useAuthStore } from '@/shared/stores/auth';
-import { api } from '@/shared/api/client';
+import { getItems } from '@/shared/api/client';
 import type { NotificationOut } from '@/shared/api/types';
 import { formatDateTime } from '@/shared/lib/format';
 import { useT } from '@/shared/lib/i18n';
@@ -12,8 +12,7 @@ function NotificationsPopover() {
   const t = useT();
   const { data: notifications } = useQuery({
     queryKey: ['notifications'],
-    queryFn: async () =>
-      (await api.get<NotificationOut[]>('/notifications', { params: { limit: 10 } })).data,
+    queryFn: () => getItems<NotificationOut>('/notifications', { params: { limit: 10 } }),
     staleTime: 60_000,
     retry: 1,
   });

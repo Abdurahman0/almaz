@@ -1,18 +1,22 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as inboxApi from './api';
+import type { ConversationListParams } from './api';
 import type { CustomerOut, MessageOut } from '@/shared/api/types';
 
 export const inboxKeys = {
   all: ['inbox'] as const,
   conversations: ['inbox', 'conversations'] as const,
+  conversationsFiltered: (params: ConversationListParams) =>
+    ['inbox', 'conversations', params] as const,
   messages: (id: string) => ['inbox', 'messages', id] as const,
 };
 
-export function useConversations() {
+export function useConversations(params: ConversationListParams = {}) {
   return useQuery({
-    queryKey: inboxKeys.conversations,
-    queryFn: () => inboxApi.listConversations(),
+    queryKey: inboxKeys.conversationsFiltered(params),
+    queryFn: () => inboxApi.listConversations(params),
     refetchInterval: 20_000,
+    placeholderData: keepPreviousData,
   });
 }
 

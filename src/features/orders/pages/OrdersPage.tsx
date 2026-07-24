@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Plus } from 'lucide-react';
 import {
@@ -8,13 +8,16 @@ import {
   ErrorCard,
   OrderStatusBadge,
   PageHeader,
+  Pager,
   SkeletonRows,
   orderStatusLabels,
   Money,
 } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/format';
-import { useOrders } from '../hooks';
+import { useOrdersPage } from '../hooks';
 import type { OrderStatus } from '@/shared/api/types';
+
+const PAGE_SIZE = 30;
 
 const filterOptions: Array<OrderStatus | 'all'> = [
   'all',
@@ -30,7 +33,15 @@ const filterOptions: Array<OrderStatus | 'all'> = [
 
 export default function OrdersPage() {
   const [status, setStatus] = useState<OrderStatus | 'all'>('all');
-  const query = useOrders(status === 'all' ? undefined : status);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => setOffset(0), [status]);
+  const query = useOrdersPage({
+    status: status === 'all' ? undefined : status,
+    limit: PAGE_SIZE,
+    offset,
+  });
+  const orders = query.data?.items ?? [];
+  const total = query.data?.total ?? 0;
   const navigate = useNavigate();
 
   return (
@@ -63,7 +74,7 @@ export default function OrdersPage() {
 
       {query.isPending && <SkeletonRows rows={7} />}
       {query.isError && <ErrorCard error={query.error} onRetry={() => query.refetch()} />}
-      {query.isSuccess && query.data.length === 0 && (
+      {query.isSuccess && orders.length === 0 && (
         <Card>
           <EmptyState
             heading="Buyurtmalar topilmadi"
@@ -76,7 +87,7 @@ export default function OrdersPage() {
           />
         </Card>
       )}
-      {query.isSuccess && query.data.length > 0 && (
+      {query.isSuccess && orders.length > 0 && (
         <Card className="overflow-x-auto p-0">
           <table className="w-full min-w-[640px] text-sm">
             <thead>
@@ -89,7 +100,7 @@ export default function OrdersPage() {
               </tr>
             </thead>
             <tbody>
-              {query.data.map((order) => (
+              {orders.map((order) => (
                 <tr
                   key={order.id}
                   className="cursor-pointer border-b border-border transition-colors duration-150 last:border-0 hover:bg-accent-soft"
@@ -117,6 +128,9 @@ export default function OrdersPage() {
             </tbody>
           </table>
         </Card>
+      )}
+      {query.isSuccess && orders.length > 0 && (
+        <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={setOffset} />
       )}
     </div>
   );

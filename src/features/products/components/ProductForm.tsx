@@ -1,8 +1,8 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Wand2, X, Plus, Trash2 } from 'lucide-react';
+import { Wand2, X, Plus, Trash2, Upload } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -15,6 +15,7 @@ import {
 } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib/format';
 import { pickName } from '@/shared/lib/localize';
+import { uploadFile, uploadFiles, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { useUiStore } from '@/shared/stores/ui';
 import {
   useAddProductMedia,
@@ -104,6 +105,8 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
   // Create-mode image URL collector (submitted inline as image_urls).
   const [newUrls, setNewUrls] = useState<string[]>([]);
   const [urlDraft, setUrlDraft] = useState('');
+  const [uploading, setUploading] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -182,17 +185,35 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
     }
   });
 
-  const addUrl = () => {
-    const url = urlDraft.trim();
-    if (!url) return;
+  const attachUrl = (url: string) => {
     if (product) {
       addMedia.mutate(
         { productId: product.id, body: { image_url: url } },
-        { onSuccess: () => setUrlDraft(''), onError: () => toast.error("Rasm qo'shishda xatolik") },
+        { onError: () => toast.error("Rasm qo'shishda xatolik") },
       );
     } else {
       setNewUrls((s) => [...s, url]);
-      setUrlDraft('');
+    }
+  };
+
+  const addUrl = () => {
+    const url = urlDraft.trim();
+    if (!url) return;
+    attachUrl(url);
+    setUrlDraft('');
+  };
+
+  const onUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      const uploaded = files.length === 1 ? [await uploadFile(files[0])] : await uploadFiles(Array.from(files));
+      uploaded.forEach((u) => attachUrl(u.url));
+    } catch {
+      toast.error('Yuklashda xatolik');
+    } finally {
+      setUploading(false);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
   };
 
@@ -323,7 +344,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
 
       {/* Images */}
       <div className="space-y-2">
-        <span className="text-2xs font-semibold uppercase tracking-caps text-muted">Rasmlar (URL)</span>
+        <span className="text-2xs font-semibold uppercase tracking-caps text-muted">Rasmlar</span>
         <div className="flex gap-2">
           <div className="flex-1">
             <Input
@@ -339,8 +360,19 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
             />
           </div>
           <Button type="button" variant="secondary" onClick={addUrl} loading={addMedia.isPending}>
-            <Plus className="h-4 w-4" strokeWidth={1.5} /> Qo'shish
+            <Plus className="h-4 w-4" strokeWidth={1.5} /> URL
           </Button>
+          <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} loading={uploading}>
+            <Upload className="h-4 w-4" strokeWidth={1.5} /> Yuklash
+          </Button>
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept={UPLOAD_ACCEPT}
+            multiple
+            className="hidden"
+            onChange={(e) => onUpload(e.target.files)}
+          />
         </div>
         {/* create-mode staged URLs */}
         {!product && newUrls.length > 0 && (

@@ -1,34 +1,46 @@
-import { api } from '@/shared/api/client';
+import { api, getItems } from '@/shared/api/client';
 import type {
+  AiState,
   Channel,
   ConversationOut,
   ConversationStatus,
   ListParams,
+  MessageDirection,
   MessageOut,
+  SenderType,
 } from '@/shared/api/types';
 
 export interface ConversationListParams extends ListParams {
   status?: ConversationStatus;
   channel?: Channel;
+  ai_state?: AiState;
+  assigned_operator_id?: string;
+  unread_only?: boolean;
+  q?: string;
 }
 
 export async function listConversations(
   params: ConversationListParams = {},
 ): Promise<ConversationOut[]> {
-  return (await api.get<ConversationOut[]>('/inbox/conversations', { params: { limit: 100, ...params } }))
-    .data;
+  return getItems<ConversationOut>('/inbox/conversations', { params: { limit: 200, ...params } });
 }
 
 export async function getConversation(id: string): Promise<ConversationOut> {
   return (await api.get<ConversationOut>(`/inbox/conversations/${id}`)).data;
 }
 
-export async function listMessages(conversationId: string): Promise<MessageOut[]> {
-  return (
-    await api.get<MessageOut[]>(`/inbox/conversations/${conversationId}/messages`, {
-      params: { limit: 100 },
-    })
-  ).data;
+export interface MessageListParams extends ListParams {
+  direction?: MessageDirection;
+  sender_type?: SenderType;
+}
+
+export async function listMessages(
+  conversationId: string,
+  params: MessageListParams = {},
+): Promise<MessageOut[]> {
+  return getItems<MessageOut>(`/inbox/conversations/${conversationId}/messages`, {
+    params: { limit: 200, ...params },
+  });
 }
 
 export async function sendMessage(conversationId: string, text: string): Promise<MessageOut> {
