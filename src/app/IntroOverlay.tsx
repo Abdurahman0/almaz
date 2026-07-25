@@ -1,53 +1,48 @@
 import { useEffect, useRef } from 'react';
-import { useAnimate } from 'framer-motion';
+import { useAnimate, animate as animateValue } from 'framer-motion';
 import { useIntroStore } from '@/shared/stores/intro';
-import { getRingFrames, RING_CENTER_OFFSET } from '@/shared/lib/ringFrames';
+import { getRingFrames, frameIndexFor, GEM_FRAME, FRAME_COUNT } from '@/shared/lib/ringFrames';
 
 /*
- * One-time post-login intro.
+ * One-time post-login intro (v2 assets — 180-frame turntable).
  *
- * Calm in, rocket out: the ring drifts in from beyond the top-right corner
- * spinning slowly (~0.4 rotation across the whole entrance), settles huge at
- * center over an accent glow, the "Almaz / Silver" wordmark composes INSIDE
- * the ring's hole, holds — then launches leftward violently fast with a spin
- * burst and accent speed streaks, FLIP-landing on the sidebar logo slot where
- * the permanent 14s/rotation canvas ring takes over.
+ * Corner → center → dive → rocket:
+ *  - enters from beyond the top-right corner, rotating slowly INTO the
+ *    gem-facing pose so the first clear look is the gem toward the viewer;
+ *  - settles at 72vh exactly on GEM_FRAME (gem to camera, band inner side
+ *    open), then DIVES to a 230vh close-up on that frozen pose;
+ *  - the "Almaz / Silver" lockup composes over a scrim (screen-fixed, so it
+ *    is not scaled by the ring);
+ *  - rockets to the sidebar logo slot (FLIP recomputed from the zoomed state).
  *
- * The ring itself is a canvas fed by pre-extracted spin frames with
- * adjacent-frame crossfade, driven by a mutable angular velocity — smooth at
- * every phase speed, no video seek jank.
+ * The ring is a canvas drawn from decoded 1200px frames with plain per-frame
+ * stepping — 180 frames are natively smooth, no crossfade.
  */
 
 const ENTER_MS = 1400;
+const SETTLE_BEAT_MS = 160;
+const DIVE_MS = 560;
 const WORD_MS = 550;
 const SHIMMER_MS = 500;
 const HOLD_MS = 800;
 const WORD_OUT_MS = 120;
 const ANTICIPATION_MS = 60;
-const FLIGHT_MS = 320;
+const FLIGHT_MS = 340;
 const SETTLE_MS = 80;
 
-// rotations per second per phase
-const RPS_ENTER = 0.4 / (ENTER_MS / 1000); // ~0.29 — 0.4 rotation over the entrance
-const RPS_IDLE = 1 / 7; // centered hold: visibly alive, still elegant
-const RPS_ROCKET = 0.5 / (FLIGHT_MS / 1000); // fast half-turn during the flight
-
-/*
- * The hole's clear aperture varies with rotation (band sweeps through it when
- * edge-on). Measured per frame (half-widths in 512-frame coords): the widest
- * open arc runs frames 11-17 [56,64,68,70,68,62,56]. The hold snaps to frame
- * 11; at 1/7 rps the visible word window (~1.47s: reveal 550ms + hold 800ms
- * with the shimmer running inside it + fade 120ms) sweeps ~6.3 frames,
- * staying inside the arc — crossfade pairs bottom out at ~46px half-width, so
- * the text box is sized to that worst pair and no letter is ever covered.
- */
-const HOLD_ANGLE = 11 / 30;
+// GEM_FRAME as a rotation fraction; the entrance lands here exactly.
+const GEM_ANGLE = GEM_FRAME / FRAME_COUNT;
+// Enter rotating ~0.4 turn INTO the gem pose (starts near a side view).
+const ENTER_START_ANGLE = GEM_ANGLE - 0.4;
+// rotations/sec for the rocket spin burst (~half a turn across the flight).
+const RPS_ROCKET = 0.5 / (FLIGHT_MS / 1000);
 
 function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone: () => void }) {
   const [scope, animate] = useAnimate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
-  const rpsRef = useRef(RPS_ENTER);
-  const angleRef = useRef(0); // rotations; 0 -> entrance lands at frame 12
+  const angleRef = useRef(ENTER_START_ANGLE);
+  const spinRef = useRef(false); // when true the rAF loop integrates rps
+  const rpsRef = useRef(0);
   const ranRef = useRef(false);
   const skippedRef = useRef(false);
 
@@ -77,153 +72,128 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     const vh = window.innerHeight;
     const mobile = vw <= 640;
     const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660);
-    // Fully outside beyond the top-right corner: center at
-    // (100vw + start/2, -start/2). Matches the parked inline transform in JSX
-    // and is passed explicitly as the tween's `from` — letting framer infer
-    // the start from the inline style flashed one identity frame.
+    const diveScale = (2.3 * vh) / S; // 230vh close-up
     const START = 120;
-    const x0 = vw / 2 + START / 2;
+    const x0 = vw / 2 + START / 2; // fully outside past the top-right corner
     const y0 = -(vh / 2) - START / 2;
 
-    // canvas spin loop with mutable angular velocity; frames are guaranteed
-    // decoded before this is called
     const startSpin = (frames: ImageBitmap[]) => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || disposed) return;
       const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = S * dpr;
-      canvas.height = S * dpr;
+      canvas.width = Math.round(S * dpr);
+      canvas.height = Math.round(S * dpr);
       ctx.imageSmoothingQuality = 'high';
       let lastT: number | null = null;
       const tick = (now: number) => {
         if (disposed) return;
-        if (lastT !== null) angleRef.current += ((now - lastT) / 1000) * rpsRef.current;
+        if (spinRef.current && lastT !== null) angleRef.current += ((now - lastT) / 1000) * rpsRef.current;
         lastT = now;
-        const n = frames.length;
-        const f = (((angleRef.current % 1) + 1) % 1) * n;
-        const a = Math.floor(f) % n;
-        const b = (a + 1) % n;
-        // draw with the centering offset: visible ring = element center
-        const ox = RING_CENTER_OFFSET.x * canvas.width;
-        const oy = RING_CENTER_OFFSET.y * canvas.height;
+        const idx = frameIndexFor(angleRef.current);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
-        ctx.drawImage(frames[a], ox, oy, canvas.width, canvas.height);
-        ctx.globalAlpha = f - Math.floor(f);
-        ctx.drawImage(frames[b], ox, oy, canvas.width, canvas.height);
-        ctx.globalAlpha = 1;
+        ctx.drawImage(frames[idx], 0, 0, canvas.width, canvas.height);
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
     };
+
     const run = async () => {
-      // Decode-before-frame-one: every spin frame is an ImageBitmap in memory
-      // before any animation starts — no mid-flight decode stutter.
+      let frames: ImageBitmap[];
       try {
-        const frames = await getRingFrames(assetPath);
+        frames = await getRingFrames(assetPath);
         if (disposed) return;
         startSpin(frames);
-        // let the first (large) canvas raster + layer upload complete before
-        // the tween starts — avoids a start-of-flight frame drop
         await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
         if (disposed) return;
       } catch {
-        onDone(); // frames unavailable: skip straight to final state
+        onDone();
         return;
       }
-      // Every awaited step is raced against a deadline: a driver that fails
-      // to start (seen with framer's backgroundPosition path in prod) must
-      // never stall the whole timeline.
       const guard = (p: PromiseLike<unknown> | unknown, ms: number) =>
         Promise.race([Promise.resolve(p as PromiseLike<unknown>), new Promise<void>((r) => setTimeout(r, ms + 400))]);
       const step = (el: string, kf: object, opts: object) =>
         skippedRef.current || disposed ? Promise.resolve() : animate(el as never, kf as never, opts as never);
 
-      // Phase 1 — entrance: ONE single tween (translate+scale composed, one
-      // duration, one easing) from beyond the corner to dead center. Keyframe
-      // waypoints are forbidden here — framer eases each keyframe segment
-      // separately, which reads as a mid-flight stall.
-      rpsRef.current = RPS_ENTER;
+      // Phase 1 — entrance: one single position+scale tween corner→center, and
+      // a synced rotation tween that lands EXACTLY on GEM_FRAME (arrival is
+      // gem-facing, no snap/jump).
+      spinRef.current = false;
+      const angleTween = animateValue(ENTER_START_ANGLE, GEM_ANGLE, {
+        duration: ENTER_MS / 1000,
+        ease: [0.2, 0.7, 0.3, 1],
+        onUpdate: (v) => {
+          if (!skippedRef.current) angleRef.current = v;
+        },
+      });
       const backdropIn = step('.intro-backdrop', { opacity: [0, 1] }, { duration: 0.3, ease: 'easeOut' });
-      const glowIn = step('.intro-glow', { opacity: [0, 1] }, { duration: 0.6, ease: 'easeOut', delay: 0.7 });
       await guard(
         step(
           '.intro-ring',
-          // explicit [from, to] pairs = ONE segment, one easing — no waypoint
-          // dwell, no identity-frame flash
           { x: [x0, 0], y: [y0, 0], scale: [START / S, 1] },
           { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] },
         ),
         ENTER_MS,
       );
-      await guard(Promise.all([backdropIn, glowIn]), 1300);
+      angleRef.current = GEM_ANGLE; // guarantee frozen exactly on the gem frame
+      angleTween.stop();
+      await guard(backdropIn, 400);
 
-      // Phase 2 — hold; wordmark composes inside the ring's hole. Snap to the
-      // start of the open-aperture arc so the whole word window (reveal +
-      // hold with the shimmer inside it + fade) drifts within it at 1/7 rps.
-      angleRef.current = HOLD_ANGLE;
-      rpsRef.current = RPS_IDLE;
+      // small settle beat on the gem pose
+      if (!skippedRef.current) await new Promise((r) => setTimeout(r, SETTLE_BEAT_MS));
+
+      // Phase 2 — dive to the 230vh close-up on the frozen gem frame; scrim +
+      // lockup fade in (screen-fixed, not scaled by the ring)
+      const scrimIn = step('.intro-scrim', { opacity: [0, 1] }, { duration: DIVE_MS / 1000, ease: 'easeOut' });
       await guard(
-        step(
-          '.intro-word',
-          { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] },
-          { duration: WORD_MS / 1000, ease: 'easeOut' },
-        ),
+        step('.intro-ring', { scale: diveScale }, { duration: DIVE_MS / 1000, ease: [0.16, 0.8, 0.26, 1] }),
+        DIVE_MS,
+      );
+      await guard(
+        step('.intro-word', { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] }, { duration: WORD_MS / 1000, ease: 'easeOut' }),
         WORD_MS,
       );
-      // one shimmer sweep, running concurrently inside the hold — native WAAPI
-      // (framer's backgroundPosition driver silently never started in prod)
       if (!skippedRef.current && !disposed) {
         document
           .querySelector('.intro-word')
-          ?.animate(
-            [{ backgroundPosition: '150% 0%' }, { backgroundPosition: '-50% 0%' }],
-            { duration: SHIMMER_MS, easing: 'ease-in-out', fill: 'forwards' },
-          );
+          ?.animate([{ backgroundPosition: '150% 0%' }, { backgroundPosition: '-50% 0%' }], {
+            duration: SHIMMER_MS,
+            easing: 'ease-in-out',
+            fill: 'forwards',
+          });
       }
+      await guard(scrimIn, DIVE_MS);
       if (!skippedRef.current) await new Promise((r) => setTimeout(r, HOLD_MS));
 
-      // Phase 3 — rocket exit
-      await guard(step('.intro-word', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 }), WORD_OUT_MS);
+      // Phase 3 — rocket exit (FLIP from the zoomed state)
+      const lockoutOut = step('.intro-lockup', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 });
       const slot = document.querySelector('[data-intro-logo-slot]');
-      const slotRect = slot ? slot.getBoundingClientRect() : null;
+      const slotRect = slot ? slot.getBoundingClientRect() : null; // measured now, at flight start
+      await guard(lockoutOut, WORD_OUT_MS);
 
-      // micro-anticipation: tiny shift right + 1.02 before the launch
-      await guard(
-        step('.intro-ring', { x: S * 0.02, scale: 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }),
-        ANTICIPATION_MS,
-      );
+      // micro-anticipation before the launch
+      await guard(step('.intro-ring', { scale: diveScale * 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }), ANTICIPATION_MS);
 
+      spinRef.current = true;
       rpsRef.current = RPS_ROCKET;
       const backdropOut = step('.intro-backdrop', { opacity: 0 }, { duration: 0.3, ease: 'easeOut' });
-      const glowOut = step('.intro-glow', { opacity: 0 }, { duration: 0.2, ease: 'easeOut' });
       if (slotRect && slotRect.width > 0) {
         const dx = slotRect.x + slotRect.width / 2 - vw / 2;
         const dy = slotRect.y + slotRect.height / 2 - vh / 2;
         const target = slotRect.width / S;
         await guard(
-          step(
-            '.intro-ring',
-            { x: dx, y: dy, scale: target * 1.04 },
-            { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
-          ),
+          step('.intro-ring', { x: dx, y: dy, scale: target * 1.04 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }),
           FLIGHT_MS,
         );
-        rpsRef.current = 1 / 7; // relax to the sidebar idle speed on landing
+        spinRef.current = false;
         await guard(step('.intro-ring', { scale: target }, { duration: SETTLE_MS / 1000, ease: 'easeOut' }), SETTLE_MS);
       } else {
-        // mobile / no visible slot: rocket off-left, shrinking and fading
         await guard(
-          step(
-            '.intro-ring',
-            { x: -vw * 0.7, scale: 0.15, opacity: 0 },
-            { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] },
-          ),
+          step('.intro-ring', { x: -vw * 0.7, scale: 0.12, opacity: 0 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }),
           FLIGHT_MS,
         );
       }
-      await guard(Promise.all([backdropOut, glowOut]), 320);
+      await guard(backdropOut, 320);
       if (!disposed) onDone();
     };
 
@@ -232,8 +202,6 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     return () => {
       disposed = true;
       cancelAnimationFrame(raf);
-      // StrictMode replays mount effects: let the replay start a fresh run
-      // (this closure's run() is dead — every step checks `disposed`).
       ranRef.current = false;
       window.removeEventListener('pointerdown', skip, true);
       window.removeEventListener('keydown', onKey, true);
@@ -244,30 +212,16 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const vw = window.innerWidth;
   const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
   const START = 120;
+  const wordSize = Math.min(vw, vh) * 0.05;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
-      {/* plain color dim — backdrop-filter blur repaints the whole page under
-          it on every animation frame and was the primary jank source */}
+      {/* dim the dashboard beneath */}
       <div
         className="intro-backdrop absolute inset-0 opacity-0"
         style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }}
       />
-      {/* ambient accent glow under the ring (visible ring = element center
-          thanks to the centered canvas draw) */}
-      <div
-        className="intro-glow absolute opacity-0"
-        style={{
-          left: vw / 2 - S * 0.75,
-          top: vh / 2 - S * 0.75,
-          width: S * 1.5,
-          height: S * 1.5,
-          background:
-            'radial-gradient(closest-side, color-mix(in srgb, var(--accent) 8%, transparent), transparent 70%)',
-        }}
-      />
-      {/* fixed, offsetParent = viewport (no transformed/filtered ancestor);
-          parked FULLY OUTSIDE beyond the top-right corner until frame one */}
+      {/* ring canvas — parked fully outside beyond the top-right corner */}
       <div
         className="intro-ring fixed"
         style={{
@@ -280,14 +234,22 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         }}
       >
         <canvas ref={canvasRef} className="h-full w-full" style={{ width: S, height: S }} />
-        {/* wordmark: mathematically dead-centered inside the ring */}
-        <div className="absolute inset-0 grid place-items-center text-center">
-          <span
-            className="intro-word inline-block whitespace-nowrap font-semibold opacity-0"
+      </div>
+      {/* screen-fixed lockup: scrim + wordmark, dead-centered, never scaled */}
+      <div className="intro-lockup fixed inset-0 grid place-items-center">
+        <div className="relative grid place-items-center">
+          <div
+            className="intro-scrim absolute opacity-0"
             style={{
-              // widest line stays well under 55% of the visible ring diameter
-              // and inside the measured hole aperture across the held frames
-              fontSize: S * 0.054,
+              width: vw * 0.6,
+              height: vh * 0.34,
+              background: 'radial-gradient(closest-side, color-mix(in srgb, var(--bg) 82%, transparent), transparent 72%)',
+            }}
+          />
+          <span
+            className="intro-word relative inline-block whitespace-nowrap text-center font-semibold opacity-0"
+            style={{
+              fontSize: wordSize,
               lineHeight: 1.1,
               letterSpacing: '0.3em',
               color: 'transparent',
@@ -314,10 +276,31 @@ export function IntroOverlay() {
   const stage = useIntroStore((s) => s.stage);
   const begin = useIntroStore((s) => s.begin);
   const finish = useIntroStore((s) => s.finish);
+  const gatingRef = useRef(false);
 
+  // Readiness gate: never start the intro without decoded frames, never block
+  // the dashboard. Wait up to 1200ms; else skip silently this session.
   useEffect(() => {
-    if (stage === 'pending') begin();
-  }, [stage, begin]);
+    if (stage !== 'pending' || gatingRef.current) return;
+    gatingRef.current = true;
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      finish();
+      return;
+    }
+    let settled = false;
+    const done = (ready: boolean) => {
+      if (settled) return;
+      settled = true;
+      if (ready) begin();
+      else finish();
+    };
+    const timer = window.setTimeout(() => done(false), 1200);
+    getRingFrames()
+      .then(() => done(true))
+      .catch(() => done(false))
+      .finally(() => window.clearTimeout(timer));
+    return () => window.clearTimeout(timer);
+  }, [stage, begin, finish]);
 
   if (stage !== 'playing') return null;
   return <IntroSequence onDone={finish} />;

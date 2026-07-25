@@ -3,12 +3,8 @@ import type {
   CategoryCreate,
   CategoryOut,
   CategoryUpdate,
-  KursCreate,
-  KursOut,
-  KursUpdate,
   ListParams,
   MediaOut,
-  PriceCalcOut,
   ProductCreate,
   ProductMediaCreate,
   ProductOut,
@@ -38,6 +34,17 @@ export interface ProductListParams extends ListParams {
 
 export async function listProducts(params: ProductListParams = {}): Promise<Paginated<ProductOut>> {
   return getList<ProductOut>('/catalog/products', { params: { limit: 50, ...params } });
+}
+
+/** GET /catalog/products/low-stock — products under their low-stock threshold. */
+export async function listLowStock(
+  params: { status?: ProductStatus } & ListParams = {},
+): Promise<Paginated<ProductOut>> {
+  const { status, ...rest } = params;
+  // default to active without letting an explicit undefined clobber it
+  return getList<ProductOut>('/catalog/products/low-stock', {
+    params: { limit: 50, status: status ?? 'active', ...rest },
+  });
 }
 
 export async function getProduct(id: string): Promise<ProductOut> {
@@ -117,33 +124,3 @@ export async function deleteRef(kind: RefKind, id: string): Promise<void> {
   await api.delete(`/catalog/${kind}/${id}`);
 }
 
-// ---------- Kurs (per-gram price, linked to category) ----------
-export interface KursListParams extends ListParams {
-  category_id?: string;
-  is_active?: boolean;
-}
-
-export async function listKurs(params: KursListParams = {}): Promise<KursOut[]> {
-  return getItems<KursOut>('/catalog/kurs', { params: { limit: 1000, ...params } });
-}
-
-export async function createKurs(body: KursCreate): Promise<KursOut> {
-  return (await api.post<KursOut>('/catalog/kurs', body)).data;
-}
-
-export async function updateKurs(id: string, body: KursUpdate): Promise<KursOut> {
-  return (await api.patch<KursOut>(`/catalog/kurs/${id}`, body)).data;
-}
-
-export async function deleteKurs(id: string): Promise<void> {
-  await api.delete(`/catalog/kurs/${id}`);
-}
-
-// ---------- Weight -> price calculator preview ----------
-export async function priceCalc(categoryId: string, weightGrams: number): Promise<PriceCalcOut> {
-  return (
-    await api.get<PriceCalcOut>('/catalog/price-calc', {
-      params: { category_id: categoryId, weight_grams: weightGrams },
-    })
-  ).data;
-}

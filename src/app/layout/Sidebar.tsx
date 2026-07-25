@@ -42,16 +42,16 @@ export function Sidebar() {
         collapsed ? 'w-[72px]' : 'w-[250px]'
       }`}
     >
-      <div className={`flex items-center gap-2 px-4 py-5 ${collapsed ? 'justify-center px-2' : ''}`}>
+      <div className={`flex items-center gap-1.5 px-4 py-5 ${collapsed ? 'justify-center px-2' : ''}`}>
         {/* The intro's flying ring FLIP-lands exactly on this slot; the slot's
             own ring stays hidden until the landing so there is never a double.
-            8px gap to the brand text, vertically center-aligned; 64px box
-            renders the visible ring at ~36px. */}
+            v2 frames fill 92% of the box, so a 40px box renders a ~37px ring;
+            ~8px visual gap to the brand text, vertically center-aligned. */}
         <span
           data-intro-logo-slot
-          className={`-my-3 -ml-2 -mr-3.5 block h-16 w-16 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
+          className={`-my-1 block h-10 w-10 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
         >
-          <RingCanvas size={64} rotationMs={7000} />
+          <RingCanvas size={40} rotationMs={7000} />
         </span>
         {!collapsed && (
           <span className="brand-gradient text-lg font-bold tracking-tight">Almaz Silver</span>

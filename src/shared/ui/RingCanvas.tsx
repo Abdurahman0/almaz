@@ -1,8 +1,8 @@
 import { useEffect, useRef } from 'react';
-import { getRingFrames, RING_CENTER_OFFSET } from '@/shared/lib/ringFrames';
+import { getRingSheet, frameIndexFor } from '@/shared/lib/ringFrames';
 
 interface RingCanvasProps {
-  /** Rendered square size in px (the render has internal padding, visible ring ~57%). */
+  /** Rendered square size in px (the render is centered; ring ~92% of frame). */
   size: number;
   /** One full rotation per this many ms. */
   rotationMs?: number;
@@ -11,9 +11,10 @@ interface RingCanvasProps {
 }
 
 /*
- * The 3D ring spinning at constant angular velocity, rAF-driven with
- * adjacent-frame crossfade — no visible stepping even at very slow speeds.
- * Pauses when the tab is hidden; static first frame under reduced motion.
+ * The 3D ring spinning at constant angular velocity, drawn from the 320px
+ * spritesheet — one small texture, plain per-frame stepping (180 frames are
+ * natively smooth, no crossfade needed). Pauses on hidden tab; static gem
+ * frame under reduced motion.
  */
 export function RingCanvas({ size, rotationMs = 7000, assetPath = '/', className }: RingCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
@@ -29,27 +30,28 @@ export function RingCanvas({ size, rotationMs = 7000, assetPath = '/', className
     ctx.imageSmoothingQuality = 'high';
 
     let raf = 0;
-    let frames: ImageBitmap[] | null = null;
+    let sheet: Awaited<ReturnType<typeof getRingSheet>> | null = null;
     let angle = 0; // rotations
     let last: number | null = null;
     const reduced = window.matchMedia('(prefers-reduced-motion: reduce)');
 
     const draw = () => {
-      if (!frames) return;
-      const n = frames.length;
-      const pos = ((angle % 1) + 1) % 1;
-      const f = pos * n;
-      const a = Math.floor(f) % n;
-      const b = (a + 1) % n;
-      const frac = f - Math.floor(f);
-      const ox = RING_CENTER_OFFSET.x * canvas.width;
-      const oy = RING_CENTER_OFFSET.y * canvas.height;
+      if (!sheet) return;
+      const idx = frameIndexFor(angle);
+      const col = idx % sheet.cols;
+      const row = Math.floor(idx / sheet.cols);
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.globalAlpha = 1;
-      ctx.drawImage(frames[a], ox, oy, canvas.width, canvas.height);
-      ctx.globalAlpha = frac;
-      ctx.drawImage(frames[b], ox, oy, canvas.width, canvas.height);
-      ctx.globalAlpha = 1;
+      ctx.drawImage(
+        sheet.image,
+        col * sheet.frameW,
+        row * sheet.frameH,
+        sheet.frameW,
+        sheet.frameH,
+        0,
+        0,
+        canvas.width,
+        canvas.height,
+      );
     };
 
     const tick = (now: number) => {
@@ -63,16 +65,16 @@ export function RingCanvas({ size, rotationMs = 7000, assetPath = '/', className
       cancelAnimationFrame(raf);
       last = null;
       if (reduced.matches) {
-        draw(); // static first frame
+        draw(); // static gem frame
         return;
       }
       if (!document.hidden) raf = requestAnimationFrame(tick);
     };
 
     let disposed = false;
-    void getRingFrames(assetPath).then((f) => {
+    void getRingSheet(assetPath).then((s) => {
       if (disposed) return;
-      frames = f;
+      sheet = s;
       draw();
       start();
     });

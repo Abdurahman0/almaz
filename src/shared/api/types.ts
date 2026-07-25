@@ -90,8 +90,6 @@ export interface CategoryOut {
   name_ru: string | null;
   slug: string;
   parent_id: string | null;
-  /** Read-only: the category's most-recent active kurs (per-gram price). */
-  active_gram_price: string | null;
 }
 export interface CategoryCreate {
   name_uz: string;
@@ -100,27 +98,6 @@ export interface CategoryCreate {
   parent_id?: string | null;
 }
 export type CategoryUpdate = Partial<CategoryCreate>;
-
-/** Kurs — per-gram price attached to a category (migration 0010). */
-export interface KursOut {
-  id: string;
-  category_id: string;
-  value: string;
-  is_active: boolean;
-  note: string | null;
-  created_at: string;
-}
-export interface KursCreate {
-  category_id: string;
-  value: number | string;
-  is_active?: boolean;
-  note?: string | null;
-}
-export interface KursUpdate {
-  value?: number | string;
-  is_active?: boolean;
-  note?: string | null;
-}
 
 /** gender / material / stone — same shape reference dictionary (DB-driven CRUD). */
 export type RefKind = 'genders' | 'materials' | 'stones';
@@ -139,12 +116,6 @@ export interface RefCreate {
 }
 export type RefUpdate = Partial<RefCreate>;
 
-/** GET /catalog/price-calc — preview only, does not persist. */
-export interface PriceCalcOut {
-  gram_price: string | number;
-  weight_grams: string | number;
-  price: string | number;
-}
 export interface ProductMediaCreate {
   image_url: string;
   shortcode_or_url?: string | null;
@@ -190,7 +161,6 @@ export interface ProductOut {
   gender_id: string | null;
   material_id: string | null;
   stone_id: string | null;
-  weight_grams: string | number | null;
   /** Base price (struck-through when discounted). */
   price: string;
   /** Discounted price the customer pays; null = no discount. */
@@ -199,6 +169,12 @@ export interface ProductOut {
   effective_price: string;
   status: ProductStatus;
   engraving_available?: boolean;
+  /** Extra charge for engraving; null -> falls back to the global setting. */
+  engraving_price: string | null;
+  /** Per-product low-stock threshold; null -> global setting used. */
+  low_stock_threshold: number | null;
+  /** Total available stock across active stocked variants (stock - reserved). */
+  available: number;
   ai_keywords: string[] | null;
   variants: VariantOut[];
   media: MediaOut[];
@@ -212,12 +188,13 @@ export interface ProductCreate {
   gender_id?: string | null;
   material_id?: string | null;
   stone_id?: string | null;
-  weight_grams?: number | string | null;
-  /** Optional: omitted -> server computes from weight_grams x category gram_price. */
-  price?: number | string | null;
+  /** Required — base price. Server 422s if missing. */
+  price: number | string;
   discount_price?: number | string | null;
-  status?: ProductStatus;
   engraving_available?: boolean;
+  engraving_price?: number | string | null;
+  low_stock_threshold?: number | null;
+  status?: ProductStatus;
   ai_keywords?: string[] | null;
   /** Simplest image attach — plain URLs. */
   image_urls?: string[] | null;
@@ -443,6 +420,21 @@ export interface NotificationOut {
 }
 /** /analytics/dashboard is untyped in the spec — keep it defensive. */
 export type DashboardAnalytics = Record<string, unknown>;
+
+/** GET /analytics/top-products — exact ordered/sold counts per product. */
+export interface TopProductOut {
+  product_id: string;
+  name_uz?: string | null;
+  name_ru?: string | null;
+  /** Units requested across all orders (demand). */
+  ordered_qty: number;
+  /** Distinct orders the product appeared in. */
+  orders_count: number;
+  /** Units actually sold (confirmed+ statuses). */
+  sold_qty: number;
+  /** Revenue from sold units, (unit_price + engraving_price) x qty. */
+  revenue: string | number;
+}
 
 export interface ListParams {
   limit?: number;

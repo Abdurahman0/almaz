@@ -1,9 +1,10 @@
 import { api } from '@/shared/api/client';
 import type { SettingOut, SettingValue } from '@/shared/api/types';
 
-export const GOLD_RATE_KEYS = {
-  '585': 'gold_rate_585',
-  '750': 'gold_rate_750',
+/** Global setting keys (migration 0011 defaults). /settings is not paginated. */
+export const SETTING_KEYS = {
+  engravingPrice: 'engraving_price',
+  lowStockThreshold: 'low_stock_threshold',
 } as const;
 
 export async function listSettings(): Promise<SettingOut[]> {

@@ -6,31 +6,38 @@ import { PRESETS } from '@/shared/lib/themes';
 import { switchThemeFromEvent } from '@/shared/hooks/useThemeTransition';
 import { useAuthStore } from '@/shared/stores/auth';
 import { formatDateTime } from '@/shared/lib/format';
-import { useGoldRates, useSettings, useUpdateSetting } from '../hooks';
-import { GOLD_RATE_KEYS } from '../api';
+import {
+  useEngravingPrice,
+  useLowStockThreshold,
+  useSettings,
+  useUpdateSetting,
+} from '../hooks';
+import { SETTING_KEYS } from '../api';
 import { StaffSection } from '../components/StaffSection';
 import { CardsSection } from '../components/CardsSection';
 import { useAudit } from '../rbac';
 
-function GoldRateEditor() {
-  const { rate585, rate750 } = useGoldRates();
+/** Global commerce settings: engraving price + low-stock threshold. */
+function CommerceSettingsEditor() {
+  const engravingPrice = useEngravingPrice();
+  const lowStock = useLowStockThreshold();
   const settings = useSettings();
   const update = useUpdateSetting();
-  const [v585, setV585] = useState<number | '' | null>(null);
-  const [v750, setV750] = useState<number | '' | null>(null);
+  const [eng, setEng] = useState<number | '' | null>(null);
+  const [low, setLow] = useState<number | '' | null>(null);
 
   if (settings.isPending) return <SkeletonRows rows={2} />;
 
   const save = () => {
-    const n585 = v585 === null ? rate585 : v585;
-    const n750 = v750 === null ? rate750 : v750;
+    const nEng = eng === null ? engravingPrice : eng;
+    const nLow = low === null ? lowStock : low;
     const jobs: Array<Promise<unknown>> = [];
-    if (typeof n585 === 'number' && n585 > 0)
-      jobs.push(update.mutateAsync({ key: GOLD_RATE_KEYS['585'], value: n585 }));
-    if (typeof n750 === 'number' && n750 > 0)
-      jobs.push(update.mutateAsync({ key: GOLD_RATE_KEYS['750'], value: n750 }));
+    if (typeof nEng === 'number' && nEng >= 0)
+      jobs.push(update.mutateAsync({ key: SETTING_KEYS.engravingPrice, value: nEng }));
+    if (typeof nLow === 'number' && nLow >= 0)
+      jobs.push(update.mutateAsync({ key: SETTING_KEYS.lowStockThreshold, value: nLow }));
     Promise.all(jobs)
-      .then(() => toast.success('Oltin kursi saqlandi'))
+      .then(() => toast.success('Sozlamalar saqlandi'))
       .catch(() => toast.error('Saqlashda xatolik yuz berdi'));
   };
 
@@ -38,22 +45,26 @@ function GoldRateEditor() {
     <div className="space-y-4">
       <div className="grid grid-cols-2 gap-4">
         <NumberInput
-          label="585 proba"
-          suffix="so'm/g"
+          label="Gravirovka narxi"
+          suffix="so'm"
           thousands
           step={10_000}
-          value={v585 ?? rate585}
-          onChange={setV585}
+          min={0}
+          value={eng ?? engravingPrice}
+          onChange={setEng}
         />
         <NumberInput
-          label="750 proba"
-          suffix="so'm/g"
-          thousands
-          step={10_000}
-          value={v750 ?? rate750}
-          onChange={setV750}
+          label="Kam qolgan chegarasi"
+          suffix="dona"
+          step={1}
+          min={0}
+          value={low ?? lowStock}
+          onChange={setLow}
         />
       </div>
+      <p className="text-xs text-muted">
+        Gravirovka narxi mahsulotда ko'rsatilmasa shu ishlatiladi. Chegara — mahsulotда o'z qiymati bo'lmasa.
+      </p>
       <Button size="sm" loading={update.isPending} onClick={save}>
         Saqlash
       </Button>
@@ -68,7 +79,7 @@ export default function SettingsPage() {
 
   return (
     <div>
-      <PageHeader heading="Sozlamalar" subheading="Do'kon, kurslar va jamoa" />
+      <PageHeader heading="Sozlamalar" subheading="Do'kon, narxlar va jamoa" />
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
@@ -90,8 +101,8 @@ export default function SettingsPage() {
         </Card>
 
         <Card>
-          <h2 className="mb-4 text-md font-semibold text-text">Oltin kursi (1 g)</h2>
-          <GoldRateEditor />
+          <h2 className="mb-4 text-md font-semibold text-text">Narx / sklad sozlamalari</h2>
+          <CommerceSettingsEditor />
         </Card>
 
         <Card className="h-fit">

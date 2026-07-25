@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { endOfMonth, isWithinInterval, parseISO, startOfMonth } from 'date-fns';
+import { endOfMonth, format, isWithinInterval, parseISO, startOfMonth } from 'date-fns';
 import { Download } from 'lucide-react';
 import {
   Button,
@@ -8,6 +8,7 @@ import {
   HallmarkBadge,
   PageHeader,
   SkeletonCards,
+  SkeletonRows,
   Money,
   Tooltip,
   DateRangePicker,
@@ -18,8 +19,10 @@ import { formatNumber } from '@/shared/lib/format';
 import { useOrders } from '@/features/orders/hooks';
 import { useProducts } from '@/features/products/hooks';
 import { useClients } from '@/features/clients/hooks';
+import { useTopProducts } from '../hooks';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
+import type { TopProductOut } from '@/shared/api/types';
 
 export default function ReportsPage() {
   const [range, setRange] = useState<Range>({
@@ -31,34 +34,32 @@ export default function ReportsPage() {
   const products = useProducts();
   const clients = useClients();
 
-  const report = useMemo(() => {
+  const dateFrom = format(range.from, 'yyyy-MM-dd');
+  const dateTo = format(range.to, 'yyyy-MM-dd');
+  const topProducts = useTopProducts({ date_from: dateFrom, date_to: dateTo, limit: 5 });
+
+  // revenue/count summary still derived from the orders list, in the picked period
+  const summary = useMemo(() => {
     if (!orders.data) return null;
     const inPeriod = orders.data.filter(
       (o) =>
         isWithinInterval(parseISO(o.created_at), { start: range.from, end: range.to }) &&
         !['cancelled', 'refunded', 'returned'].includes(o.status),
     );
-    const revenue = inPeriod.reduce((s, o) => s + Number(o.grand_total), 0);
+    return {
+      revenue: inPeriod.reduce((s, o) => s + Number(o.grand_total), 0),
+      count: inPeriod.length,
+    };
+  }, [orders.data, range]);
 
-    const byVariant = new Map<string, { qty: number; revenue: number }>();
-    for (const o of inPeriod) {
-      for (const item of o.items) {
-        const cur = byVariant.get(item.variant_id) ?? { qty: 0, revenue: 0 };
-        cur.qty += item.quantity;
-        cur.revenue += Number(item.unit_price) * item.quantity;
-        byVariant.set(item.variant_id, cur);
-      }
+  // resolve a top-product name: prefer the row's own name, else look it up
+  const topName = (row: TopProductOut): string => {
+    if (row.name_uz || row.name_ru) {
+      return pickName({ name_uz: row.name_uz ?? '', name_ru: row.name_ru ?? null }, lang);
     }
-    const topProducts = Array.from(byVariant.entries())
-      .map(([variantId, agg]) => {
-        const product = products.data?.find((p) => p.variants.some((v) => v.id === variantId));
-        return { name: product ? pickName(product, lang) : `Variant ${variantId.slice(0, 8)}`, ...agg };
-      })
-      .sort((a, b) => b.revenue - a.revenue)
-      .slice(0, 5);
-
-    return { revenue, count: inPeriod.length, topProducts };
-  }, [orders.data, products.data, range, lang]);
+    const p = products.data?.find((x) => x.id === row.product_id);
+    return p ? pickName(p, lang) : `Mahsulot ${row.product_id.slice(0, 8)}`;
+  };
 
   const topClients = [...(clients.data ?? [])]
     .sort((a, b) => b.total - a.total)
@@ -87,40 +88,49 @@ export default function ReportsPage() {
       {orders.isPending && <SkeletonCards count={2} />}
       {orders.isError && <ErrorCard error={orders.error} onRetry={() => orders.refetch()} />}
 
-      {report && (
+      {summary && (
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             <Card>
               <p className="text-xs font-semibold uppercase tracking-caps text-muted">Tushum</p>
               <p className="mt-2 text-stat tnum text-accent-ink">
-                <Money short value={report.revenue} />
+                <Money short value={summary.revenue} />
               </p>
             </Card>
             <Card>
               <p className="text-xs font-semibold uppercase tracking-caps text-muted">Buyurtmalar</p>
               <p className="mt-2 tnum text-stat text-text">
-                {formatNumber(report.count)}
+                {formatNumber(summary.count)}
               </p>
             </Card>
           </div>
 
           <div className="mt-6 grid gap-6 lg:grid-cols-2">
             <Card>
-              <h2 className="mb-4 text-md font-semibold text-text">
-                Eng ko'p sotilganlar
-              </h2>
-              {report.topProducts.length === 0 && (
+              <div className="mb-4 flex items-baseline justify-between">
+                <h2 className="text-md font-semibold text-text">Eng ko'p so'ralgan / sotilgan</h2>
+                <span className="text-2xs uppercase tracking-caps text-muted">so'ralgan · sotilgan</span>
+              </div>
+              {topProducts.isPending && <SkeletonRows rows={5} />}
+              {topProducts.isError && (
+                <ErrorCard error={topProducts.error} onRetry={() => topProducts.refetch()} />
+              )}
+              {topProducts.isSuccess && topProducts.data.length === 0 && (
                 <p className="text-sm text-muted">Bu davrda savdo bo'lmagan</p>
               )}
               <ol className="space-y-3">
-                {report.topProducts.map((p, i) => (
-                  <li key={p.name + i} className="flex items-center gap-3 text-sm">
+                {topProducts.data?.map((p, i) => (
+                  <li key={p.product_id} className="flex items-center gap-3 text-sm">
                     <span className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full border border-border font-semibold text-accent-ink">
                       {i + 1}
                     </span>
-                    <span className="min-w-0 flex-1 truncate text-text">{p.name}</span>
-                    <span className="text-xs text-muted">{p.qty} dona</span>
-                    <span className="font-semibold text-accent-ink"><Money short value={p.revenue} /></span>
+                    <span className="min-w-0 flex-1 truncate text-text">{topName(p)}</span>
+                    <span className="shrink-0 text-xs text-muted tnum">
+                      {formatNumber(p.ordered_qty)} · <span className="text-text">{formatNumber(p.sold_qty)}</span>
+                    </span>
+                    <span className="w-20 shrink-0 text-right font-semibold text-accent-ink">
+                      <Money short value={p.revenue} />
+                    </span>
                   </li>
                 ))}
               </ol>

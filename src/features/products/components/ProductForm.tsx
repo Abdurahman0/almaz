@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { Wand2, X, Plus, Trash2, Upload } from 'lucide-react';
+import { X, Plus, Trash2, Upload } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -13,7 +13,6 @@ import {
   toast,
   type SelectOption,
 } from '@/shared/ui';
-import { formatMoney } from '@/shared/lib/format';
 import { pickName } from '@/shared/lib/localize';
 import { uploadFile, uploadFiles, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { useUiStore } from '@/shared/stores/ui';
@@ -22,7 +21,6 @@ import {
   useCategories,
   useCreateProduct,
   useDeleteMedia,
-  usePriceCalc,
   useRefs,
   useUpdateProduct,
 } from '../hooks';
@@ -42,27 +40,23 @@ const schema = z
     gender_id: z.string().optional(),
     material_id: z.string().optional(),
     stone_id: z.string().optional(),
-    weight_grams: numField,
     price: numField,
     discount_price: numField,
+    low_stock_threshold: numField,
+    engraving_price: numField,
     status: z.enum(['draft', 'active', 'archived']),
     engraving_available: z.boolean(),
   })
   .superRefine((v, ctx) => {
-    for (const key of ['weight_grams', 'price', 'discount_price'] as const) {
+    // price is mandatory (server 422s without it)
+    if (v.price === '' || !(v.price > 0)) {
+      ctx.addIssue({ path: ['price'], code: z.ZodIssueCode.custom, message: 'Narx majburiy' });
+    }
+    for (const key of ['discount_price', 'low_stock_threshold', 'engraving_price'] as const) {
       const x = v[key];
       if (x !== '' && !(x > 0)) {
         ctx.addIssue({ path: [key], code: z.ZodIssueCode.custom, message: "Musbat qiymat bo'lishi kerak" });
       }
-    }
-    const hasPrice = v.price !== '';
-    const canCompute = Boolean(v.category_id) && v.weight_grams !== '';
-    if (!hasPrice && !canCompute) {
-      ctx.addIssue({
-        path: ['price'],
-        code: z.ZodIssueCode.custom,
-        message: "Narx kiriting yoki kategoriya + og'irlik bering (avtomatik hisoblanadi)",
-      });
     }
     if (v.price !== '' && v.discount_price !== '' && v.discount_price > v.price) {
       ctx.addIssue({
@@ -120,9 +114,10 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           gender_id: product.gender_id ?? '',
           material_id: product.material_id ?? '',
           stone_id: product.stone_id ?? '',
-          weight_grams: product.weight_grams != null ? Number(product.weight_grams) : '',
           price: product.price != null ? Number(product.price) : '',
           discount_price: product.discount_price != null ? Number(product.discount_price) : '',
+          low_stock_threshold: product.low_stock_threshold != null ? Number(product.low_stock_threshold) : '',
+          engraving_price: product.engraving_price != null ? Number(product.engraving_price) : '',
           status: product.status,
           engraving_available: product.engraving_available ?? false,
         }
@@ -133,20 +128,16 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           gender_id: '',
           material_id: '',
           stone_id: '',
-          weight_grams: '',
           price: '',
           discount_price: '',
+          low_stock_threshold: '',
+          engraving_price: '',
           status: 'active',
           engraving_available: false,
         },
   });
 
-  const categoryId = form.watch('category_id');
-  const weightRaw = form.watch('weight_grams');
-  const weight = typeof weightRaw === 'number' ? weightRaw : undefined;
-  const priceCalc = usePriceCalc(categoryId || undefined, weight);
-  const hint = priceCalc.data ? Math.round(Number(priceCalc.data.price)) : null;
-
+  const engravingOn = form.watch('engraving_available');
   const mutation = product ? updateProduct : createProduct;
 
   const submit = form.handleSubmit((v) => {
@@ -160,12 +151,12 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       gender_id: v.gender_id || null,
       material_id: v.material_id || null,
       stone_id: v.stone_id || null,
-      weight_grams: toNum(v.weight_grams),
-      // omit price entirely when blank so the server auto-computes from weight x gram_price
-      price: toNum(v.price) ?? undefined,
+      price: v.price === '' ? 0 : v.price, // guarded required by zod
       discount_price: toNum(v.discount_price),
-      status: v.status,
+      low_stock_threshold: toNum(v.low_stock_threshold),
       engraving_available: v.engraving_available || false,
+      engraving_price: v.engraving_available ? toNum(v.engraving_price) : null,
+      status: v.status,
     };
     const done = () => {
       toast.success(product ? 'Mahsulot yangilandi' : "Mahsulot qo'shildi");
@@ -261,58 +252,21 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         />
       </div>
 
-      {/* Weight -> price calculator (server-backed preview) */}
-      <div className="rounded-lg border border-border bg-accent-soft p-4">
-        <div className="grid grid-cols-[1fr_auto] items-end gap-3">
-          <Controller
-            control={form.control}
-            name="weight_grams"
-            render={({ field }) => (
-              <NumberInput
-                label="Og'irligi (g)"
-                value={field.value}
-                onChange={field.onChange}
-                step={0.1}
-                min={0}
-                suffix="g"
-                placeholder="3.0"
-              />
-            )}
-          />
-          <Button
-            type="button"
-            variant="secondary"
-            size="md"
-            disabled={hint === null}
-            onClick={() => hint !== null && form.setValue('price', hint, { shouldValidate: true })}
-          >
-            <Wand2 className="h-4 w-4" strokeWidth={1.5} /> Narxni qo'llash
-          </Button>
-        </div>
-        {priceCalc.isFetching && <p className="mt-2 text-xs text-muted">Hisoblanmoqda…</p>}
-        {hint !== null && (
-          <p className="mt-2 text-xs text-muted">
-            Hisoblangan narx: <span className="tnum font-semibold text-accent-ink">{formatMoney(hint)}</span>{' '}
-            ({formatMoney(Number(priceCalc.data?.gram_price ?? 0))}/g). Narxni bo'sh qoldirsangiz — avtomatik shu narx yoziladi.
-          </p>
-        )}
-      </div>
-
-      {/* Prices: base + discount */}
+      {/* Prices: base (required) + discount */}
       <div className="grid grid-cols-2 gap-4">
         <Controller
           control={form.control}
           name="price"
           render={({ field, fieldState }) => (
             <NumberInput
-              label="Asosiy narx"
+              label="Asosiy narx *"
               value={field.value}
               onChange={field.onChange}
               min={0}
               step={100_000}
               suffix="so'm"
               thousands
-              placeholder="Avto"
+              placeholder="400 000"
               error={fieldState.error?.message}
             />
           )}
@@ -335,6 +289,24 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           )}
         />
       </div>
+
+      {/* Stock threshold */}
+      <Controller
+        control={form.control}
+        name="low_stock_threshold"
+        render={({ field, fieldState }) => (
+          <NumberInput
+            label="Kam qolgan chegarasi (bo'sh — global sozlama)"
+            value={field.value}
+            onChange={field.onChange}
+            min={0}
+            step={1}
+            suffix="dona"
+            placeholder="Global"
+            error={fieldState.error?.message}
+          />
+        )}
+      />
 
       {/* Descriptions — uz + ru */}
       <div className="grid grid-cols-2 gap-4">
@@ -423,12 +395,31 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
               <Checkbox
                 checked={Boolean(field.value)}
                 onCheckedChange={field.onChange}
-                label="Gravirovka mavjud"
+                label="Gravirovka (ism yozish) mavjud"
               />
             </div>
           )}
         />
       </div>
+      {engravingOn && (
+        <Controller
+          control={form.control}
+          name="engraving_price"
+          render={({ field, fieldState }) => (
+            <NumberInput
+              label="Gravirovka narxi (bo'sh — global sozlama)"
+              value={field.value}
+              onChange={field.onChange}
+              min={0}
+              step={10_000}
+              suffix="so'm"
+              thousands
+              placeholder="Global (50 000)"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+      )}
 
       {mutation.isError && (
         <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">

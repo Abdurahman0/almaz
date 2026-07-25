@@ -1,0 +1,10 @@
+{
+  "frameW": 320,
+  "frameH": 320,
+  "cols": 15,
+  "rows": 12,
+  "count": 180,
+  "degPerFrame": 2,
+  "sheet": "spritesheet.webp",
+  "frames": "frames/ring_{:04d}.webp"
+}

@@ -1,6 +1,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as settingsApi from './api';
-import { GOLD_RATE_KEYS } from './api';
+import { SETTING_KEYS } from './api';
 import type { SettingValue } from '@/shared/api/types';
 
 export const settingKeys = {
@@ -23,16 +23,20 @@ export function useUpdateSetting() {
   });
 }
 
-/** Gold rate per gram, so'm — stored in backend settings. */
-export function useGoldRates(): { rate585: number; rate750: number } {
+/** Read a numeric global setting with a fallback default. */
+export function useNumberSetting(key: string, fallback: number): number {
   const { data } = useSettings();
-  const num = (key: string, fallback: number): number => {
-    const raw = data?.find((s) => s.key === key)?.value;
-    const n = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
-    return Number.isFinite(n) && n > 0 ? n : fallback;
-  };
-  return {
-    rate585: num(GOLD_RATE_KEYS['585'], 850_000),
-    rate750: num(GOLD_RATE_KEYS['750'], 1_090_000),
-  };
+  const raw = data?.find((s) => s.key === key)?.value;
+  const n = typeof raw === 'string' ? Number(raw) : typeof raw === 'number' ? raw : NaN;
+  return Number.isFinite(n) && n >= 0 ? n : fallback;
+}
+
+/** Global low-stock threshold (default 10). */
+export function useLowStockThreshold(): number {
+  return useNumberSetting(SETTING_KEYS.lowStockThreshold, 10);
+}
+
+/** Global engraving price (default 50000). */
+export function useEngravingPrice(): number {
+  return useNumberSetting(SETTING_KEYS.engravingPrice, 50_000);
 }

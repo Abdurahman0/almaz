@@ -5,11 +5,11 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
 import { Button, Input, PasswordInput } from '@/shared/ui';
-import { RingSpin } from '@/shared/ui/RingSpin';
+import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { useIsAuthenticated } from '@/shared/stores/auth';
 import { useLogin } from '../hooks';
 import { useT } from '@/shared/lib/i18n';
-import { getRingFrames } from '@/shared/lib/ringFrames';
+import { prefetchRingAssets } from '@/shared/lib/ringFrames';
 import type { ApiError } from '@/shared/api/client';
 
 const schema = z.object({
@@ -28,9 +28,10 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  // warm the intro's spin frames while the user types credentials
+  // warm both ring asset sets (intro sequence + sidebar spritesheet) at low
+  // priority while the user types credentials, so the intro is decode-ready
   useEffect(() => {
-    void getRingFrames().catch(() => {});
+    prefetchRingAssets();
   }, []);
 
   if (authed) return <Navigate to="/" replace />;
@@ -44,7 +45,7 @@ export default function LoginPage() {
         className="card-velvet relative z-10 w-full max-w-md p-10"
       >
         <div className="mb-8 flex flex-col items-center gap-3">
-          <RingSpin size={148} speed={0.6} className="-my-6 translate-x-3" />
+          <RingCanvas size={148} rotationMs={9000} className="-my-6" />
           <h1 className="brand-gradient text-xl font-bold tracking-tight">{t('auth.title')}</h1>
           <p className="text-sm text-muted">{t('auth.subtitle')}</p>
         </div>

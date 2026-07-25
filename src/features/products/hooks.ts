@@ -4,8 +4,6 @@ import type { ProductListParams } from './api';
 import type {
   CategoryCreate,
   CategoryUpdate,
-  KursCreate,
-  KursUpdate,
   ProductCreate,
   ProductMediaCreate,
   ProductStatus,
@@ -20,9 +18,10 @@ export const productKeys = {
   all: ['products'] as const,
   list: (status?: ProductStatus) => ['products', 'list', status ?? 'all'] as const,
   page: (params: ProductListParams) => ['products', 'page', params] as const,
+  lowStock: (params: { status?: ProductStatus; limit?: number; offset?: number }) =>
+    ['products', 'low-stock', params] as const,
   categories: ['catalog', 'categories'] as const,
   refs: (kind: RefKind, onlyActive: boolean) => ['catalog', kind, onlyActive] as const,
-  kurs: (categoryId?: string) => ['catalog', 'kurs', categoryId ?? 'all'] as const,
 };
 
 /** Flat product array for dropdowns/reports (no pagination UI). */
@@ -34,63 +33,25 @@ export function useProducts(status?: ProductStatus) {
 }
 
 /** Paginated + filtered product list for the products page. */
-export function useProductsPage(params: ProductListParams) {
+export function useProductsPage(params: ProductListParams, enabled = true) {
   return useQuery({
     queryKey: productKeys.page(params),
     queryFn: () => productsApi.listProducts(params),
     placeholderData: keepPreviousData,
-  });
-}
-
-/** Weight -> price preview from the server; runs only when both inputs are set. */
-export function usePriceCalc(categoryId: string | undefined, weight: number | undefined) {
-  const enabled = Boolean(categoryId) && typeof weight === 'number' && weight > 0;
-  return useQuery({
-    queryKey: ['catalog', 'price-calc', categoryId ?? '', weight ?? 0],
-    queryFn: () => productsApi.priceCalc(categoryId as string, weight as number),
     enabled,
-    staleTime: 60_000,
   });
 }
 
-// ---------- Kurs (per-gram price) ----------
-export function useKurs(categoryId?: string) {
+/** Products under their low-stock threshold (admin re-order view). */
+export function useLowStock(
+  params: { status?: ProductStatus; limit?: number; offset?: number },
+  enabled = true,
+) {
   return useQuery({
-    queryKey: productKeys.kurs(categoryId),
-    queryFn: () => productsApi.listKurs(categoryId ? { category_id: categoryId } : {}),
-  });
-}
-
-export function useCreateKurs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (body: KursCreate) => productsApi.createKurs(body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
-      qc.invalidateQueries({ queryKey: productKeys.categories });
-    },
-  });
-}
-
-export function useUpdateKurs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: ({ id, body }: { id: string; body: KursUpdate }) => productsApi.updateKurs(id, body),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
-      qc.invalidateQueries({ queryKey: productKeys.categories });
-    },
-  });
-}
-
-export function useDeleteKurs() {
-  const qc = useQueryClient();
-  return useMutation({
-    mutationFn: (id: string) => productsApi.deleteKurs(id),
-    onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['catalog', 'kurs'] });
-      qc.invalidateQueries({ queryKey: productKeys.categories });
-    },
+    queryKey: productKeys.lowStock(params),
+    queryFn: () => productsApi.listLowStock(params),
+    placeholderData: keepPreviousData,
+    enabled,
   });
 }
 

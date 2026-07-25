@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search } from 'lucide-react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -20,7 +20,8 @@ import {
   toast,
   type SelectOption,
 } from '@/shared/ui';
-import { useCategories, useDeleteProduct, useProductsPage, useRefs } from '../hooks';
+import { useCategories, useDeleteProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
+import { useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
 import { pickName } from '@/shared/lib/localize';
@@ -35,15 +36,17 @@ const statusFilterOptions: SelectOption[] = [
   { value: 'archived', label: 'Arxiv' },
 ];
 
-function ProductSlot({ product, name, material, stone, onEdit, onDelete }: {
+function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete }: {
   product: ProductOut;
   name: string;
   material: string;
   stone: string;
+  lowStock: boolean;
   onEdit: () => void;
   onDelete: () => void;
 }) {
-  const stock = product.variants.reduce((sum, v) => sum + v.available, 0);
+  // available comes straight from the API (active stocked variants, stock-reserved)
+  const stock = product.available;
   const soldOut = stock <= 0;
   const discounted = product.discount_price != null;
 
@@ -77,7 +80,12 @@ function ProductSlot({ product, name, material, stone, onEdit, onDelete }: {
         )}
       </span>
       {!soldOut && (
-        <span className="absolute left-3 top-3 rounded-full bg-accent-soft px-2 py-0.5 text-2xs font-bold text-accent-ink">
+        <span
+          className={`absolute left-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold ${
+            lowStock ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent-ink'
+          }`}
+        >
+          {lowStock && <AlertTriangle className="h-3 w-3" strokeWidth={2} />}
           {stock} dona
         </span>
       )}
@@ -136,12 +144,15 @@ export default function ProductsPage() {
   const stones = useRefMap('stones');
   const categories = useCategories();
 
+  const globalThreshold = useLowStockThreshold();
+
   // filters
   const [search, setSearch] = useState('');
   const [debouncedQ, setDebouncedQ] = useState('');
   const [status, setStatus] = useState('');
   const [categoryId, setCategoryId] = useState('');
   const [inStock, setInStock] = useState(false);
+  const [lowStockOnly, setLowStockOnly] = useState(false);
   const [offset, setOffset] = useState(0);
 
   useEffect(() => {
@@ -149,18 +160,33 @@ export default function ProductsPage() {
     return () => window.clearTimeout(t);
   }, [search]);
   // any filter change resets to the first page
-  useEffect(() => setOffset(0), [debouncedQ, status, categoryId, inStock]);
+  useEffect(() => setOffset(0), [debouncedQ, status, categoryId, inStock, lowStockOnly]);
 
-  const query = useProductsPage({
-    limit: PAGE_SIZE,
-    offset,
-    q: debouncedQ || undefined,
-    status: (status as ProductStatus) || undefined,
-    category_id: categoryId || undefined,
-    in_stock: inStock || undefined,
-  });
+  // low-stock mode swaps the data source to the dedicated endpoint; only the
+  // active source fetches
+  const fullQuery = useProductsPage(
+    {
+      limit: PAGE_SIZE,
+      offset,
+      q: debouncedQ || undefined,
+      status: (status as ProductStatus) || undefined,
+      category_id: categoryId || undefined,
+      in_stock: inStock || undefined,
+    },
+    !lowStockOnly,
+  );
+  const lowQuery = useLowStock(
+    { limit: PAGE_SIZE, offset, status: (status as ProductStatus) || undefined },
+    lowStockOnly,
+  );
+  const query = lowStockOnly ? lowQuery : fullQuery;
   const products = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
+
+  const isLow = (p: ProductOut) => {
+    const threshold = p.low_stock_threshold ?? globalThreshold;
+    return p.available < threshold;
+  };
 
   const [formOpen, setFormOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
@@ -173,7 +199,7 @@ export default function ProductsPage() {
     { value: '', label: 'Barcha kategoriyalar' },
     ...(categories.data ?? []).map((c) => ({ value: c.id, label: pickName(c, lang) })),
   ];
-  const hasFilters = Boolean(debouncedQ || status || categoryId || inStock);
+  const hasFilters = Boolean(debouncedQ || status || categoryId || inStock || lowStockOnly);
 
   return (
     <div>
@@ -201,16 +227,27 @@ export default function ProductsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nomi bo'yicha qidirish (uz/ru)..."
             aria-label="Mahsulot qidirish"
-            className="w-full rounded-lg border border-border bg-bg py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent"
+            disabled={lowStockOnly}
+            className="w-full rounded-lg border border-border bg-bg py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent disabled:opacity-45"
           />
         </div>
         <div className="w-44">
-          <Select placeholder="Kategoriya" options={categoryOptions} value={categoryId} onChange={setCategoryId} />
+          <Select placeholder="Kategoriya" options={categoryOptions} value={categoryId} onChange={setCategoryId} disabled={lowStockOnly} />
         </div>
         <div className="w-40">
           <Select placeholder="Holat" options={statusFilterOptions} value={status} onChange={setStatus} />
         </div>
-        <Checkbox checked={inStock} onCheckedChange={setInStock} label="Faqat mavjud" />
+        <Checkbox checked={inStock} onCheckedChange={setInStock} label="Faqat mavjud" disabled={lowStockOnly} />
+        <button
+          onClick={() => setLowStockOnly((v) => !v)}
+          className={`flex items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            lowStockOnly
+              ? 'border-danger bg-danger-soft text-danger'
+              : 'border-border text-muted hover:border-strong hover:text-text'
+          }`}
+        >
+          <AlertTriangle className="h-3.5 w-3.5" strokeWidth={2} /> Kam qolganlar
+        </button>
       </div>
 
       {query.isPending && <SkeletonCards count={8} />}
@@ -218,8 +255,8 @@ export default function ProductsPage() {
       {query.isSuccess && products.length === 0 && (
         <Card>
           <EmptyState
-            heading={hasFilters ? 'Hech narsa topilmadi' : "Patnis hali bo'sh"}
-            hint={hasFilters ? "Filtrlarni o'zgartiring" : 'Birinchi taqinchoqni qo\'shing — patnis yaltirasin'}
+            heading={lowStockOnly ? 'Kam qolgan mahsulot yo\'q' : hasFilters ? 'Hech narsa topilmadi' : "Patnis hali bo'sh"}
+            hint={lowStockOnly ? 'Zaxira yetarli' : hasFilters ? "Filtrlarni o'zgartiring" : 'Birinchi taqinchoqni qo\'shing — patnis yaltirasin'}
             action={
               !hasFilters ? (
                 <Button variant="secondary" size="sm" onClick={() => setFormOpen(true)}>
@@ -241,6 +278,7 @@ export default function ProductsPage() {
                   name={pickName(p, lang)}
                   material={refName(materials, p.material_id)}
                   stone={refName(stones, p.stone_id)}
+                  lowStock={lowStockOnly || isLow(p)}
                   onEdit={() => { setEditing(p); setFormOpen(true); }}
                   onDelete={() => setDeleting(p)}
                 />

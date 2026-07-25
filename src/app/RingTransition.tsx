@@ -104,10 +104,9 @@ export function RingOverlay({ visible, assetPath = '/' }: RingOverlayProps) {
       hidden={phase === 'hidden'}
       aria-hidden="true"
     >
-      <video ref={videoRef} muted loop playsInline preload="auto">
-        <source src={`${assetPath}ring_spin_512.webm`} type="video/webm" />
-        <img src={`${assetPath}ring_spin_384.webp`} alt="" />
-      </video>
+      {/* ring page-transition is retired (ENABLE_RING_TRANSITION=false); static
+          v2 frame placeholder keeps the disabled path compiling + asset-clean */}
+      <img src={`${assetPath}ring/v2/frames/ring_0000.webp`} alt="" className="h-full w-full object-contain" />
     </div>
   );
 }
@@ -407,10 +406,8 @@ function RingTransitionLayoutRing({
         <div className="ring-fade">
           {/* Always mounted with preload="auto" so the spin is fetched at app
               start and the very first crossing never plays half-loaded. */}
-          <video ref={videoRef} muted loop playsInline preload="auto">
-            <source src={`${assetPath}ring_spin_512.webm`} type="video/webm" />
-            <img src={`${assetPath}ring_spin_384.webp`} alt="" />
-          </video>
+          {/* retired ring transition — static v2 frame placeholder */}
+          <img src={`${assetPath}ring/v2/frames/ring_0000.webp`} alt="" className="h-full w-full object-contain" />
         </div>
       </div>
     </div>
