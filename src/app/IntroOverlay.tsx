@@ -1,47 +1,68 @@
 import { useEffect, useRef } from 'react';
 import { useAnimate, animate as animateValue } from 'framer-motion';
 import { useIntroStore } from '@/shared/stores/intro';
-import { getRingFrames, frameIndexFor, GEM_FRAME, FRAME_COUNT } from '@/shared/lib/ringFrames';
+import {
+  getRingFrames,
+  getEngraveReady,
+  frameIndexFor,
+  GEM_FRAME,
+  FRAME_COUNT,
+  ENGRAVE_CLEAN,
+  ENGRAVE_ENGRAVED,
+  ENGRAVE_CENTROID,
+} from '@/shared/lib/ringFrames';
+import './intro.css';
 
 /*
- * One-time post-login intro (v2 assets — 180-frame turntable).
+ * One-time post-login intro (v2 turntable + inner-band engraving peak).
  *
- * Corner → center → dive → rocket:
- *  - enters from beyond the top-right corner, rotating slowly INTO the
- *    gem-facing pose so the first clear look is the gem toward the viewer;
- *  - settles at 72vh exactly on GEM_FRAME (gem to camera, band inner side
- *    open), then DIVES to a 230vh close-up on that frozen pose;
- *  - the "Almaz / Silver" lockup composes over a scrim (screen-fixed, so it
- *    is not scaled by the ring);
- *  - rockets to the sidebar logo slot (FLIP recomputed from the zoomed state).
+ * corner -> center (gem-facing frame 0) -> turn & present into the inner-band
+ * hero (crossfade from the turntable to the clean hero, one continuous move)
+ * -> reveal "Almaz Silver" engraved along the band with a directional mask
+ * -> hold -> reverse-crossfade back to the turntable -> rocket to the sidebar.
  *
- * The ring is a canvas drawn from decoded 1200px frames with plain per-frame
- * stepping — 180 frames are natively smooth, no crossfade.
+ * INTRO_PEAK swaps the peak: 'engrave' (default) or the older 'gem' dive.
  */
+const INTRO_PEAK: 'engrave' | 'gem' = 'engrave';
+
+// engrave-phase mask sweep angle (CSS gradient deg): reveal grows toward the
+// Silver end (up-left) along the measured 42.5deg baseline.
+const ENGRAVE_ANGLE = '313deg';
 
 const ENTER_MS = 1400;
 const SETTLE_BEAT_MS = 160;
+// engrave peak
+const TURN_MS = 700;
+const CROSS_MS = 260; // crossfade overlap
+const TURN_SCALE = 1.5; // turntable grows to ~this before it hands off to hero
+const TURN_END_FRAME = 24; // ~3/4 pose, close to the hero's inner-band view
+const PUSH_MS = 520; // reveal-time push-in that brings engraving to center
+const REVEAL_MS = 1100;
+const GLINT_MS = 150;
+const HERO_HOLD_MS = 700;
+const RETURN_MS = 250;
+const HERO_VH = 1.6; // ~160vh hero
+// gem peak (legacy)
 const DIVE_MS = 560;
 const WORD_MS = 550;
 const SHIMMER_MS = 500;
 const HOLD_MS = 800;
 const WORD_OUT_MS = 120;
+// shared exit
 const ANTICIPATION_MS = 60;
 const FLIGHT_MS = 340;
 const SETTLE_MS = 80;
 
-// GEM_FRAME as a rotation fraction; the entrance lands here exactly.
 const GEM_ANGLE = GEM_FRAME / FRAME_COUNT;
-// Enter rotating ~0.4 turn INTO the gem pose (starts near a side view).
 const ENTER_START_ANGLE = GEM_ANGLE - 0.4;
-// rotations/sec for the rocket spin burst (~half a turn across the flight).
 const RPS_ROCKET = 0.5 / (FLIGHT_MS / 1000);
+const RPS_TURN = TURN_END_FRAME / FRAME_COUNT / (TURN_MS / 1000); // reaches the 3/4 pose
 
 function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone: () => void }) {
   const [scope, animate] = useAnimate();
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const angleRef = useRef(ENTER_START_ANGLE);
-  const spinRef = useRef(false); // when true the rAF loop integrates rps
+  const spinRef = useRef(false);
   const rpsRef = useRef(0);
   const ranRef = useRef(false);
   const skippedRef = useRef(false);
@@ -72,9 +93,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     const vh = window.innerHeight;
     const mobile = vw <= 640;
     const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660);
-    const diveScale = (2.3 * vh) / S; // 230vh close-up
+    const diveScale = (2.3 * vh) / S;
     const START = 120;
-    const x0 = vw / 2 + START / 2; // fully outside past the top-right corner
+    const x0 = vw / 2 + START / 2;
     const y0 = -(vh / 2) - START / 2;
 
     const startSpin = (frames: ImageBitmap[]) => {
@@ -102,77 +123,117 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       let frames: ImageBitmap[];
       try {
         frames = await getRingFrames(assetPath);
-        if (disposed) return;
-        startSpin(frames);
-        await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
-        if (disposed) return;
       } catch {
         onDone();
         return;
       }
+      // The engraving heroes are decoded before the peak, but their failure must
+      // never abort the intro (they are tiny vs the frames the gate already
+      // cleared): if they don't load, degrade to entrance -> rocket, no peak.
+      let engraveOk = INTRO_PEAK === 'engrave';
+      if (engraveOk) {
+        try {
+          await getEngraveReady(assetPath);
+        } catch {
+          engraveOk = false;
+        }
+      }
+      if (disposed) return;
+      startSpin(frames);
+      await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+      if (disposed) return;
       const guard = (p: PromiseLike<unknown> | unknown, ms: number) =>
         Promise.race([Promise.resolve(p as PromiseLike<unknown>), new Promise<void>((r) => setTimeout(r, ms + 400))]);
       const step = (el: string, kf: object, opts: object) =>
         skippedRef.current || disposed ? Promise.resolve() : animate(el as never, kf as never, opts as never);
 
-      // Phase 1 — entrance: one single position+scale tween corner→center, and
-      // a synced rotation tween that lands EXACTLY on GEM_FRAME (arrival is
-      // gem-facing, no snap/jump).
+      // Phase 1 — entrance (unchanged): corner -> center, gem-facing frame 0.
       spinRef.current = false;
       const angleTween = animateValue(ENTER_START_ANGLE, GEM_ANGLE, {
         duration: ENTER_MS / 1000,
         ease: [0.2, 0.7, 0.3, 1],
-        onUpdate: (v) => {
-          if (!skippedRef.current) angleRef.current = v;
-        },
+        onUpdate: (v) => { if (!skippedRef.current) angleRef.current = v; },
       });
       const backdropIn = step('.intro-backdrop', { opacity: [0, 1] }, { duration: 0.3, ease: 'easeOut' });
       await guard(
-        step(
-          '.intro-ring',
-          { x: [x0, 0], y: [y0, 0], scale: [START / S, 1] },
-          { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] },
-        ),
+        step('.intro-ring', { x: [x0, 0], y: [y0, 0], scale: [START / S, 1] }, { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] }),
         ENTER_MS,
       );
-      angleRef.current = GEM_ANGLE; // guarantee frozen exactly on the gem frame
+      angleRef.current = GEM_ANGLE;
       angleTween.stop();
       await guard(backdropIn, 400);
-
-      // small settle beat on the gem pose
       if (!skippedRef.current) await new Promise((r) => setTimeout(r, SETTLE_BEAT_MS));
 
-      // Phase 2 — dive to the 230vh close-up on the frozen gem frame; scrim +
-      // lockup fade in (screen-fixed, not scaled by the ring)
-      const scrimIn = step('.intro-scrim', { opacity: [0, 1] }, { duration: DIVE_MS / 1000, ease: 'easeOut' });
-      await guard(
-        step('.intro-ring', { scale: diveScale }, { duration: DIVE_MS / 1000, ease: [0.16, 0.8, 0.26, 1] }),
-        DIVE_MS,
-      );
-      await guard(
-        step('.intro-word', { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] }, { duration: WORD_MS / 1000, ease: 'easeOut' }),
-        WORD_MS,
-      );
-      if (!skippedRef.current && !disposed) {
-        document
-          .querySelector('.intro-word')
-          ?.animate([{ backgroundPosition: '150% 0%' }, { backgroundPosition: '-50% 0%' }], {
-            duration: SHIMMER_MS,
-            easing: 'ease-in-out',
-            fill: 'forwards',
-          });
+      if (INTRO_PEAK === 'engrave' && engraveOk) {
+        // Hero geometry (transform-origin = element center). During the
+        // crossfade the hero sits ring-centered at the turntable's size so the
+        // dissolve registers; during the reveal it pushes in to `1` scale and
+        // pans so the measured engraving centroid lands at the optical center.
+        const HH = HERO_VH * vh;
+        const crossScale = (TURN_SCALE * S) / HH;
+        const pushX = -(ENGRAVE_CENTROID.x - 0.5) * HH;
+        const pushY = 0.46 * vh - vh / 2 - (ENGRAVE_CENTROID.y - 0.5) * HH;
+
+        // Phase 2 — turn & present: short turntable run + crossfade into the
+        // clean hero, both centered and size-matched so it reads as ONE move.
+        spinRef.current = true;
+        rpsRef.current = RPS_TURN;
+        const ringScale = step('.intro-ring', { scale: TURN_SCALE }, { duration: TURN_MS / 1000, ease: [0.2, 0.7, 0.3, 1] });
+        const ringFade = step('.intro-ring', { opacity: 0 }, { duration: CROSS_MS / 1000, ease: 'linear', delay: (TURN_MS - CROSS_MS) / 1000 });
+        const heroIn = step('.intro-hero', { opacity: [0, 1] }, { duration: CROSS_MS / 1000, ease: 'easeOut', delay: (TURN_MS - CROSS_MS) / 1000 });
+        await guard(Promise.all([ringScale, ringFade, heroIn]), TURN_MS + 40);
+        spinRef.current = false;
+
+        // Phase 3 — engraving reveal: push in to center while the mask sweeps
+        // along the baseline so letters emerge in reading order; then one glint.
+        const pushIn = step('.intro-hero', { scale: [crossScale, 1], x: [0, pushX], y: [0, pushY] }, { duration: PUSH_MS / 1000, ease: [0.3, 0.1, 0.3, 1] });
+        const engEl = document.querySelector('.intro-hero-engraved') as HTMLElement | null;
+        const reveal = engEl?.animate([{ '--eng-reveal': '-5%' } as Keyframe, { '--eng-reveal': '150%' } as Keyframe], {
+          duration: REVEAL_MS,
+          easing: 'cubic-bezier(.3,.1,.3,1)',
+          fill: 'forwards',
+        });
+        await guard(Promise.all([pushIn, reveal?.finished]), REVEAL_MS);
+        if (!skippedRef.current && !disposed) {
+          (document.querySelector('.intro-glint') as HTMLElement | null)?.animate(
+            [
+              { transform: 'translateX(-70%)', opacity: 0 },
+              { transform: 'translateX(-10%)', opacity: 0.9, offset: 0.5 },
+              { transform: 'translateX(60%)', opacity: 0 },
+            ],
+            { duration: GLINT_MS, easing: 'ease-out' },
+          );
+        }
+        if (!skippedRef.current) await new Promise((r) => setTimeout(r, HERO_HOLD_MS));
+
+        // Phase 4 — return: reverse the push + crossfade back to the turntable,
+        // aligned the same way so the hand-back reads as one move too.
+        spinRef.current = true;
+        rpsRef.current = RPS_TURN * 0.6;
+        const heroOut = step('.intro-hero', { opacity: 0, scale: crossScale, x: 0, y: 0 }, { duration: RETURN_MS / 1000, ease: 'easeIn' });
+        const ringBack = step('.intro-ring', { opacity: 1 }, { duration: RETURN_MS / 1000, ease: 'linear' });
+        await guard(Promise.all([heroOut, ringBack]), RETURN_MS);
+        spinRef.current = false;
+      } else if (INTRO_PEAK === 'gem') {
+        // Legacy gem dive.
+        const scrimIn = step('.intro-scrim', { opacity: [0, 1] }, { duration: DIVE_MS / 1000, ease: 'easeOut' });
+        await guard(step('.intro-ring', { scale: diveScale }, { duration: DIVE_MS / 1000, ease: [0.16, 0.8, 0.26, 1] }), DIVE_MS);
+        await guard(step('.intro-word', { opacity: [0, 1], letterSpacing: ['0.3em', '0.05em'] }, { duration: WORD_MS / 1000, ease: 'easeOut' }), WORD_MS);
+        if (!skippedRef.current && !disposed) {
+          document.querySelector('.intro-word')?.animate([{ backgroundPosition: '150% 0%' }, { backgroundPosition: '-50% 0%' }], { duration: SHIMMER_MS, easing: 'ease-in-out', fill: 'forwards' });
+        }
+        await guard(scrimIn, DIVE_MS);
+        if (!skippedRef.current) await new Promise((r) => setTimeout(r, HOLD_MS));
+        await guard(step('.intro-lockup', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 }), WORD_OUT_MS);
       }
-      await guard(scrimIn, DIVE_MS);
-      if (!skippedRef.current) await new Promise((r) => setTimeout(r, HOLD_MS));
 
-      // Phase 3 — rocket exit (FLIP from the zoomed state)
-      const lockoutOut = step('.intro-lockup', { opacity: 0 }, { duration: WORD_OUT_MS / 1000 });
+      // Phase 5 — rocket exit (FLIP from the current turntable scale).
       const slot = document.querySelector('[data-intro-logo-slot]');
-      const slotRect = slot ? slot.getBoundingClientRect() : null; // measured now, at flight start
-      await guard(lockoutOut, WORD_OUT_MS);
-
-      // micro-anticipation before the launch
-      await guard(step('.intro-ring', { scale: diveScale * 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }), ANTICIPATION_MS);
+      const slotRect = slot ? slot.getBoundingClientRect() : null;
+      // rocket flies from wherever the peak left the turntable: the enlarged
+      // turn scale (engrave), the dive scale (gem), or plain center (degraded).
+      const curScale = INTRO_PEAK === 'gem' ? diveScale : engraveOk ? TURN_SCALE : 1;
+      await guard(step('.intro-ring', { scale: curScale * 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }), ANTICIPATION_MS);
 
       spinRef.current = true;
       rpsRef.current = RPS_ROCKET;
@@ -181,17 +242,11 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         const dx = slotRect.x + slotRect.width / 2 - vw / 2;
         const dy = slotRect.y + slotRect.height / 2 - vh / 2;
         const target = slotRect.width / S;
-        await guard(
-          step('.intro-ring', { x: dx, y: dy, scale: target * 1.04 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }),
-          FLIGHT_MS,
-        );
+        await guard(step('.intro-ring', { x: dx, y: dy, scale: target * 1.04 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }), FLIGHT_MS);
         spinRef.current = false;
         await guard(step('.intro-ring', { scale: target }, { duration: SETTLE_MS / 1000, ease: 'easeOut' }), SETTLE_MS);
       } else {
-        await guard(
-          step('.intro-ring', { x: -vw * 0.7, scale: 0.12, opacity: 0 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }),
-          FLIGHT_MS,
-        );
+        await guard(step('.intro-ring', { x: -vw * 0.7, scale: 0.12, opacity: 0 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }), FLIGHT_MS);
       }
       await guard(backdropOut, 320);
       if (!disposed) onDone();
@@ -213,15 +268,16 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
   const START = 120;
   const wordSize = Math.min(vw, vh) * 0.05;
+  // hero starts ring-centered at the turntable's size (crossScale) so the
+  // crossfade registers; the reveal pushes it to full size + engraving-center.
+  const HH = HERO_VH * vh;
+  const heroCrossScale = (TURN_SCALE * S) / HH;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
-      {/* dim the dashboard beneath */}
-      <div
-        className="intro-backdrop absolute inset-0 opacity-0"
-        style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }}
-      />
-      {/* ring canvas — parked fully outside beyond the top-right corner */}
+      <div className="intro-backdrop absolute inset-0 opacity-0" style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }} />
+
+      {/* turntable ring — parked outside the top-right corner */}
       <div
         className="intro-ring fixed"
         style={{
@@ -235,38 +291,52 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       >
         <canvas ref={canvasRef} className="h-full w-full" style={{ width: S, height: S }} />
       </div>
-      {/* screen-fixed lockup: scrim + wordmark, dead-centered, never scaled */}
-      <div className="intro-lockup fixed inset-0 grid place-items-center">
-        <div className="relative grid place-items-center">
-          <div
-            className="intro-scrim absolute opacity-0"
-            style={{
-              width: vw * 0.6,
-              height: vh * 0.34,
-              background: 'radial-gradient(closest-side, color-mix(in srgb, var(--bg) 82%, transparent), transparent 72%)',
-            }}
-          />
-          <span
-            className="intro-word relative inline-block whitespace-nowrap text-center font-semibold opacity-0"
-            style={{
-              fontSize: wordSize,
-              lineHeight: 1.1,
-              letterSpacing: '0.3em',
-              color: 'transparent',
-              backgroundImage:
-                'linear-gradient(100deg, var(--text) 42%, color-mix(in srgb, var(--accent) 80%, white) 50%, var(--text) 58%)',
-              backgroundSize: '250% 100%',
-              backgroundPosition: '150% 0%',
-              WebkitBackgroundClip: 'text',
-              backgroundClip: 'text',
-            }}
-          >
-            Almaz
-            <br />
-            Silver
-          </span>
+
+      {INTRO_PEAK === 'engrave' && (
+        <div
+          className="intro-hero"
+          style={{
+            left: vw / 2 - HH / 2,
+            top: vh / 2 - HH / 2,
+            width: HH,
+            height: HH,
+            transformOrigin: '50% 50%',
+            transform: `translate(0px, 0px) scale(${heroCrossScale})`,
+            ['--eng-angle' as string]: ENGRAVE_ANGLE,
+          }}
+        >
+          <img className="intro-hero-clean" src={`${assetPath}${ENGRAVE_CLEAN}`} alt="" />
+          <img className="intro-hero-engraved" src={`${assetPath}${ENGRAVE_ENGRAVED}`} alt="" />
+          <span className="intro-glint" />
         </div>
-      </div>
+      )}
+
+      {INTRO_PEAK === 'gem' && (
+        <div className="intro-lockup fixed inset-0 grid place-items-center">
+          <div className="relative grid place-items-center">
+            <div className="intro-scrim absolute opacity-0" style={{ width: vw * 0.6, height: vh * 0.34, background: 'radial-gradient(closest-side, color-mix(in srgb, var(--bg) 82%, transparent), transparent 72%)' }} />
+            <span
+              className="intro-word relative inline-block whitespace-nowrap text-center font-semibold opacity-0"
+              style={{
+                fontSize: wordSize,
+                lineHeight: 1.1,
+                letterSpacing: '0.3em',
+                color: 'transparent',
+                backgroundImage: 'linear-gradient(100deg, var(--text) 42%, color-mix(in srgb, var(--accent) 80%, white) 50%, var(--text) 58%)',
+                backgroundSize: '250% 100%',
+                backgroundPosition: '150% 0%',
+                WebkitBackgroundClip: 'text',
+                backgroundClip: 'text',
+              }}
+            >
+              Almaz
+              <br />
+              Silver
+            </span>
+          </div>
+        </div>
+      )}
+
       <p className="absolute bottom-6 right-8 text-xs text-muted opacity-60">O'tkazib yuborish</p>
     </div>
   );
@@ -278,8 +348,6 @@ export function IntroOverlay() {
   const finish = useIntroStore((s) => s.finish);
   const gatingRef = useRef(false);
 
-  // Readiness gate: never start the intro without decoded frames, never block
-  // the dashboard. Wait up to 1200ms; else skip silently this session.
   useEffect(() => {
     if (stage !== 'pending' || gatingRef.current) return;
     gatingRef.current = true;
@@ -295,6 +363,7 @@ export function IntroOverlay() {
       else finish();
     };
     const timer = window.setTimeout(() => done(false), 1200);
+    // engrave heroes are tiny — the gate only waits on the frame sequence
     getRingFrames()
       .then(() => done(true))
       .catch(() => done(false))

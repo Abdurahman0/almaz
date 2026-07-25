@@ -104,14 +104,52 @@ async function loadSheet(assetPath: string): Promise<RingSheet> {
   return { image, frameW: desc.frameW, frameH: desc.frameH, cols: desc.cols, rows: desc.rows, count: desc.count };
 }
 
+// ---------------- inner-band engraving hero (intro peak) ----------------
+export const ENGRAVE_CLEAN = 'ring/engrave/inner_clean.webp';
+export const ENGRAVE_ENGRAVED = 'ring/engrave/inner_engraved.webp';
 /**
- * Warm both asset sets in the background (login screen). The heavy frame
- * sequence and the small spritesheet both start decoding so the intro and the
- * sidebar are ready by the time login succeeds.
+ * Engraving geometry measured from the render (2400px frame): the "Almaz
+ * Silver" letters occupy x 57-81%, y 30-52%, centroid (0.708, 0.40), baseline
+ * principal axis ~42.5deg. The reveal mask sweeps along this baseline in
+ * reading order (Almaz -> Silver = lower-right -> upper-left on screen). Flip
+ * ENGRAVE_SWEEP_DIR to reverse.
+ */
+export const ENGRAVE_CENTROID = { x: 0.708, y: 0.4 };
+export const ENGRAVE_BASELINE_DEG = 42.5;
+export const ENGRAVE_SWEEP_DIR = 1; // 1: Almaz->Silver (measured reading order)
+
+let engraveCache: Promise<void> | null = null;
+
+/** Decode both hero images so the engraving phase never waits on them. */
+export function getEngraveReady(assetPath = '/'): Promise<void> {
+  if (!engraveCache) {
+    engraveCache = Promise.all(
+      [ENGRAVE_CLEAN, ENGRAVE_ENGRAVED].map(
+        (p) =>
+          new Promise<void>((resolve, reject) => {
+            const img = new Image();
+            img.onload = () => (img.decode ? img.decode().then(() => resolve(), () => resolve()) : resolve());
+            img.onerror = () => reject(new Error(`engrave ${p} load failed`));
+            img.src = `${assetPath}${p}`;
+          }),
+      ),
+    ).then(() => undefined).catch((e) => {
+      engraveCache = null;
+      throw e;
+    });
+  }
+  return engraveCache;
+}
+
+/**
+ * Warm all intro asset sets in the background (login screen): the heavy frame
+ * sequence, the small spritesheet, and the two tiny engraving heroes. The
+ * engraving pair (~0.42 MB) is trivial and must never be why the intro skips.
  */
 export function prefetchRingAssets(assetPath = '/'): void {
   const kick = () => {
     void getRingSheet(assetPath).catch(() => {});
+    void getEngraveReady(assetPath).catch(() => {});
     void getRingFrames(assetPath).catch(() => {});
   };
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
