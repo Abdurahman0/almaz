@@ -25,9 +25,10 @@ import './intro.css';
  */
 const INTRO_PEAK: 'engrave' | 'gem' = 'engrave';
 
-// engrave-phase mask sweep angle (CSS gradient deg): reveal grows toward the
-// Silver end (up-left) along the measured 42.5deg baseline.
-const ENGRAVE_ANGLE = '313deg';
+// engrave-phase mask sweep angle (CSS gradient deg): reveal grows from the
+// Almaz end (upper-left) toward Silver (lower-right) along the measured ~41deg
+// baseline. Re-derived from the upright render (was 313deg for the flipped one).
+const ENGRAVE_ANGLE = '131deg';
 
 const ENTER_MS = 1400;
 const SETTLE_BEAT_MS = 160;

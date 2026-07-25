@@ -108,15 +108,16 @@ async function loadSheet(assetPath: string): Promise<RingSheet> {
 export const ENGRAVE_CLEAN = 'ring/engrave/inner_clean.webp';
 export const ENGRAVE_ENGRAVED = 'ring/engrave/inner_engraved.webp';
 /**
- * Engraving geometry measured from the render (2400px frame): the "Almaz
- * Silver" letters occupy x 57-81%, y 30-52%, centroid (0.708, 0.40), baseline
- * principal axis ~42.5deg. The reveal mask sweeps along this baseline in
- * reading order (Almaz -> Silver = lower-right -> upper-left on screen). Flip
+ * Engraving geometry measured from the upright render (2400px frame): the
+ * "Almaz Silver" letters occupy x 57-80%, y 31-53%, centroid (0.692, 0.392),
+ * baseline principal axis ~41deg. Text reads upper-left (Almaz) -> lower-right
+ * (Silver) along the band arc, so the reveal mask sweeps UL->LR; that maps to a
+ * CSS gradient angle of ~131deg (see ENGRAVE_ANGLE in IntroOverlay). Flip
  * ENGRAVE_SWEEP_DIR to reverse.
  */
-export const ENGRAVE_CENTROID = { x: 0.708, y: 0.4 };
-export const ENGRAVE_BASELINE_DEG = 42.5;
-export const ENGRAVE_SWEEP_DIR = 1; // 1: Almaz->Silver (measured reading order)
+export const ENGRAVE_CENTROID = { x: 0.692, y: 0.392 };
+export const ENGRAVE_BASELINE_DEG = 41;
+export const ENGRAVE_SWEEP_DIR = 1; // 1: Almaz(UL) -> Silver(LR), measured reading order
 
 let engraveCache: Promise<void> | null = null;
 
