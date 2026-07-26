@@ -35,7 +35,6 @@ const SETTLE_BEAT_MS = 160;
 // engrave peak
 const TURN_MS = 700;
 const CROSS_MS = 260; // crossfade overlap
-const TURN_SCALE = 1.5; // turntable grows to ~this before it hands off to hero
 const TURN_END_FRAME = 24; // ~3/4 pose, close to the hero's inner-band view
 const PUSH_MS = 520; // reveal-time push-in that brings engraving to center
 const REVEAL_MS = 1100;
@@ -67,6 +66,8 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const rpsRef = useRef(0);
   const ranRef = useRef(false);
   const skippedRef = useRef(false);
+  const heroCleanRef = useRef<HTMLImageElement | null>(null);
+  const heroEngravedRef = useRef<HTMLImageElement | null>(null);
 
   useEffect(() => {
     if (ranRef.current) return;
@@ -143,6 +144,37 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       startSpin(frames);
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       if (disposed) return;
+
+      // The two 2400px hero <img>s otherwise pay their first-paint cost on the
+      // main thread mid-animation: inner_clean janks the crossfade, inner_engraved
+      // janks the reveal (~80ms source decode + ~66ms raster/GPU-upload each,
+      // because Chrome decodes per target raster size). Warm both off-screen
+      // during the pre-roll (ring still parked in the corner, backdrop still
+      // transparent) so the animated phases are paint-free:
+      //   1. decode() the real elements (not the throwaway Images),
+      //   2. briefly composite the hero at ~0 opacity with the engraved layer
+      //      fully unmasked, to force raster + GPU upload of both layers.
+      if (engraveOk) {
+        await Promise.all(
+          [heroCleanRef.current, heroEngravedRef.current].map((img) =>
+            img?.decode ? img.decode().catch(() => {}) : Promise.resolve(),
+          ),
+        );
+        if (disposed) return;
+        const hero = document.querySelector('.intro-hero') as HTMLElement | null;
+        if (hero) {
+          // The hero renders at scale 1 the whole time (the turntable grows to
+          // meet it; the reveal only pans), so there is never a scale-up to force
+          // a higher-res re-decode. Warm both layers' raster + GPU upload here,
+          // off-screen, and keep the hero composited at ~0 opacity through the
+          // entrance so those tiles are not evicted before the crossfade/reveal.
+          hero.style.transformOrigin = '50% 50%';
+          hero.style.transform = 'translate(0px, 0px) scale(1)';
+          hero.style.opacity = '0.012';
+          await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+        }
+        if (disposed) return;
+      }
       const guard = (p: PromiseLike<unknown> | unknown, ms: number) =>
         Promise.race([Promise.resolve(p as PromiseLike<unknown>), new Promise<void>((r) => setTimeout(r, ms + 400))]);
       const step = (el: string, kf: object, opts: object) =>
@@ -171,24 +203,28 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         // dissolve registers; during the reveal it pushes in to `1` scale and
         // pans so the measured engraving centroid lands at the optical center.
         const HH = HERO_VH * vh;
-        const crossScale = (TURN_SCALE * S) / HH;
+        // Turntable grows to the hero's box size so the crossfade is size-matched
+        // while the hero stays at scale 1 (no scale-up later -> no re-decode).
+        const turnScale = HH / S;
         const pushX = -(ENGRAVE_CENTROID.x - 0.5) * HH;
         const pushY = 0.46 * vh - vh / 2 - (ENGRAVE_CENTROID.y - 0.5) * HH;
 
         // Phase 2 — turn & present: short turntable run + crossfade into the
-        // clean hero, both centered and size-matched so it reads as ONE move.
+        // full-size clean hero, both centered and size-matched (ONE move).
         spinRef.current = true;
         rpsRef.current = RPS_TURN;
-        const ringScale = step('.intro-ring', { scale: TURN_SCALE }, { duration: TURN_MS / 1000, ease: [0.2, 0.7, 0.3, 1] });
+        const ringScale = step('.intro-ring', { scale: turnScale }, { duration: TURN_MS / 1000, ease: [0.2, 0.7, 0.3, 1] });
         const ringFade = step('.intro-ring', { opacity: 0 }, { duration: CROSS_MS / 1000, ease: 'linear', delay: (TURN_MS - CROSS_MS) / 1000 });
-        const heroIn = step('.intro-hero', { opacity: [0, 1] }, { duration: CROSS_MS / 1000, ease: 'easeOut', delay: (TURN_MS - CROSS_MS) / 1000 });
+        const heroIn = step('.intro-hero', { opacity: [0.012, 1] }, { duration: CROSS_MS / 1000, ease: 'easeOut', delay: (TURN_MS - CROSS_MS) / 1000 });
         await guard(Promise.all([ringScale, ringFade, heroIn]), TURN_MS + 40);
         spinRef.current = false;
 
-        // Phase 3 — engraving reveal: push in to center while the mask sweeps
-        // along the baseline so letters emerge in reading order; then one glint.
-        const pushIn = step('.intro-hero', { scale: [crossScale, 1], x: [0, pushX], y: [0, pushY] }, { duration: PUSH_MS / 1000, ease: [0.3, 0.1, 0.3, 1] });
-        const engEl = document.querySelector('.intro-hero-engraved') as HTMLElement | null;
+        // Phase 3 — engraving reveal: pan the engraving to the optical center
+        // (translate only, no scale -> no re-decode) while the mask sweeps along
+        // the baseline so letters emerge in reading order; then one glint.
+        const pushIn = step('.intro-hero', { x: [0, pushX], y: [0, pushY] }, { duration: PUSH_MS / 1000, ease: [0.3, 0.1, 0.3, 1] });
+        // mask lives on the clean (top) layer now: hiding it uncovers the engraving
+        const engEl = document.querySelector('.intro-hero-clean') as HTMLElement | null;
         const reveal = engEl?.animate([{ '--eng-reveal': '-5%' } as Keyframe, { '--eng-reveal': '150%' } as Keyframe], {
           duration: REVEAL_MS,
           easing: 'cubic-bezier(.3,.1,.3,1)',
@@ -211,7 +247,7 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         // aligned the same way so the hand-back reads as one move too.
         spinRef.current = true;
         rpsRef.current = RPS_TURN * 0.6;
-        const heroOut = step('.intro-hero', { opacity: 0, scale: crossScale, x: 0, y: 0 }, { duration: RETURN_MS / 1000, ease: 'easeIn' });
+        const heroOut = step('.intro-hero', { opacity: 0, x: 0, y: 0 }, { duration: RETURN_MS / 1000, ease: 'easeIn' });
         const ringBack = step('.intro-ring', { opacity: 1 }, { duration: RETURN_MS / 1000, ease: 'linear' });
         await guard(Promise.all([heroOut, ringBack]), RETURN_MS);
         spinRef.current = false;
@@ -231,9 +267,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       // Phase 5 — rocket exit (FLIP from the current turntable scale).
       const slot = document.querySelector('[data-intro-logo-slot]');
       const slotRect = slot ? slot.getBoundingClientRect() : null;
-      // rocket flies from wherever the peak left the turntable: the enlarged
-      // turn scale (engrave), the dive scale (gem), or plain center (degraded).
-      const curScale = INTRO_PEAK === 'gem' ? diveScale : engraveOk ? TURN_SCALE : 1;
+      // rocket flies from wherever the peak left the turntable: grown to the
+      // hero's box size (engrave), the dive scale (gem), or plain center (degraded).
+      const curScale = INTRO_PEAK === 'gem' ? diveScale : engraveOk ? (HERO_VH * vh) / S : 1;
       await guard(step('.intro-ring', { scale: curScale * 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }), ANTICIPATION_MS);
 
       spinRef.current = true;
@@ -269,10 +305,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
   const START = 120;
   const wordSize = Math.min(vw, vh) * 0.05;
-  // hero starts ring-centered at the turntable's size (crossScale) so the
-  // crossfade registers; the reveal pushes it to full size + engraving-center.
+  // hero renders at full size (scale 1), centered; the turntable grows to meet
+  // it for the crossfade, and the reveal only pans it to engraving-center.
   const HH = HERO_VH * vh;
-  const heroCrossScale = (TURN_SCALE * S) / HH;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
@@ -302,12 +337,13 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
             width: HH,
             height: HH,
             transformOrigin: '50% 50%',
-            transform: `translate(0px, 0px) scale(${heroCrossScale})`,
+            transform: 'translate(0px, 0px) scale(1)',
             ['--eng-angle' as string]: ENGRAVE_ANGLE,
           }}
         >
-          <img className="intro-hero-clean" src={`${assetPath}${ENGRAVE_CLEAN}`} alt="" />
-          <img className="intro-hero-engraved" src={`${assetPath}${ENGRAVE_ENGRAVED}`} alt="" />
+          {/* engraved on the bottom (always painted), clean masked away on top */}
+          <img ref={heroEngravedRef} className="intro-hero-engraved" src={`${assetPath}${ENGRAVE_ENGRAVED}`} alt="" />
+          <img ref={heroCleanRef} className="intro-hero-clean" src={`${assetPath}${ENGRAVE_CLEAN}`} alt="" />
           <span className="intro-glint" />
         </div>
       )}

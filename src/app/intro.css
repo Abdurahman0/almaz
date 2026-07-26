@@ -25,22 +25,30 @@
   user-select: none;
 }
 
-/* engraved layer stacked exactly over the clean one; revealed by the mask */
-.intro-hero-engraved {
+/* The engraved layer sits on the BOTTOM, always fully painted (never masked
+ * out, so its raster is never evicted -> no re-decode when the engraving is
+ * revealed). The clean layer sits on TOP and is masked AWAY progressively,
+ * uncovering the engraving beneath it in reading order. The clean tiles cull
+ * incrementally as they hide (cheap), unlike a full-layer first-paint. */
+.intro-hero-clean {
   --eng-reveal: 0%;
+  /* not 100% opaque on purpose: keeps the browser from occlusion-culling the
+   * engraved layer beneath it, so the engraving stays decoded+rastered and the
+   * reveal doesn't pay a first-paint decode. 0.4% bleed-through is invisible. */
+  opacity: 0.996;
   -webkit-mask-image: linear-gradient(
-    var(--eng-angle, 313deg),
-    #000 0,
-    #000 calc(var(--eng-reveal) - 40px),
-    transparent var(--eng-reveal),
-    transparent 200%
+    var(--eng-angle, 131deg),
+    transparent 0,
+    transparent calc(var(--eng-reveal) - 40px),
+    #000 var(--eng-reveal),
+    #000 200%
   );
   mask-image: linear-gradient(
-    var(--eng-angle, 313deg),
-    #000 0,
-    #000 calc(var(--eng-reveal) - 40px),
-    transparent var(--eng-reveal),
-    transparent 200%
+    var(--eng-angle, 131deg),
+    transparent 0,
+    transparent calc(var(--eng-reveal) - 40px),
+    #000 var(--eng-reveal),
+    #000 200%
   );
   -webkit-mask-repeat: no-repeat;
   mask-repeat: no-repeat;

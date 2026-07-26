@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { create } from 'zustand';
 
 /*
@@ -50,4 +51,25 @@ export const useIntroStore = create<IntroState>((set) => ({
 export function isIntroActive(): boolean {
   const s = useIntroStore.getState().stage;
   return s === 'pending' || s === 'playing';
+}
+
+/**
+ * Gate for deferring EXPENSIVE RENDER work (charts, big tables) while the intro
+ * plays, so it doesn't drop frames under the overlay. Returns `true` (mount now)
+ * when the intro is not active — i.e. it finished, was skipped, ran in
+ * reduced-motion, or never started (refresh / token restore) — since all of
+ * those settle to 'done'/'idle'. Data fetching must NOT be gated on this; only
+ * the render. A safety timeout (longer than the whole intro ~5s) guarantees the
+ * gate opens even if the intro never finishes, so heavy widgets can never be
+ * stuck behind a skeleton — but it must outlast the intro or it defers nothing.
+ */
+export function useIntroSettled(maxWaitMs = 8000): boolean {
+  const active = useIntroStore((s) => s.stage === 'pending' || s.stage === 'playing');
+  const [expired, setExpired] = useState(false);
+  useEffect(() => {
+    if (!active) return;
+    const t = setTimeout(() => setExpired(true), maxWaitMs);
+    return () => clearTimeout(t);
+  }, [active, maxWaitMs]);
+  return !active || expired;
 }

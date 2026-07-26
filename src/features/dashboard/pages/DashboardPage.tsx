@@ -14,6 +14,7 @@ import {
 } from '@/shared/ui';
 import { formatDateTime, formatNumber, formatShortAmount } from '@/shared/lib/format';
 import { useAuthStore } from '@/shared/stores/auth';
+import { useIntroSettled } from '@/shared/stores/intro';
 import { useDashboardStats } from '../hooks';
 import { NecklaceChart } from '../components/NecklaceChart';
 import { useClients } from '@/features/clients/hooks';
@@ -29,6 +30,10 @@ export default function DashboardPage() {
   const user = useAuthStore((s) => s.user);
   const stats = useDashboardStats();
   const clients = useClients();
+  // Queries above run immediately (data in flight from login); only the heavy
+  // render — the Recharts chart and the orders table — waits for the intro so it
+  // doesn't drop frames under the overlay. Cached data paints them instantly.
+  const heavyReady = useIntroSettled();
 
   const vip = [...(clients.data ?? [])].sort((a, b) => b.total - a.total).slice(0, 4);
 
@@ -70,8 +75,8 @@ export default function DashboardPage() {
         <Card className="lg:col-span-2">
           <h2 className="mb-2 text-md font-semibold text-text">Haftalik savdo marjoni</h2>
           <p className="mb-4 text-xs text-muted">Har bir marvarid — bir kun; brilliant — rekord kun</p>
-          {stats.isPending && <Skeleton className="h-64 w-full" />}
-          {stats.isSuccess && <NecklaceChart data={stats.data.week} />}
+          {(stats.isPending || (stats.isSuccess && !heavyReady)) && <Skeleton className="h-64 w-full" />}
+          {stats.isSuccess && heavyReady && <NecklaceChart data={stats.data.week} />}
         </Card>
 
         <Card>
@@ -109,10 +114,11 @@ export default function DashboardPage() {
             Barchasi →
           </Link>
         </div>
-        {stats.isSuccess && stats.data.latest.length === 0 && (
+        {stats.isSuccess && !heavyReady && <Skeleton className="mx-6 my-4 h-40" />}
+        {stats.isSuccess && heavyReady && stats.data.latest.length === 0 && (
           <EmptyState heading="Buyurtmalar hali yo'q" hint="Birinchi buyurtma shu yerda ko'rinadi" />
         )}
-        {stats.isSuccess && stats.data.latest.length > 0 && (
+        {stats.isSuccess && heavyReady && stats.data.latest.length > 0 && (
           <table className="mt-4 w-full min-w-[560px] text-sm">
             <tbody>
               {stats.data.latest.map((o) => (
