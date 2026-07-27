@@ -69,8 +69,23 @@ export default {
       maxWidth: {
         content: '1600px',
       },
+      /* Apple-ish roundness: nudge the everyday radii up a notch. */
+      borderRadius: {
+        lg: '12px',
+        xl: '16px',
+        '2xl': '20px',
+        '3xl': '26px',
+      },
       boxShadow: {
-        card: 'var(--shadow)',
+        card: 'var(--shadow-sm)',
+        xs: 'var(--shadow-xs)',
+        sm: 'var(--shadow-sm)',
+        md: 'var(--shadow-md)',
+        lg: 'var(--shadow-lg)',
+      },
+      transitionTimingFunction: {
+        ease: 'var(--ease)',
+        'ease-out2': 'var(--ease-out)',
       },
       keyframes: {
         shimmer: {

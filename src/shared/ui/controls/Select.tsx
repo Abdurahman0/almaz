@@ -28,8 +28,8 @@ export interface SelectProps {
 }
 
 export const triggerCls = (size: 'sm' | 'md', error?: string) =>
-  `flex w-full items-center justify-between gap-2 rounded-lg border bg-bg px-3 text-left text-sm text-text transition-colors duration-150 hover:border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 focus-visible:ring-offset-2 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-muted ${
-    size === 'sm' ? 'h-8' : 'h-10'
+  `flex w-full items-center justify-between gap-2 rounded-lg border bg-surface-2 px-3.5 text-left text-sm text-text transition-[border-color,box-shadow] duration-150 hover:border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-1 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-muted ${
+    size === 'sm' ? 'h-9' : 'h-10'
   } ${error ? 'border-danger' : 'border-border'}`;
 
 function groupOptions(options: SelectOption[]): Array<[string | null, SelectOption[]]> {

@@ -67,7 +67,7 @@ export function Sidebar() {
         )}
       </div>
 
-      <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Asosiy">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label="Asosiy">
         {items.map(({ to, icon: Icon, label }) => {
           const link = (
             <NavLink
@@ -76,14 +76,14 @@ export function Sidebar() {
               end={to === '/' || to === '/settings'}
               aria-label={t(label)}
               className={({ isActive }) =>
-                `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${
+                `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                   isActive
                     ? 'bg-accent-soft text-accent-ink'
-                    : 'text-muted hover:bg-accent-soft hover:text-text'
+                    : 'text-muted hover:bg-surface-2 hover:text-text'
                 } ${collapsed ? 'justify-center' : ''}`
               }
             >
-              <Icon className="h-5 w-5 shrink-0" strokeWidth={1.5} />
+              <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
               {!collapsed && <span className="truncate">{t(label)}</span>}
             </NavLink>
           );
@@ -100,7 +100,7 @@ export function Sidebar() {
       <button
         onClick={toggle}
         aria-label={collapsed ? 'Yon panelni ochish' : 'Yon panelni yopish'}
-        className="m-3 flex items-center justify-center rounded-lg border border-border py-2 text-muted transition-colors hover:text-accent-ink"
+        className="m-3 flex items-center justify-center rounded-xl border border-border py-2.5 text-muted transition-colors hover:bg-surface-2 hover:text-text"
       >
         {collapsed ? (
           <ChevronsRight className="h-4 w-4" strokeWidth={1.5} />

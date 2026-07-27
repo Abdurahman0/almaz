@@ -37,12 +37,20 @@ export default function LoginPage() {
   if (authed) return <Navigate to="/" replace />;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0"
+        style={{
+          background:
+            'radial-gradient(55% 45% at 50% 8%, var(--accent-soft), transparent 70%), radial-gradient(40% 40% at 80% 100%, var(--accent-soft), transparent 75%)',
+        }}
+      />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5, ease: 'easeOut' }}
-        className="card-velvet relative z-10 w-full max-w-md p-10"
+        className="card-velvet relative z-10 w-full max-w-md p-10 shadow-lg"
       >
         <div className="mb-8 flex flex-col items-center gap-3">
           <RingCanvas size={148} rotationMs={9000} className="-my-6" />

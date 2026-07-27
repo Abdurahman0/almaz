@@ -18,24 +18,28 @@ export function StatCard({ label, value, formatter, suffix, icon: Icon, trend }:
   const display = formatter ? formatter(animated) : Math.round(animated).toString();
   return (
     <Card className="relative">
-      {Icon && (
-        <Icon className="absolute right-4 top-4 h-4 w-4 text-muted" strokeWidth={1.5} aria-hidden />
-      )}
-      <p className="text-2xs font-semibold uppercase tracking-caps text-muted">{label}</p>
-      <p className="mt-2 truncate text-stat tnum text-text">
+      <div className="flex items-start justify-between gap-3">
+        <p className="text-xs font-medium text-muted">{label}</p>
+        {Icon && (
+          <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+            <Icon className="h-4 w-4" strokeWidth={1.75} aria-hidden />
+          </span>
+        )}
+      </div>
+      <p className="mt-3 truncate text-stat tnum text-text">
         {display}
         {suffix && <span className="ml-1 text-sm font-medium text-muted">{suffix}</span>}
       </p>
       {typeof trend === 'number' && (
         <span
-          className={`mt-1.5 inline-flex items-center gap-1 text-2xs font-medium ${
-            trend >= 0 ? 'text-success' : 'text-danger'
+          className={`mt-2 inline-flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-semibold ${
+            trend >= 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'
           }`}
         >
           {trend >= 0 ? (
-            <TrendingUp className="h-3 w-3" strokeWidth={1.5} />
+            <TrendingUp className="h-3 w-3" strokeWidth={2} />
           ) : (
-            <TrendingDown className="h-3 w-3" strokeWidth={1.5} />
+            <TrendingDown className="h-3 w-3" strokeWidth={2} />
           )}
           {Math.abs(trend)}%
         </span>

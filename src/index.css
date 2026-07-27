@@ -3,6 +3,29 @@
 @tailwind utilities;
 
 /* ---------------------------------------------------------------------------
+   Foundation scale — theme-agnostic. Apple / euroflowers language: soft
+   two-layer shadows at low opacity, an 8px-derived radius scale, calm eases.
+   Presets below only own color; these own depth, shape and motion.
+--------------------------------------------------------------------------- */
+:root {
+  --ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --dur: 200ms;
+
+  --r-xs: 8px;
+  --r-sm: 10px;
+  --r-md: 14px;
+  --r-lg: 18px;
+  --r-xl: 24px;
+
+  /* soft, layered, low-opacity — read as elevation not a drop shadow */
+  --shadow-xs: 0 1px 2px rgba(10, 12, 16, 0.05);
+  --shadow-sm: 0 1px 2px rgba(10, 12, 16, 0.05), 0 4px 12px rgba(10, 12, 16, 0.06);
+  --shadow-md: 0 2px 6px rgba(10, 12, 16, 0.06), 0 12px 28px rgba(10, 12, 16, 0.1);
+  --shadow-lg: 0 6px 16px rgba(10, 12, 16, 0.08), 0 24px 56px rgba(10, 12, 16, 0.16);
+}
+
+/* ---------------------------------------------------------------------------
    Curated theme presets. Each preset sets EVERY token — background, surfaces,
    text, border AND accent — as one designer-matched palette. Switching
    data-theme swaps the whole palette at once; there is no separate accent.
@@ -20,8 +43,8 @@
   --surface-2: #1a2e27;
   --text: #f3efe6;
   --text-muted: #93a39b;
-  --border: rgba(217, 188, 127, 0.12);
-  --border-strong: rgba(217, 188, 127, 0.28);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --accent: #c9a96a;
   --accent-strong: #b8944f;
   --accent-soft: rgba(201, 169, 106, 0.12);
@@ -29,7 +52,7 @@
   --accent-ink: var(--accent);
   --accent-btn: var(--accent);
   --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.35);
+  --shadow: var(--shadow-md);
   --scrim: rgba(0, 0, 0, 0.6);
   --bg-glass: rgba(15, 27, 23, 0.8);
   --muted-soft: rgba(147, 163, 155, 0.1);
@@ -49,8 +72,8 @@
   --surface-2: #1c1f26;
   --text: #edeff3;
   --text-muted: #8b929e;
-  --border: rgba(110, 147, 200, 0.14);
-  --border-strong: rgba(110, 147, 200, 0.3);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --accent: #7a9ccb;
   --accent-strong: #5f82b4;
   --accent-soft: rgba(122, 156, 203, 0.12);
@@ -58,7 +81,7 @@
   --accent-ink: var(--accent);
   --accent-btn: var(--accent);
   --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.45);
+  --shadow: var(--shadow-md);
   --scrim: rgba(0, 0, 0, 0.65);
   --bg-glass: rgba(15, 16, 19, 0.8);
   --muted-soft: rgba(139, 146, 158, 0.1);
@@ -78,8 +101,8 @@
   --surface-2: #28201a;
   --text: #f4ede6;
   --text-muted: #a2938a;
-  --border: rgba(212, 154, 140, 0.14);
-  --border-strong: rgba(212, 154, 140, 0.3);
+  --border: rgba(255, 255, 255, 0.08);
+  --border-strong: rgba(255, 255, 255, 0.16);
   --accent: #d49a8c;
   --accent-strong: #be8172;
   --accent-soft: rgba(212, 154, 140, 0.12);
@@ -87,7 +110,7 @@
   --accent-ink: var(--accent);
   --accent-btn: var(--accent);
   --accent-btn-hover: color-mix(in srgb, var(--accent) 85%, #fff);
-  --shadow: 0 12px 32px rgba(0, 0, 0, 0.4);
+  --shadow: var(--shadow-md);
   --scrim: rgba(0, 0, 0, 0.6);
   --bg-glass: rgba(23, 18, 16, 0.8);
   --muted-soft: rgba(162, 147, 138, 0.1);
@@ -107,8 +130,8 @@
   --surface-2: #faf7f0;
   --text: #2a2622;
   --text-muted: #7a7468;
-  --border: rgba(60, 50, 35, 0.1);
-  --border-strong: rgba(60, 50, 35, 0.22);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.14);
   --accent: #b8944f;
   --accent-strong: #9c7b3e;
   --accent-soft: rgba(184, 148, 79, 0.1);
@@ -136,8 +159,8 @@
   --surface-2: #f7f8f6;
   --text: #23272b;
   --text-muted: #6f7a76;
-  --border: rgba(50, 70, 60, 0.1);
-  --border-strong: rgba(50, 70, 60, 0.22);
+  --border: rgba(0, 0, 0, 0.07);
+  --border-strong: rgba(0, 0, 0, 0.14);
   --accent: #4fa97e;
   --accent-strong: #3e8a66;
   --accent-soft: rgba(79, 169, 126, 0.1);
@@ -246,8 +269,17 @@
 
 @layer components {
   .card-velvet {
-    @apply rounded-xl border border-border bg-surface shadow-card;
-    transition: background-color 0.3s, border-color 0.3s;
+    @apply border border-border bg-surface;
+    border-radius: var(--r-lg);
+    box-shadow: var(--shadow-sm);
+    transition: background-color 0.3s, border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
+      transform 0.2s var(--ease);
+  }
+  /* Frosted surface for floating chrome (sidebar, sticky bars, hero panels) */
+  .glass {
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: saturate(1.4) blur(20px);
+    backdrop-filter: saturate(1.4) blur(20px);
   }
   /* Static accent gradient — brand wordmark only */
   .brand-gradient {
@@ -262,7 +294,12 @@
   }
   /* One floating style for every popover/dropdown/menu/tooltip */
   .float-panel {
-    @apply rounded-lg border border-border bg-surface text-text shadow-card;
+    @apply border border-border text-text;
+    border-radius: var(--r-md);
+    background: var(--bg-glass);
+    -webkit-backdrop-filter: saturate(1.4) blur(20px);
+    backdrop-filter: saturate(1.4) blur(20px);
+    box-shadow: var(--shadow-lg);
   }
   .float-in[data-state='open'] {
     animation: floatIn 140ms ease-out;
