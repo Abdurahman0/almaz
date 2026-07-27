@@ -90,7 +90,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
               {groupOptions(options).map(([group, items]) => (
                 <RadixSelect.Group key={group ?? '_'}>
                   {group && (
-                    <RadixSelect.Label className="px-3 pb-1 pt-2 text-2xs uppercase tracking-caps text-muted">
+                    <RadixSelect.Label className="px-3 pb-1 pt-2 text-xs font-medium text-muted">
                       {group}
                     </RadixSelect.Label>
                   )}

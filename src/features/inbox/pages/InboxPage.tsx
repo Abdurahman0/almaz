@@ -41,7 +41,7 @@ function ConversationRow({ conv, active, onClick }: {
     <button
       onClick={onClick}
       className={`w-full border-b border-border px-4 py-3 text-left transition-colors last:border-0 ${
-        active ? 'bg-accent-soft' : 'hover:bg-accent-soft'
+        active ? 'bg-accent-soft' : 'hover:bg-surface-2'
       }`}
     >
       <div className="flex items-center justify-between gap-2">

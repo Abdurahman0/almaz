@@ -47,7 +47,7 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
       <div className="mb-6 flex items-center gap-4">
         <HallmarkBadge tier={tierForTotal(client.total)} />
         <div>
-          <p className="text-xs uppercase tracking-caps text-muted">Jami xaridlar</p>
+          <p className="text-xs text-muted">Jami xaridlar</p>
           <p className="text-lg tnum text-accent-ink">
             <Money short value={client.total} />
           </p>

@@ -44,7 +44,7 @@ export function ThemePopover() {
 
       {open && (
         <div className="card-velvet absolute right-0 top-11 z-50 w-72 p-4">
-          <p className="mb-2 text-2xs font-semibold uppercase tracking-caps text-muted">Mavzu</p>
+          <p className="mb-2 text-xs font-medium text-muted">Mavzu</p>
           <div className="flex gap-2">
             {PRESETS.map((p) => (
               <button

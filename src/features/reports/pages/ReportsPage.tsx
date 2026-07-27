@@ -92,13 +92,13 @@ export default function ReportsPage() {
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             <Card>
-              <p className="text-xs font-semibold uppercase tracking-caps text-muted">Tushum</p>
+              <p className="text-xs font-semibold text-muted">Tushum</p>
               <p className="mt-2 text-stat tnum text-accent-ink">
                 <Money short value={summary.revenue} />
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-semibold uppercase tracking-caps text-muted">Buyurtmalar</p>
+              <p className="text-xs font-semibold text-muted">Buyurtmalar</p>
               <p className="mt-2 tnum text-stat text-text">
                 {formatNumber(summary.count)}
               </p>
@@ -109,7 +109,7 @@ export default function ReportsPage() {
             <Card>
               <div className="mb-4 flex items-baseline justify-between">
                 <h2 className="text-md font-semibold text-text">Eng ko'p so'ralgan / sotilgan</h2>
-                <span className="text-2xs uppercase tracking-caps text-muted">so'ralgan · sotilgan</span>
+                <span className="text-xs font-medium text-muted">so'ralgan · sotilgan</span>
               </div>
               {topProducts.isPending && <SkeletonRows rows={5} />}
               {topProducts.isError && (

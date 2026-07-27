@@ -128,7 +128,7 @@ export function Calendar(props: DayPickerProps) {
         button_next: navBtn,
         month_grid: 'border-collapse',
         weekdays: '',
-        weekday: 'h-8 w-9 text-center text-2xs font-medium uppercase tracking-caps text-muted',
+        weekday: 'h-8 w-9 text-center text-2xs font-medium text-muted',
         week: '',
         day: 'p-0 text-center',
         day_button:

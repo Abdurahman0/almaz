@@ -316,7 +316,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
 
       {/* Images */}
       <div className="space-y-2">
-        <span className="text-2xs font-semibold uppercase tracking-caps text-muted">Rasmlar</span>
+        <span className="text-xs font-medium text-muted">Rasmlar</span>
         <div className="flex gap-2">
           <div className="flex-1">
             <Input

@@ -35,7 +35,7 @@ const PRESETS = [
 function ColorField({ value, onChange }: { value: string; onChange: (v: string) => void }) {
   return (
     <div>
-      <p className="mb-1.5 text-xs font-semibold uppercase tracking-caps text-muted">Rang</p>
+      <p className="mb-1.5 text-xs font-semibold text-muted">Rang</p>
       <div className="flex flex-wrap items-center gap-2">
         <span
           className="h-9 w-9 shrink-0 rounded-lg border border-strong"

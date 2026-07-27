@@ -21,7 +21,7 @@ export function FileDropzone({ files, onChange, accept = 'image/*', label }: Fil
   return (
     <div className="space-y-2">
       {label && (
-        <span className="text-2xs font-semibold uppercase tracking-caps text-muted">{label}</span>
+        <span className="text-xs font-medium text-muted">{label}</span>
       )}
       <button
         type="button"

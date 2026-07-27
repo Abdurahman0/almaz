@@ -197,7 +197,7 @@ export default function SettingsPage() {
           <h2 className="mb-4 text-md font-semibold text-text">Ko'rinish va til</h2>
           <div className="space-y-4">
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-caps text-muted">Mavzu</p>
+              <p className="mb-2 text-xs font-semibold text-muted">Mavzu</p>
               <div className="flex flex-wrap gap-3">
                 {PRESETS.map((p) => (
                   <button
@@ -243,7 +243,7 @@ export default function SettingsPage() {
               </div>
             </div>
             <div>
-              <p className="mb-2 text-xs font-semibold uppercase tracking-caps text-muted">Til</p>
+              <p className="mb-2 text-xs font-semibold text-muted">Til</p>
               <div className="flex gap-2">
                 {(
                   [
