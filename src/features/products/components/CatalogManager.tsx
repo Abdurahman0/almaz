@@ -377,8 +377,8 @@ export function CatalogManager() {
           <button
             key={t.id}
             onClick={() => setTab(t.id)}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-              tab === t.id ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-muted hover:text-text'
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+              tab === t.id ? 'bg-accent-btn text-on-accent' : 'bg-surface-2 text-muted hover:text-text'
             }`}
           >
             {t.label}

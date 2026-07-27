@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { endOfMonth, format, isWithinInterval, parseISO, startOfMonth } from 'date-fns';
-import { Download } from 'lucide-react';
+import { Coins, Download, ShoppingBag } from 'lucide-react';
 import {
   Button,
   Card,
@@ -92,16 +92,24 @@ export default function ReportsPage() {
         <>
           <div className="grid gap-5 sm:grid-cols-2">
             <Card>
-              <p className="text-xs font-semibold text-muted">Tushum</p>
-              <p className="mt-2 text-stat tnum text-accent-ink">
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted">Tushum</p>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                  <Coins className="h-4 w-4" strokeWidth={1.75} />
+                </span>
+              </div>
+              <p className="mt-3 text-stat tnum text-accent-ink">
                 <Money short value={summary.revenue} />
               </p>
             </Card>
             <Card>
-              <p className="text-xs font-semibold text-muted">Buyurtmalar</p>
-              <p className="mt-2 tnum text-stat text-text">
-                {formatNumber(summary.count)}
-              </p>
+              <div className="flex items-start justify-between gap-3">
+                <p className="text-xs font-medium text-muted">Buyurtmalar</p>
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                  <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
+                </span>
+              </div>
+              <p className="mt-3 tnum text-stat text-text">{formatNumber(summary.count)}</p>
             </Card>
           </div>
 

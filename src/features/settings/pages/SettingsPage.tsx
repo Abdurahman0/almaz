@@ -254,10 +254,10 @@ export default function SettingsPage() {
                   <button
                     key={value}
                     onClick={() => setLang(value)}
-                    className={`rounded-xl border px-4 py-2 text-sm font-semibold transition-colors ${
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
                       lang === value
-                        ? 'border-accent bg-accent-soft text-accent-ink'
-                        : 'border-border text-muted hover:text-text'
+                        ? 'bg-accent-btn text-on-accent'
+                        : 'bg-surface-2 text-muted hover:text-text'
                     }`}
                   >
                     {label}
