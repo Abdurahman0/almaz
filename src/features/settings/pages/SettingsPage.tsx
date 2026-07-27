@@ -1,6 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Check, ChevronRight, ScrollText, Users } from 'lucide-react';
+import { Check } from 'lucide-react';
 import { Card, Button, NumberInput, PageHeader, SkeletonRows, toast } from '@/shared/ui';
 import { useUiStore, type Lang } from '@/shared/stores/ui';
 import { PRESETS } from '@/shared/lib/themes';
@@ -181,34 +180,6 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card className="h-fit p-0">
-          <Link
-            to="/settings/staff"
-            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-accent-soft"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
-              <Users className="h-4 w-4" strokeWidth={1.5} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-text">Xodimlar</span>
-              <span className="block text-xs text-muted">Jamoa a'zolari va rollar</span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
-          </Link>
-          <Link
-            to="/settings/audit"
-            className="flex items-center gap-3 border-t border-border px-5 py-4 transition-colors hover:bg-accent-soft"
-          >
-            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
-              <ScrollText className="h-4 w-4" strokeWidth={1.5} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm font-semibold text-text">Amallar jurnali</span>
-              <span className="block text-xs text-muted">Tizimda bajarilgan amallar</span>
-            </span>
-            <ChevronRight className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
-          </Link>
-        </Card>
       </div>
     </div>
   );

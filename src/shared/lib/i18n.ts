@@ -10,6 +10,8 @@ const uz = {
   'nav.payments': "To'lovlar",
   'nav.reports': 'Hisobotlar',
   'nav.knowledge': 'AI bilim bazasi',
+  'nav.staff': 'Xodimlar',
+  'nav.audit': 'Amallar jurnali',
   'nav.settings': 'Sozlamalar',
   'nav.logout': 'Chiqish',
   // common
@@ -162,6 +164,8 @@ const ru: Partial<Record<TranslationKey, string>> = {
   'nav.clients': 'Клиенты',
   'nav.payments': 'Платежи',
   'nav.reports': 'Отчёты',
+  'nav.staff': 'Сотрудники',
+  'nav.audit': 'Журнал действий',
   'nav.settings': 'Настройки',
   'common.search': 'Поиск...',
   'common.save': 'Сохранить',

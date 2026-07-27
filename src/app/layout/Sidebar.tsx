@@ -9,6 +9,8 @@ import {
   BarChart3,
   BookOpen,
   Settings,
+  UserCog,
+  ScrollText,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
@@ -27,6 +29,8 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/payments', icon: CreditCard, label: 'nav.payments' },
   { to: '/reports', icon: BarChart3, label: 'nav.reports' },
   { to: '/knowledge', icon: BookOpen, label: 'nav.knowledge' },
+  { to: '/settings/staff', icon: UserCog, label: 'nav.staff' },
+  { to: '/settings/audit', icon: ScrollText, label: 'nav.audit' },
   { to: '/settings', icon: Settings, label: 'nav.settings' },
 ];
 
@@ -64,7 +68,7 @@ export function Sidebar() {
             <NavLink
               key={to}
               to={to}
-              end={to === '/'}
+              end={to === '/' || to === '/settings'}
               aria-label={t(label)}
               className={({ isActive }) =>
                 `flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors duration-200 ${

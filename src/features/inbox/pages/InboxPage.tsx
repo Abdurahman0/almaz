@@ -164,7 +164,7 @@ export default function InboxPage() {
           </div>
         </div>
 
-        <div className={`flex min-w-0 flex-col ${conversationId ? '' : 'hidden md:flex'}`}>
+        <div className={`flex min-h-0 min-w-0 flex-col overflow-hidden ${conversationId ? '' : 'hidden md:flex'}`}>
           {!conversationId && (
             <div className="flex flex-1 items-center justify-center">
               <EmptyState heading="Suhbat tanlang" hint="Chapdagi ro'yxatdan suhbatni oching" />
@@ -195,7 +195,7 @@ export default function InboxPage() {
                 )}
               </div>
 
-              <div className="flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
                 {messages.isPending && <SkeletonRows rows={5} />}
                 {messages.data?.map((m) => (
                   <div
