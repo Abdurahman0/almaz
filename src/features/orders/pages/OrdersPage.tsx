@@ -81,7 +81,7 @@ function OrderBoard() {
         return (
           <div
             key={col.key}
-            className="flex max-h-[calc(100dvh-230px)] w-[280px] shrink-0 flex-col rounded-2xl border border-border bg-bg/40"
+            className="flex h-[calc(100dvh-198px)] w-[280px] shrink-0 flex-col rounded-2xl border border-border bg-bg/40"
           >
             <div className="flex items-center justify-between gap-2 px-3.5 py-3">
               <span className="flex items-center gap-2 text-sm font-semibold text-text">
