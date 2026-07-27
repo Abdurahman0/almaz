@@ -258,14 +258,14 @@ function EventsLog() {
         <EmptyState heading="Eventlar yo'q" hint="Kelgan webhook payloadlari shu yerda ko'rinadi" />
       )}
       {events.isSuccess && events.data.items.length > 0 && (
-        <table className="mt-4 w-full min-w-[480px] text-sm">
+        <table className="data-table mt-3 min-w-[480px]">
           <tbody>
             {events.data.items.map((e) => (
-              <tr key={e.id} className="border-t border-border">
-                <td className="px-4 py-2.5">
+              <tr key={e.id}>
+                <td>
                   <Badge tone="muted">{e.provider}</Badge>
                 </td>
-                <td className="px-4 py-2.5">
+                <td>
                   {e.status === 'ok' || e.status === 'processed' ? (
                     <span className="inline-flex items-center gap-1 text-success">
                       <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.5} /> {e.status}
@@ -276,7 +276,7 @@ function EventsLog() {
                     </span>
                   )}
                 </td>
-                <td className="tnum px-4 py-2.5 text-right text-muted">{formatDateTime(e.created_at)}</td>
+                <td className="tnum text-right text-muted">{formatDateTime(e.created_at)}</td>
               </tr>
             ))}
           </tbody>

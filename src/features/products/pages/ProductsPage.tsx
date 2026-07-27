@@ -233,7 +233,7 @@ export default function ProductsPage() {
             placeholder="Nomi bo'yicha qidirish (uz/ru)..."
             aria-label="Mahsulot qidirish"
             disabled={lowStockOnly}
-            className="w-full rounded-lg border border-border bg-bg py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent disabled:opacity-45"
+            className="w-full rounded-xl border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent disabled:opacity-45"
           />
         </div>
         <div className="w-44">

@@ -61,10 +61,10 @@ export default function OrdersPage() {
           <button
             key={opt}
             onClick={() => setStatus(opt)}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors duration-200 ${
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150 ${
               status === opt
-                ? 'border-accent bg-accent-soft text-accent-ink'
-                : 'border-border text-muted hover:border-strong hover:text-text'
+                ? 'bg-accent-btn text-on-accent'
+                : 'bg-surface-2 text-muted hover:text-text'
             }`}
           >
             {opt === 'all' ? 'Barchasi' : orderStatusLabels[opt]}
@@ -89,40 +89,40 @@ export default function OrdersPage() {
       )}
       {query.isSuccess && orders.length > 0 && (
         <Card className="overflow-x-auto p-0">
-          <table className="w-full min-w-[640px] text-sm">
+          <table className="data-table min-w-[640px]">
             <thead>
-              <tr className="border-b border-border text-left text-2xs uppercase tracking-caps text-muted">
-                <th className="px-4 py-2.5 font-semibold">Raqam</th>
-                <th className="px-4 py-2.5 font-semibold">Holat</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Mahsulotlar</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Summa</th>
-                <th className="px-4 py-2.5 text-right font-semibold">Sana</th>
+              <tr>
+                <th>Raqam</th>
+                <th>Holat</th>
+                <th className="!text-right">Mahsulotlar</th>
+                <th className="!text-right">Summa</th>
+                <th className="!text-right">Sana</th>
               </tr>
             </thead>
             <tbody>
               {orders.map((order) => (
                 <tr
                   key={order.id}
-                  className="cursor-pointer border-b border-border transition-colors duration-150 last:border-0 hover:bg-accent-soft"
+                  className="cursor-pointer"
                   onClick={() => navigate(`/orders/${order.id}`)}
                 >
-                  <td className="px-4 py-2.5">
+                  <td>
                     <Link
                       to={`/orders/${order.id}`}
-                      className="font-mono text-xs font-medium text-text hover:text-accent-ink"
+                      className="font-mono text-xs font-semibold text-text hover:text-accent-ink"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {order.order_no}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td>
                     <OrderStatusBadge status={order.status} />
                   </td>
-                  <td className="tnum px-4 py-2.5 text-right text-muted">{order.items.length} ta</td>
-                  <td className="px-4 py-2.5 text-right font-semibold text-accent-ink">
+                  <td className="tnum text-right text-muted">{order.items.length} ta</td>
+                  <td className="text-right font-semibold text-accent-ink">
                     <Money value={order.grand_total} />
                   </td>
-                  <td className="tnum px-4 py-2.5 text-right text-muted">{formatDateTime(order.created_at)}</td>
+                  <td className="tnum text-right text-muted">{formatDateTime(order.created_at)}</td>
                 </tr>
               ))}
             </tbody>

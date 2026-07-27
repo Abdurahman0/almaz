@@ -119,29 +119,26 @@ export default function DashboardPage() {
           <EmptyState heading="Buyurtmalar hali yo'q" hint="Birinchi buyurtma shu yerda ko'rinadi" />
         )}
         {stats.isSuccess && heavyReady && stats.data.latest.length > 0 && (
-          <table className="mt-4 w-full min-w-[560px] text-sm">
+          <table className="data-table mt-3 min-w-[560px]">
             <tbody>
               {stats.data.latest.map((o) => (
-                <tr
-                  key={o.id}
-                  className="border-t border-border transition-colors duration-150 hover:bg-accent-soft"
-                >
-                  <td className="px-4 py-2.5">
+                <tr key={o.id}>
+                  <td>
                     <Link
                       to={`/orders/${o.id}`}
-                      className="font-mono text-xs font-medium text-text hover:text-accent-ink"
+                      className="font-mono text-xs font-semibold text-text hover:text-accent-ink"
                     >
                       {o.order_no}
                     </Link>
                   </td>
-                  <td className="px-4 py-2.5">
+                  <td>
                     <OrderStatusBadge status={o.status} />
                   </td>
-                  <td className="tnum px-4 py-2.5 text-right text-muted">{formatNumber(o.items.length)} ta</td>
-                  <td className="px-4 py-2.5 text-right font-semibold text-accent-ink">
+                  <td className="tnum text-right text-muted">{formatNumber(o.items.length)} ta</td>
+                  <td className="text-right font-semibold text-accent-ink">
                     <Money value={o.grand_total} />
                   </td>
-                  <td className="tnum px-4 py-2.5 text-right text-muted">{formatDateTime(o.created_at)}</td>
+                  <td className="tnum text-right text-muted">{formatDateTime(o.created_at)}</td>
                 </tr>
               ))}
             </tbody>

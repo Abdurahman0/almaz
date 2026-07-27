@@ -137,7 +137,7 @@ export default function InboxPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Ism / username / ID..."
                 aria-label="Suhbat qidirish"
-                className="w-full rounded-lg border border-border bg-bg py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
+                className="w-full rounded-xl border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
               />
             </div>
             <div className="flex gap-2">

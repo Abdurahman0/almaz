@@ -35,10 +35,10 @@ export default function PaymentsPage() {
           <button
             key={opt}
             onClick={() => setStatus(opt)}
-            className={`rounded-full border px-3.5 py-1.5 text-xs font-semibold transition-colors ${
+            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
               status === opt
-                ? 'border-accent bg-accent-soft text-accent-ink'
-                : 'border-border text-muted hover:text-text'
+                ? 'bg-accent-btn text-on-accent'
+                : 'bg-surface-2 text-muted hover:text-text'
             }`}
           >
             {opt === 'all' ? 'Barchasi' : paymentStatusLabels[opt]}
