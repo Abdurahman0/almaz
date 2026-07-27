@@ -5,6 +5,8 @@ import type { SettingOut, SettingValue } from '@/shared/api/types';
 export const SETTING_KEYS = {
   engravingPrice: 'engraving_price',
   lowStockThreshold: 'low_stock_threshold',
+  aiEnabled: 'ai_enabled',
+  aiPauseMinutes: 'ai_pause_minutes',
 } as const;
 
 export async function listSettings(): Promise<SettingOut[]> {

@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as inboxApi from './api';
 import type { ConversationListParams } from './api';
-import type { CustomerOut, MessageOut } from '@/shared/api/types';
+import type { AiControlRequest, CustomerOut, MessageOut } from '@/shared/api/types';
 
 export const inboxKeys = {
   all: ['inbox'] as const,
@@ -76,6 +76,15 @@ export function useAssign(conversationId: string) {
   return useMutation({
     mutationFn: (operatorId: string) => inboxApi.assignConversation(conversationId, operatorId),
     onSuccess: () => qc.invalidateQueries({ queryKey: inboxKeys.all }),
+  });
+}
+
+/** Turn the conversation's AI off/on or pause it (minutes / until an instant). */
+export function useAiControl(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: AiControlRequest) => inboxApi.setAiControl(conversationId, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: inboxKeys.conversations }),
   });
 }
 

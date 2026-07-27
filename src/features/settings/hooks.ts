@@ -40,3 +40,19 @@ export function useLowStockThreshold(): number {
 export function useEngravingPrice(): number {
   return useNumberSetting(SETTING_KEYS.engravingPrice, 50_000);
 }
+
+/** Auto-pause minutes applied when an operator types (default 15). */
+export function useAiPauseMinutes(): number {
+  return useNumberSetting(SETTING_KEYS.aiPauseMinutes, 15);
+}
+
+/** Global AI on/off across the whole system (default on). */
+export function useAiEnabled(): boolean {
+  const { data } = useSettings();
+  const raw = data?.find((s) => s.key === SETTING_KEYS.aiEnabled)?.value;
+  if (raw === undefined || raw === null) return true;
+  if (typeof raw === 'boolean') return raw;
+  if (typeof raw === 'string') return raw !== 'false' && raw !== '0';
+  if (typeof raw === 'number') return raw !== 0;
+  return true;
+}

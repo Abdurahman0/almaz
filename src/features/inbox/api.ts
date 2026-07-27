@@ -1,5 +1,6 @@
 import { api, getItems } from '@/shared/api/client';
 import type {
+  AiControlRequest,
   AiState,
   Channel,
   ConversationOut,
@@ -53,4 +54,12 @@ export async function markRead(conversationId: string): Promise<void> {
 
 export async function assignConversation(conversationId: string, operatorId: string): Promise<void> {
   await api.post(`/inbox/conversations/${conversationId}/assign`, { operator_id: operatorId });
+}
+
+/** Turn the conversation's AI off/on or pause it (minutes or until an instant). */
+export async function setAiControl(
+  conversationId: string,
+  body: AiControlRequest,
+): Promise<ConversationOut> {
+  return (await api.post<ConversationOut>(`/inbox/conversations/${conversationId}/ai`, body)).data;
 }

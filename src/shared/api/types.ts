@@ -230,11 +230,24 @@ export interface ConversationOut {
   ai_state: AiState;
   status: ConversationStatus;
   assigned_operator_id: string | null;
+  /** Whether the AI answers in this conversation at all (false = fully off). */
+  ai_enabled: boolean;
+  /** AI stays quiet until this instant (temporary pause); null = not paused. */
   ai_paused_until: string | null;
   unread_count: number;
   last_message: string | null;
   last_activity_at: string;
   customer: CustomerOut | null;
+}
+
+/** Per-conversation AI control (POST /inbox/conversations/{id}/ai). */
+export type AiControlMode = 'pause_minutes' | 'pause_until' | 'off' | 'on';
+export interface AiControlRequest {
+  mode: AiControlMode;
+  /** pause_minutes: minutes to stay quiet. */
+  minutes?: number;
+  /** pause_until: ISO instant to stay quiet until. */
+  until?: string;
 }
 export interface MessageOut {
   id: string;

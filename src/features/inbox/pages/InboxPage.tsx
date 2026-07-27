@@ -5,6 +5,7 @@ import { Badge, Button, Card, Checkbox, EmptyState, ErrorCard, Select, SkeletonR
 import { formatTime } from '@/shared/lib/format';
 import { useAuthStore } from '@/shared/stores/auth';
 import { useAssign, useConversations, useMarkRead, useMessages, useSendMessage } from '../hooks';
+import { AiControl } from '../components/AiControl';
 import type { AiState, Channel, ConversationOut, ConversationStatus } from '@/shared/api/types';
 
 const channelOptions: SelectOption[] = [
@@ -55,11 +56,17 @@ function ConversationRow({ conv, active, onClick }: {
           </span>
         )}
       </div>
-      <div className="mt-1.5 flex gap-1.5">
+      <div className="mt-1.5 flex flex-wrap gap-1.5">
         <Badge tone="muted">{conv.channel === 'telegram' ? 'Telegram' : 'Instagram'}</Badge>
         <Badge tone={conv.ai_state === 'handed_off' ? 'rose' : 'gold'}>
           {aiStateLabels[conv.ai_state]}
         </Badge>
+        {!conv.ai_enabled ? (
+          <Badge tone="rose">AI o'chiq</Badge>
+        ) : (
+          conv.ai_paused_until &&
+          new Date(conv.ai_paused_until).getTime() > Date.now() && <Badge tone="gold">AI pauza</Badge>
+        )}
       </div>
     </button>
   );
@@ -183,16 +190,19 @@ export default function InboxPage() {
                     </p>
                   )}
                 </div>
-                {user && selected?.assigned_operator_id !== user.id && (
-                  <Button
-                    variant="secondary"
-                    size="sm"
-                    loading={assign.isPending}
-                    onClick={() => assign.mutate(user.id)}
-                  >
-                    <UserCheck className="h-4 w-4" strokeWidth={1.5} /> O'zimga olish
-                  </Button>
-                )}
+                <div className="flex items-center gap-2">
+                  {selected && <AiControl conv={selected} />}
+                  {user && selected?.assigned_operator_id !== user.id && (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      loading={assign.isPending}
+                      onClick={() => assign.mutate(user.id)}
+                    >
+                      <UserCheck className="h-4 w-4" strokeWidth={1.5} /> O'zimga olish
+                    </Button>
+                  )}
+                </div>
               </div>
 
               <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">

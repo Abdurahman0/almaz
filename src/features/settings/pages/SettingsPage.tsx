@@ -1,11 +1,13 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
-import { Card, Button, NumberInput, PageHeader, SkeletonRows, toast } from '@/shared/ui';
+import { Card, Button, NumberInput, PageHeader, SkeletonRows, Switch, toast } from '@/shared/ui';
 import { useUiStore, type Lang } from '@/shared/stores/ui';
 import { PRESETS } from '@/shared/lib/themes';
 import { switchThemeFromEvent } from '@/shared/hooks/useThemeTransition';
 import { useAuthStore } from '@/shared/stores/auth';
 import {
+  useAiEnabled,
+  useAiPauseMinutes,
   useEngravingPrice,
   useLowStockThreshold,
   useSettings,
@@ -69,6 +71,69 @@ function CommerceSettingsEditor() {
   );
 }
 
+/** Global AI controls: system on/off + auto-pause minutes when an operator types. */
+function AiSettingsEditor() {
+  const aiEnabled = useAiEnabled();
+  const pauseMinutes = useAiPauseMinutes();
+  const settings = useSettings();
+  const update = useUpdateSetting();
+  const [min, setMin] = useState<number | '' | null>(null);
+
+  if (settings.isPending) return <SkeletonRows rows={2} />;
+
+  const toggle = (checked: boolean) =>
+    update.mutate(
+      { key: SETTING_KEYS.aiEnabled, value: checked },
+      {
+        onSuccess: () => toast.success(checked ? 'AI yoqildi' : "AI o'chirildi"),
+        onError: () => toast.error('Saqlashda xatolik yuz berdi'),
+      },
+    );
+
+  const saveMinutes = () => {
+    const v = min === null ? pauseMinutes : min;
+    if (typeof v !== 'number' || v < 0) return;
+    update.mutate(
+      { key: SETTING_KEYS.aiPauseMinutes, value: v },
+      {
+        onSuccess: () => toast.success('Sozlamalar saqlandi'),
+        onError: () => toast.error('Saqlashda xatolik yuz berdi'),
+      },
+    );
+  };
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">AI global yoqilgan</p>
+          <p className="text-xs text-muted">O'chirilsa butun tizim bo'yicha AI javob bermaydi</p>
+        </div>
+        <Switch checked={aiEnabled} onCheckedChange={toggle} />
+      </div>
+      <div className="flex items-end gap-3">
+        <div className="flex-1">
+          <NumberInput
+            label="Avto-pauza (operator yozganda)"
+            suffix="daqiqa"
+            step={5}
+            min={0}
+            value={min ?? pauseMinutes}
+            onChange={setMin}
+          />
+        </div>
+        <Button size="sm" loading={update.isPending} onClick={saveMinutes}>
+          Saqlash
+        </Button>
+      </div>
+      <p className="text-xs text-muted">
+        Operator xabar yozsa, AI shu muddatga vaqtinchalik jimadi. Uzoq/butunlay to'xtatish suhbat
+        ichida boshqariladi.
+      </p>
+    </div>
+  );
+}
+
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const { preset, setPreset, lang, setLang } = useUiStore();
@@ -99,6 +164,11 @@ export default function SettingsPage() {
         <Card>
           <h2 className="mb-4 text-md font-semibold text-text">Narx / sklad sozlamalari</h2>
           <CommerceSettingsEditor />
+        </Card>
+
+        <Card>
+          <h2 className="mb-4 text-md font-semibold text-text">AI sozlamalari</h2>
+          <AiSettingsEditor />
         </Card>
 
         <Card className="h-fit">
