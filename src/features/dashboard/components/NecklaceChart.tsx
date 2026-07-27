@@ -1,106 +1,67 @@
 import {
-  Line,
-  LineChart,
+  Area,
+  AreaChart,
+  CartesianGrid,
   ResponsiveContainer,
   Tooltip,
   XAxis,
   YAxis,
-  type DotProps,
 } from 'recharts';
 import { formatMoneyShort } from '@/shared/lib/format';
-import { useThemeColors, type ThemeColors } from '@/shared/hooks/useThemeColors';
+import { useThemeColors } from '@/shared/hooks/useThemeColors';
 import type { DayPoint } from '../hooks';
 
-interface NecklaceDotProps extends DotProps {
-  payload?: DayPoint;
-  maxRevenue: number;
-  colors: ThemeColors;
-}
-
-/** Pearls on a chain, sized by revenue; the record day is a diamond. */
-function NecklaceDot({ cx, cy, payload, maxRevenue, colors }: NecklaceDotProps) {
-  if (cx === undefined || cy === undefined || !payload) return null;
-  const t = maxRevenue > 0 ? payload.revenue / maxRevenue : 0;
-  const r = 4 + t * 8;
-  if (payload.isRecord && payload.revenue > 0) {
-    const s = r + 4;
-    return (
-      <g>
-        <path
-          d={`M${cx} ${cy - s} L${cx + s * 0.8} ${cy} L${cx} ${cy + s} L${cx - s * 0.8} ${cy} Z`}
-          fill={colors.accent}
-          stroke={colors.accentStrong}
-          strokeWidth="1.5"
-        />
-        <line
-          x1={cx - s * 0.8}
-          y1={cy}
-          x2={cx + s * 0.8}
-          y2={cy}
-          stroke={colors.surface}
-          strokeOpacity="0.7"
-          strokeWidth="0.8"
-        />
-        <line
-          x1={cx}
-          y1={cy - s}
-          x2={cx}
-          y2={cy + s}
-          stroke={colors.surface}
-          strokeOpacity="0.7"
-          strokeWidth="0.8"
-        />
-      </g>
-    );
-  }
-  return (
-    <g>
-      <circle cx={cx} cy={cy} r={r} fill={colors.accent} />
-      <circle cx={cx - r * 0.3} cy={cy - r * 0.3} r={r * 0.3} fill={colors.surface} fillOpacity="0.5" />
-    </g>
-  );
-}
-
+/** Modern gradient area chart of the week's revenue. */
 export function NecklaceChart({ data }: { data: DayPoint[] }) {
   const colors = useThemeColors();
-  const maxRevenue = Math.max(...data.map((d) => d.revenue), 1);
   return (
     <ResponsiveContainer width="100%" height={260}>
-      <LineChart data={data} margin={{ top: 24, right: 24, bottom: 4, left: 8 }}>
+      <AreaChart data={data} margin={{ top: 16, right: 12, bottom: 4, left: 0 }}>
+        <defs>
+          <linearGradient id="revFill" x1="0" y1="0" x2="0" y2="1">
+            <stop offset="0%" stopColor={colors.accent} stopOpacity={0.28} />
+            <stop offset="100%" stopColor={colors.accent} stopOpacity={0} />
+          </linearGradient>
+        </defs>
+        <CartesianGrid
+          vertical={false}
+          stroke={colors.border}
+          strokeDasharray="4 6"
+        />
         <XAxis
           dataKey="label"
           stroke={colors.border}
           tickLine={false}
           axisLine={false}
+          tickMargin={10}
           tick={{ fill: colors.muted, fontSize: 12 }}
         />
         <YAxis hide domain={[0, 'dataMax + 1000000']} />
         <Tooltip
-          cursor={{ stroke: colors.border }}
+          cursor={{ stroke: colors.border, strokeWidth: 1 }}
           content={({ active, payload }) => {
             if (!active || !payload?.length) return null;
             const point = payload[0].payload as DayPoint;
             return (
-              <div className="card-velvet px-4 py-2.5 text-sm">
-                <p className="text-muted">{point.label}</p>
-                <p className="font-semibold text-accent-ink">{formatMoneyShort(point.revenue)}</p>
+              <div className="float-panel px-3.5 py-2 text-sm">
+                <p className="text-xs text-muted">{point.label}</p>
+                <p className="tnum font-semibold text-accent-ink">{formatMoneyShort(point.revenue)}</p>
               </div>
             );
           }}
         />
-        <Line
-          type="natural"
+        <Area
+          type="monotone"
           dataKey="revenue"
-          stroke={colors.accentStrong}
-          strokeWidth={1.5}
-          dot={(props) => {
-            const { key, ...rest } = props as DotProps & { key?: string; payload?: DayPoint };
-            return <NecklaceDot key={key} {...rest} maxRevenue={maxRevenue} colors={colors} />;
-          }}
-          activeDot={false}
-          isAnimationActive={false}
+          stroke={colors.accent}
+          strokeWidth={2.5}
+          fill="url(#revFill)"
+          dot={false}
+          activeDot={{ r: 5, fill: colors.accent, stroke: colors.surface, strokeWidth: 2 }}
+          isAnimationActive
+          animationDuration={600}
         />
-      </LineChart>
+      </AreaChart>
     </ResponsiveContainer>
   );
 }

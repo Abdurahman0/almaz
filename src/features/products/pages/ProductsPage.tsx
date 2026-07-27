@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift } from 'lucide-react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -51,68 +51,74 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
   const soldOut = stock <= 0;
   const discounted = product.discount_price != null;
 
+  const menu = (
+    <DropdownMenu
+      items={[
+        { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onEdit },
+        { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onDelete, destructive: true, separatorBefore: true },
+      ]}
+      trigger={
+        <button
+          aria-label="Amallar"
+          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/80 text-muted backdrop-blur transition-colors hover:text-text"
+        >
+          <span className="text-lg leading-none">⋯</span>
+        </button>
+      }
+    />
+  );
+
   return (
     <div
-      className={`group relative rounded-xl p-5 transition-all duration-300 ${
-        soldOut
-          ? 'border border-border opacity-60'
-          : 'border border-border bg-bg hover:-translate-y-0.5 hover:border-strong'
+      className={`group relative overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 ${
+        soldOut ? 'opacity-70' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
-      <span className="absolute right-2 top-2 z-10">
-        {soldOut ? (
-          <Tooltip content="Qayta buyurtma berasizmi?">
-            <span>
-              <DropdownMenu
-                items={[
-                  { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onEdit },
-                  { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onDelete, destructive: true, separatorBefore: true },
-                ]}
-              />
-            </span>
-          </Tooltip>
-        ) : (
-          <DropdownMenu
-            items={[
-              { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onEdit },
-              { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onDelete, destructive: true, separatorBefore: true },
-            ]}
-          />
-        )}
-      </span>
-      {!soldOut && (
-        <span
-          className={`absolute left-3 top-3 flex items-center gap-1 rounded-full px-2 py-0.5 text-2xs font-bold ${
-            lowStock ? 'bg-danger-soft text-danger' : 'bg-accent-soft text-accent-ink'
-          }`}
-        >
-          {lowStock && <AlertTriangle className="h-3 w-3" strokeWidth={2} />}
-          {stock} dona
-        </span>
-      )}
-      <div className="flex h-24 items-center justify-center">
-        {soldOut ? (
-          <PackageOpen className="h-10 w-10 text-muted" strokeWidth={1} />
-        ) : product.media[0]?.image_url ? (
+      <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
+        {product.media[0]?.image_url ? (
           <img
             src={product.media[0].image_url}
             alt={name}
-            className="h-24 w-24 rounded-xl object-cover"
+            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
           />
         ) : (
-          <svg width="72" height="72" viewBox="0 0 72 72" aria-hidden>
-            <circle cx="36" cy="42" r="18" fill="none" stroke="var(--accent)" strokeWidth="5" />
-            <path d="M36 8 l8 9 -8 10 -8 -10 z" fill="var(--accent)" opacity="0.7" />
-          </svg>
+          <div className="flex h-full w-full items-center justify-center">
+            <Gem className="h-10 w-10 text-muted/50" strokeWidth={1.25} />
+          </div>
+        )}
+
+        <span className="absolute right-2 top-2 z-10">
+          {soldOut ? <Tooltip content="Qayta buyurtma berasizmi?"><span>{menu}</span></Tooltip> : menu}
+        </span>
+
+        {soldOut ? (
+          <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-surface/85 px-2.5 py-0.5 text-2xs font-semibold text-muted backdrop-blur">
+            <PackageOpen className="h-3 w-3" strokeWidth={1.75} /> Tugagan
+          </span>
+        ) : (
+          <span
+            className={`absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-semibold backdrop-blur ${
+              lowStock ? 'bg-danger-soft text-danger' : 'bg-surface/85 text-text'
+            }`}
+          >
+            {lowStock && <AlertTriangle className="h-3 w-3" strokeWidth={2} />}
+            {stock} dona
+          </span>
         )}
       </div>
-      <p className={`mt-3 truncate text-sm font-semibold ${soldOut ? 'text-muted' : 'text-text'}`}>
-        {name}
-      </p>
-      <p className="truncate text-xs text-muted">
-        {[material, stone].filter(Boolean).join(' · ') || '—'}
-      </p>
-      <div className="mt-2 flex items-center justify-between">
+
+      <div className="p-4">
+        <div className="mb-2 flex items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className={`truncate text-sm font-semibold ${soldOut ? 'text-muted' : 'text-text'}`}>{name}</p>
+            <p className="truncate text-xs text-muted">
+              {[material, stone].filter(Boolean).join(' · ') || '—'}
+            </p>
+          </div>
+          <Badge tone={product.status === 'active' ? 'success' : 'muted'}>
+            {productStatusLabels[product.status]}
+          </Badge>
+        </div>
         <span className={`flex items-baseline gap-1.5 text-md tnum ${soldOut ? 'text-muted' : 'text-accent-ink'}`}>
           <Money short value={product.effective_price} />
           {discounted && (
@@ -121,9 +127,6 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
             </span>
           )}
         </span>
-        <Badge tone={product.status === 'active' ? 'success' : 'muted'}>
-          {productStatusLabels[product.status]}
-        </Badge>
       </div>
     </div>
   );
@@ -274,22 +277,20 @@ export default function ProductsPage() {
       )}
       {query.isSuccess && products.length > 0 && (
         <>
-          <Card className="bg-surface p-6">
-            <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-              {products.map((p) => (
-                <ProductSlot
-                  key={p.id}
-                  product={p}
-                  name={pickName(p, lang)}
-                  material={refName(materials, p.material_id)}
-                  stone={refName(stones, p.stone_id)}
-                  lowStock={lowStockOnly || isLow(p)}
-                  onEdit={() => { setEditing(p); setFormOpen(true); }}
-                  onDelete={() => setDeleting(p)}
-                />
-              ))}
-            </div>
-          </Card>
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+            {products.map((p) => (
+              <ProductSlot
+                key={p.id}
+                product={p}
+                name={pickName(p, lang)}
+                material={refName(materials, p.material_id)}
+                stone={refName(stones, p.stone_id)}
+                lowStock={lowStockOnly || isLow(p)}
+                onEdit={() => { setEditing(p); setFormOpen(true); }}
+                onDelete={() => setDeleting(p)}
+              />
+            ))}
+          </div>
           <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={setOffset} />
         </>
       )}

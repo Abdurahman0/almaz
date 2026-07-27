@@ -205,45 +205,52 @@ export default function InboxPage() {
                 </div>
               </div>
 
-              <div className="min-h-0 flex-1 space-y-3 overflow-y-auto p-4">
+              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-bg p-4">
                 {messages.isPending && <SkeletonRows rows={5} />}
-                {messages.data?.map((m) => (
-                  <div
-                    key={m.id}
-                    className={`flex ${m.direction === 'outgoing' ? 'justify-end' : 'justify-start'}`}
-                  >
-                    <div
-                      className={`max-w-[75%] rounded-xl px-4 py-2.5 text-sm ${
-                        m.direction === 'outgoing'
-                          ? 'bg-accent-soft text-text'
-                          : 'bg-surface-2 text-text'
-                      }`}
-                    >
-                      {m.sender_type === 'ai' && (
-                        <span className="mb-0.5 flex items-center gap-1 text-2xs font-semibold text-accent-ink">
-                          <Bot className="h-3 w-3" strokeWidth={1.5} /> AI
-                        </span>
-                      )}
-                      <p className="whitespace-pre-wrap break-words">{m.content}</p>
-                      <p className="mt-1 text-right text-2xs text-muted">{formatTime(m.created_at)}</p>
+                {messages.data?.map((m) => {
+                  const out = m.direction === 'outgoing';
+                  return (
+                    <div key={m.id} className={`flex ${out ? 'justify-end' : 'justify-start'}`}>
+                      <div
+                        className={`max-w-[72%] px-3.5 py-2.5 text-sm shadow-xs ${
+                          out
+                            ? 'rounded-2xl rounded-br-md bg-accent-btn text-on-accent'
+                            : 'rounded-2xl rounded-bl-md border border-border bg-surface text-text'
+                        }`}
+                      >
+                        {m.sender_type === 'ai' && !out && (
+                          <span className="mb-0.5 flex items-center gap-1 text-2xs font-semibold text-accent-ink">
+                            <Bot className="h-3 w-3" strokeWidth={1.75} /> AI
+                          </span>
+                        )}
+                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                        <p className={`mt-1 text-right text-2xs ${out ? 'text-on-accent/60' : 'text-muted'}`}>
+                          {formatTime(m.created_at)}
+                        </p>
+                      </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
                 <div ref={bottomRef} />
               </div>
 
-              <div className="flex gap-2 border-t border-border p-3">
+              <div className="flex items-center gap-2 border-t border-border p-3">
                 <input
                   value={text}
                   onChange={(e) => setText(e.target.value)}
                   onKeyDown={(e) => e.key === 'Enter' && !e.shiftKey && send()}
                   placeholder="Xabar yozing..."
                   aria-label="Xabar"
-                  className="flex-1 rounded-lg border border-border bg-bg px-4 py-2.5 text-sm text-text placeholder:text-muted focus:border-accent"
+                  className="h-11 flex-1 rounded-full border border-border bg-surface-2 px-4 text-sm text-text placeholder:text-muted focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30"
                 />
-                <Button onClick={send} disabled={!text.trim()} aria-label="Yuborish">
-                  <Send className="h-4 w-4" strokeWidth={1.5} />
-                </Button>
+                <button
+                  onClick={send}
+                  disabled={!text.trim()}
+                  aria-label="Yuborish"
+                  className="flex h-11 w-11 shrink-0 items-center justify-center rounded-full bg-accent-btn text-on-accent shadow-xs transition-transform hover:bg-accent-btn-hover active:scale-95 disabled:opacity-40"
+                >
+                  <Send className="h-[18px] w-[18px]" strokeWidth={1.75} />
+                </button>
               </div>
             </>
           )}

@@ -47,8 +47,8 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`sticky top-0 hidden h-screen shrink-0 flex-col border-r border-border bg-surface transition-[width] duration-300 md:flex ${
-        collapsed ? 'w-[72px]' : 'w-[250px]'
+      className={`hidden h-full shrink-0 flex-col overflow-hidden rounded-[24px] border border-border bg-surface shadow-sm transition-[width] duration-300 md:flex ${
+        collapsed ? 'w-[76px]' : 'w-[248px]'
       }`}
     >
       <div className={`flex items-center gap-1.5 px-4 py-5 ${collapsed ? 'justify-center px-2' : ''}`}>
@@ -78,7 +78,7 @@ export function Sidebar() {
               className={({ isActive }) =>
                 `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
                   isActive
-                    ? 'bg-accent-soft text-accent-ink'
+                    ? 'bg-accent-btn text-on-accent shadow-xs'
                     : 'text-muted hover:bg-surface-2 hover:text-text'
                 } ${collapsed ? 'justify-center' : ''}`
               }

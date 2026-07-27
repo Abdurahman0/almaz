@@ -57,7 +57,7 @@ export function Topbar() {
   const t = useT();
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-end gap-2 border-b border-border bg-glass px-6 py-3 backdrop-blur">
+    <header className="flex shrink-0 items-center justify-end gap-2 border-b border-border px-6 py-3.5">
       <ThemePopover />
       <NotificationsPopover />
 
