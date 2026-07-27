@@ -1,13 +1,15 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Check, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
   Checkbox,
   ConfirmDialog,
+  EmptyState,
   Input,
   Money,
   NumberInput,
+  Select,
   SkeletonRows,
   toast,
 } from '@/shared/ui';
@@ -15,6 +17,7 @@ import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import {
   useBoxes,
+  useCategories,
   useCreateBox,
   useDeleteBox,
   useSetBoxStock,
@@ -157,6 +160,50 @@ function BoxEditor({
           </Button>
         </div>
       </div>
+    </div>
+  );
+}
+
+/**
+ * Standalone gift-box manager: pick a category, then manage its colored boxes
+ * like any other product line (price, stock, colors). Boxes are category-scoped
+ * on the backend, so the category selector is the entry point.
+ */
+export function BoxManager() {
+  const lang = useUiStore((s) => s.lang);
+  const categories = useCategories();
+  const [catId, setCatId] = useState('');
+
+  useEffect(() => {
+    if (!catId && categories.data && categories.data.length > 0) setCatId(categories.data[0].id);
+  }, [categories.data, catId]);
+
+  const options = (categories.data ?? []).map((c) => ({ value: c.id, label: pickName(c, lang) }));
+
+  return (
+    <div className="space-y-4">
+      <p className="text-sm text-muted">
+        Sovg'a qutilari kategoriyaga biriktiriladi. Kategoriyani tanlab, ranglarni, narx va zaxirani
+        boshqaring.
+      </p>
+      {categories.isPending && <SkeletonRows rows={2} />}
+      {categories.isSuccess && categories.data.length === 0 && (
+        <EmptyState heading="Kategoriya yo'q" hint="Avval katalog sozlamalarida kategoriya qo'shing" />
+      )}
+      {categories.isSuccess && categories.data.length > 0 && (
+        <>
+          <div className="max-w-xs">
+            <Select
+              label="Kategoriya"
+              placeholder="Kategoriyani tanlang"
+              options={options}
+              value={catId}
+              onChange={setCatId}
+            />
+          </div>
+          {catId && <CategoryBoxes categoryId={catId} />}
+        </>
+      )}
     </div>
   );
 }

@@ -382,6 +382,8 @@ export interface OrderItemOut {
   unit_price: string;
   ring_size: string | null;
   bonus_snapshot: unknown[] | null;
+  engraving_text: string | null;
+  engraving_price: string;
   /** Gift box snapshot (migration 0013): id, price at order time, display label. */
   box_id: string | null;
   box_price: string | null;

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle } from 'lucide-react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -24,6 +24,7 @@ import { useCategories, useDeleteProduct, useLowStock, useProductsPage, useRefs 
 import { useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
+import { BoxManager } from '../components/CategoryBoxes';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import type { ProductOut, ProductStatus, RefOut } from '@/shared/api/types';
@@ -190,6 +191,7 @@ export default function ProductsPage() {
 
   const [formOpen, setFormOpen] = useState(false);
   const [catalogOpen, setCatalogOpen] = useState(false);
+  const [boxesOpen, setBoxesOpen] = useState(false);
   const [editing, setEditing] = useState<ProductOut | undefined>();
   const [deleting, setDeleting] = useState<ProductOut | undefined>();
 
@@ -207,7 +209,10 @@ export default function ProductsPage() {
         heading="Mahsulotlar"
         subheading="Baxmal patnisdagi kolleksiya"
         actions={
-          <div className="flex gap-2">
+          <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => setBoxesOpen(true)}>
+              <Gift className="h-4 w-4" strokeWidth={1.5} /> Sovg'a qutilari
+            </Button>
             <Button variant="secondary" onClick={() => setCatalogOpen(true)}>
               <SlidersHorizontal className="h-4 w-4" strokeWidth={1.5} /> Katalog sozlamalari
             </Button>
@@ -300,6 +305,10 @@ export default function ProductsPage() {
 
       <Modal open={catalogOpen} onClose={() => setCatalogOpen(false)} heading="Katalog sozlamalari" wide>
         <CatalogManager />
+      </Modal>
+
+      <Modal open={boxesOpen} onClose={() => setBoxesOpen(false)} heading="Sovg'a qutilari" wide>
+        <BoxManager />
       </Modal>
 
       <ConfirmDialog
