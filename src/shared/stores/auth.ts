@@ -33,3 +33,14 @@ export const useAuthStore = create<AuthState>()(
 );
 
 export const useIsAuthenticated = (): boolean => useAuthStore((s) => Boolean(s.accessToken));
+
+/**
+ * True if the current user holds `perm` (or is an admin, who implicitly has
+ * every permission). Used to gate admin-only UI like integrations tokens.
+ */
+export const useHasPermission = (perm: string): boolean =>
+  useAuthStore((s) => {
+    if (!s.user) return false;
+    if (s.user.roles.includes('admin') || s.user.roles.includes('owner')) return true;
+    return s.user.permissions.includes(perm);
+  });

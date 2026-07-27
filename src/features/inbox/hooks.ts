@@ -88,6 +88,18 @@ export function useAiControl(conversationId: string) {
   });
 }
 
+/** Force the AI to answer now (operator override). Refreshes messages + state. */
+export function useForceAiRespond(conversationId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => inboxApi.forceAiRespond(conversationId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: inboxKeys.messages(conversationId) });
+      qc.invalidateQueries({ queryKey: inboxKeys.conversations });
+    },
+  });
+}
+
 /** Unique customers derived from conversations (the API has no /customers list). */
 export function useCustomers() {
   return useQuery({

@@ -7,6 +7,7 @@ export const SETTING_KEYS = {
   lowStockThreshold: 'low_stock_threshold',
   aiEnabled: 'ai_enabled',
   aiPauseMinutes: 'ai_pause_minutes',
+  boxesEnabled: 'boxes_enabled',
 } as const;
 
 export async function listSettings(): Promise<SettingOut[]> {

@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Bot, CalendarClock, ChevronDown, Clock, Power, Sparkles } from 'lucide-react';
+import { Bot, CalendarClock, ChevronDown, Clock, MessageSquareReply, Power, Sparkles } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -12,8 +12,19 @@ import {
 } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/format';
 import type { ConversationOut } from '@/shared/api/types';
-import { useAiControl } from '../hooks';
+import { useAiControl, useForceAiRespond } from '../hooks';
 import { useAiPauseMinutes } from '@/features/settings/hooks';
+
+const SKIP_REASONS: Record<string, string> = {
+  operator_handoff: 'Suhbat operatorда',
+  ai_disabled: "AI o'chirilgan (global)",
+  closed: 'Suhbat yopilgan',
+};
+function skipMessage(reason: string | null): string {
+  if (!reason) return 'AI javob bermadi';
+  if (reason.startsWith('llm_error')) return 'AI xatosi: LLM sozlanmagan';
+  return SKIP_REASONS[reason] ?? `AI javob bermadi: ${reason}`;
+}
 
 type AiStatus = 'off' | 'paused' | 'active';
 
@@ -27,6 +38,7 @@ function statusOf(conv: ConversationOut): { status: AiStatus; until: Date | null
 /** Per-conversation AI switch: off / pause (minutes or exact date-time) / on. */
 export function AiControl({ conv }: { conv: ConversationOut }) {
   const control = useAiControl(conv.id);
+  const force = useForceAiRespond(conv.id);
   const pauseMinutes = useAiPauseMinutes();
   const [modalOpen, setModalOpen] = useState(false);
   const [date, setDate] = useState('');
@@ -40,15 +52,30 @@ export function AiControl({ conv }: { conv: ConversationOut }) {
       onError: () => toast.error('Amalni bajarishда xatolik'),
     });
 
+  const forceRespond = () =>
+    force.mutate(undefined, {
+      onSuccess: (res) =>
+        res.status === 'replied'
+          ? toast.success('AI javob berdi')
+          : toast.error(skipMessage(res.reason)),
+      onError: () => toast.error('AI javobini olishда xatolik'),
+    });
+
   const tone = status === 'off' ? 'rose' : status === 'paused' ? 'gold' : 'success';
   const label =
     status === 'off' ? "AI o'chiq" : status === 'paused' ? 'AI pauza' : 'AI faol';
 
   const items: MenuItem[] = [];
+  items.push({
+    label: 'AI hozir javob bersin',
+    icon: <MessageSquareReply className="h-4 w-4" strokeWidth={1.5} />,
+    onSelect: forceRespond,
+  });
   if (status !== 'active') {
     items.push({
       label: "AI'ni yoqish",
       icon: <Sparkles className="h-4 w-4" strokeWidth={1.5} />,
+      separatorBefore: true,
       onSelect: () => run({ mode: 'on' }, 'AI yoqildi'),
     });
   }

@@ -8,6 +8,7 @@ import { useAuthStore } from '@/shared/stores/auth';
 import {
   useAiEnabled,
   useAiPauseMinutes,
+  useBoxesEnabled,
   useEngravingPrice,
   useLowStockThreshold,
   useSettings,
@@ -20,12 +21,22 @@ import { CardsSection } from '../components/CardsSection';
 function CommerceSettingsEditor() {
   const engravingPrice = useEngravingPrice();
   const lowStock = useLowStockThreshold();
+  const boxesEnabled = useBoxesEnabled();
   const settings = useSettings();
   const update = useUpdateSetting();
   const [eng, setEng] = useState<number | '' | null>(null);
   const [low, setLow] = useState<number | '' | null>(null);
 
   if (settings.isPending) return <SkeletonRows rows={2} />;
+
+  const toggleBoxes = (checked: boolean) =>
+    update.mutate(
+      { key: SETTING_KEYS.boxesEnabled, value: checked },
+      {
+        onSuccess: () => toast.success(checked ? 'Qutilar yoqildi' : "Qutilar o'chirildi"),
+        onError: () => toast.error('Saqlashda xatolik yuz berdi'),
+      },
+    );
 
   const save = () => {
     const nEng = eng === null ? engravingPrice : eng;
@@ -67,6 +78,13 @@ function CommerceSettingsEditor() {
       <Button size="sm" loading={update.isPending} onClick={save}>
         Saqlash
       </Button>
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">Rangli qutilar (sovg'a quti)</p>
+          <p className="text-xs text-muted">O'chirilsa buyurtma va AI quti qabul qilmaydi</p>
+        </div>
+        <Switch checked={boxesEnabled} onCheckedChange={toggleBoxes} />
+      </div>
     </div>
   );
 }

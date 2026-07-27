@@ -91,6 +91,96 @@ export interface CategoryOut {
   slug: string;
   parent_id: string | null;
 }
+
+// ---------- Boxes (colored gift boxes per category, migration 0013) ----------
+export interface BoxOut {
+  id: string;
+  category_id: string;
+  name_uz: string;
+  name_ru: string | null;
+  color_hex: string;
+  /** Numeric(12,2) as string; 0 => free. */
+  price: string;
+  is_free: boolean;
+  stock_qty: number;
+  reserved_qty: number;
+  /** stock_qty - reserved_qty — the count actually offerable. */
+  available: number;
+  is_active: boolean;
+  sort_order: number;
+  created_at: string;
+}
+export interface BoxCreate {
+  name_uz: string;
+  name_ru?: string | null;
+  color_hex?: string;
+  price?: number;
+  stock_qty?: number;
+  is_active?: boolean;
+  sort_order?: number;
+}
+export interface BoxUpdate {
+  name_uz?: string;
+  name_ru?: string | null;
+  color_hex?: string;
+  price?: number;
+  is_active?: boolean;
+  sort_order?: number;
+}
+/** Absolute set (stock_qty) OR relative (delta ±). */
+export interface BoxStockUpdate {
+  stock_qty?: number;
+  delta?: number;
+}
+
+// ---------- AI operator override (POST /ai/conversations/{id}/respond) ----------
+export interface AgentRespondOut {
+  status: 'replied' | 'skipped';
+  reason: string | null;
+  reply: string | null;
+  message_id: string | null;
+  used_tools: string[];
+  violations: unknown[];
+  state: string;
+}
+
+// ---------- Integrations (DB-stored provider tokens, migration 0014) ----------
+export type IntegrationProvider = 'telegram' | 'instagram' | 'openai';
+export interface IntegrationConfigOut {
+  id: string;
+  provider: string;
+  key: string;
+  /** Sensitive — only returned to holders of settings:manage_integrations. */
+  value: string;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
+}
+export interface IntegrationConfigCreate {
+  provider: string;
+  key: string;
+  value: string;
+  is_active?: boolean;
+}
+export interface IntegrationConfigUpdate {
+  value?: string;
+  is_active?: boolean;
+}
+export interface IntegrationEventOut {
+  id: string;
+  provider: string;
+  status: string;
+  payload: unknown;
+  created_at: string;
+}
+export interface TelegramWebhookInfo {
+  url?: string;
+  has_custom_certificate?: boolean;
+  pending_update_count?: number;
+  last_error_message?: string;
+  last_error_date?: number;
+  [k: string]: unknown;
+}
 export interface CategoryCreate {
   name_uz: string;
   name_ru?: string | null;
@@ -277,6 +367,9 @@ export interface OrderItemCreate {
   variant_id: string;
   quantity?: number;
   ring_size?: string | null;
+  engraving_text?: string | null;
+  /** Optional gift box (must belong to the product's category). */
+  box_id?: string | null;
 }
 export interface OrderCreate {
   customer_id: string;
@@ -289,6 +382,10 @@ export interface OrderItemOut {
   unit_price: string;
   ring_size: string | null;
   bonus_snapshot: unknown[] | null;
+  /** Gift box snapshot (migration 0013): id, price at order time, display label. */
+  box_id: string | null;
+  box_price: string | null;
+  box_label: string | null;
 }
 export interface OrderStatusHistoryOut {
   from_status: string | null;

@@ -46,13 +46,23 @@ export function useAiPauseMinutes(): number {
   return useNumberSetting(SETTING_KEYS.aiPauseMinutes, 15);
 }
 
-/** Global AI on/off across the whole system (default on). */
-export function useAiEnabled(): boolean {
+/** Read a boolean global setting with a fallback default. */
+export function useBoolSetting(key: string, fallback: boolean): boolean {
   const { data } = useSettings();
-  const raw = data?.find((s) => s.key === SETTING_KEYS.aiEnabled)?.value;
-  if (raw === undefined || raw === null) return true;
+  const raw = data?.find((s) => s.key === key)?.value;
+  if (raw === undefined || raw === null) return fallback;
   if (typeof raw === 'boolean') return raw;
   if (typeof raw === 'string') return raw !== 'false' && raw !== '0';
   if (typeof raw === 'number') return raw !== 0;
-  return true;
+  return fallback;
+}
+
+/** Global AI on/off across the whole system (default on). */
+export function useAiEnabled(): boolean {
+  return useBoolSetting(SETTING_KEYS.aiEnabled, true);
+}
+
+/** Whether the colored-box (gift box) feature is offered (default on). */
+export function useBoxesEnabled(): boolean {
+  return useBoolSetting(SETTING_KEYS.boxesEnabled, true);
 }

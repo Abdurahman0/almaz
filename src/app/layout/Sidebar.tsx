@@ -11,16 +11,18 @@ import {
   Settings,
   UserCog,
   ScrollText,
+  Cable,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
 import { useUiStore } from '@/shared/stores/ui';
 import { useIntroStore } from '@/shared/stores/intro';
+import { useHasPermission } from '@/shared/stores/auth';
 import { useT, type TranslationKey } from '@/shared/lib/i18n';
 import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { Tooltip } from '@/shared/ui';
 
-export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationKey }> = [
+export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationKey; perm?: string }> = [
   { to: '/', icon: LayoutDashboard, label: 'nav.dashboard' },
   { to: '/inbox', icon: MessageCircle, label: 'nav.inbox' },
   { to: '/orders', icon: Gem, label: 'nav.orders' },
@@ -31,6 +33,7 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/knowledge', icon: BookOpen, label: 'nav.knowledge' },
   { to: '/settings/staff', icon: UserCog, label: 'nav.staff' },
   { to: '/settings/audit', icon: ScrollText, label: 'nav.audit' },
+  { to: '/settings/integrations', icon: Cable, label: 'nav.integrations', perm: 'settings:manage_integrations' },
   { to: '/settings', icon: Settings, label: 'nav.settings' },
 ];
 
@@ -38,7 +41,9 @@ export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggle = useUiStore((s) => s.toggleSidebar);
   const introPlaying = useIntroStore((s) => s.stage === 'playing');
+  const canIntegrations = useHasPermission('settings:manage_integrations');
   const t = useT();
+  const items = navItems.filter((it) => !it.perm || (it.perm === 'settings:manage_integrations' && canIntegrations));
 
   return (
     <aside
@@ -63,7 +68,7 @@ export function Sidebar() {
       </div>
 
       <nav className="flex-1 space-y-1 overflow-y-auto px-3 py-2" aria-label="Asosiy">
-        {navItems.map(({ to, icon: Icon, label }) => {
+        {items.map(({ to, icon: Icon, label }) => {
           const link = (
             <NavLink
               key={to}

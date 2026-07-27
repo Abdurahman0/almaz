@@ -1,15 +1,16 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft } from 'lucide-react';
-import { Button, Card, Combobox, ErrorCard, Money, NumberInput, PageHeader, SkeletonRows } from '@/shared/ui';
+import { Button, Card, Combobox, ErrorCard, Money, NumberInput, PageHeader, Select, SkeletonRows } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib/format';
 import { useCreateOrder } from '../hooks';
 import { RingSizeCone, RING_SIZES } from '../components/RingSizeCone';
 import { useCustomers } from '@/features/inbox/hooks';
-import { useProducts } from '@/features/products/hooks';
+import { useBoxes, useProducts } from '@/features/products/hooks';
+import { useBoxesEnabled } from '@/features/settings/hooks';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import type { ApiError } from '@/shared/api/client';
@@ -19,6 +20,7 @@ const schema = z.object({
   variant_id: z.string().uuid('Mahsulot variantini tanlang'),
   quantity: z.number({ invalid_type_error: 'Miqdor kiritilishi shart' }).int().min(1, 'Kamida 1 dona'),
   ring_size: z.number().min(15).max(22),
+  box_id: z.string().optional(),
 });
 type FormValues = z.infer<typeof schema>;
 
@@ -34,10 +36,22 @@ export default function NewOrderPage() {
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { quantity: 1, ring_size: 17 },
+    defaultValues: { quantity: 1, ring_size: 17, box_id: '' },
     mode: 'onChange',
   });
   const values = form.watch();
+
+  const selectedProductEarly = products.data?.find((p) =>
+    p.variants.some((vr) => vr.id === values.variant_id),
+  );
+  const categoryId = selectedProductEarly?.category_id ?? null;
+  const boxesEnabled = useBoxesEnabled();
+  const boxes = useBoxes(boxesEnabled ? categoryId : null, true);
+  const availableBoxes = (boxes.data ?? []).filter((b) => b.is_active && b.available > 0);
+  // Reset the chosen box whenever the product (hence category) changes.
+  useEffect(() => {
+    form.setValue('box_id', '');
+  }, [values.variant_id, form]);
 
   const fieldsPerStep: Array<Array<keyof FormValues>> = [
     ['customer_id'],
@@ -55,16 +69,23 @@ export default function NewOrderPage() {
     createOrder.mutate(
       {
         customer_id: v.customer_id,
-        items: [{ variant_id: v.variant_id, quantity: v.quantity, ring_size: v.ring_size.toFixed(1) }],
+        items: [
+          {
+            variant_id: v.variant_id,
+            quantity: v.quantity,
+            ring_size: v.ring_size.toFixed(1),
+            box_id: boxesEnabled && v.box_id ? v.box_id : null,
+          },
+        ],
       },
       { onSuccess: (order) => navigate(`/orders/${order.id}`) },
     );
   });
 
-  const selectedProduct = products.data?.find((p) =>
-    p.variants.some((vr) => vr.id === values.variant_id),
-  );
+  const selectedProduct = selectedProductEarly;
   const selectedCustomer = customers.data?.find((c) => c.id === values.customer_id);
+  const selectedBox = availableBoxes.find((b) => b.id === values.box_id) ?? null;
+  const boxPrice = selectedBox ? Number(selectedBox.price) : 0;
 
   return (
     <div>
@@ -169,6 +190,34 @@ export default function NewOrderPage() {
                   />
                 )}
               />
+              {boxesEnabled && values.variant_id && availableBoxes.length > 0 && (
+                <Controller
+                  control={form.control}
+                  name="box_id"
+                  render={({ field }) => (
+                    <Select
+                      label="Sovg'a qutisi (ixtiyoriy)"
+                      placeholder="Qutisiz"
+                      value={field.value ?? ''}
+                      onChange={field.onChange}
+                      options={[
+                        { value: '', label: 'Qutisiz' },
+                        ...availableBoxes.map((b) => ({
+                          value: b.id,
+                          label: `${pickName(b, lang)} · ${b.is_free ? 'Tekin' : formatMoney(Number(b.price))}`,
+                          description: `${b.available} dona mavjud`,
+                          icon: (
+                            <span
+                              className="h-3.5 w-3.5 rounded-full border border-strong"
+                              style={{ background: b.color_hex }}
+                            />
+                          ),
+                        })),
+                      ]}
+                    />
+                  )}
+                />
+              )}
             </div>
           ))}
 
@@ -227,11 +276,25 @@ export default function NewOrderPage() {
             <dt className="text-muted">O'lcham</dt>
             <dd className="text-text">{values.ring_size.toFixed(1)}</dd>
           </div>
+          {selectedBox && (
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <dt className="flex items-center gap-1.5 text-muted">
+                <span
+                  className="h-3 w-3 rounded-full border border-strong"
+                  style={{ background: selectedBox.color_hex }}
+                />
+                Quti
+              </dt>
+              <dd className="text-right text-text">
+                {pickName(selectedBox, lang)} · {selectedBox.is_free ? 'Tekin' : <Money short value={boxPrice} />}
+              </dd>
+            </div>
+          )}
           <div className="flex items-baseline justify-between pt-1">
             <dt className="text-muted">Taxminiy summa</dt>
             <dd className="text-md tnum text-accent-ink">
               {selectedProduct ? (
-                <Money value={Number(selectedProduct.effective_price) * (values.quantity || 1)} />
+                <Money value={(Number(selectedProduct.effective_price) + boxPrice) * (values.quantity || 1)} />
               ) : (
                 '—'
               )}

@@ -2,6 +2,9 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import * as productsApi from './api';
 import type { ProductListParams } from './api';
 import type {
+  BoxCreate,
+  BoxStockUpdate,
+  BoxUpdate,
   CategoryCreate,
   CategoryUpdate,
   ProductCreate,
@@ -22,6 +25,8 @@ export const productKeys = {
     ['products', 'low-stock', params] as const,
   categories: ['catalog', 'categories'] as const,
   refs: (kind: RefKind, onlyActive: boolean) => ['catalog', kind, onlyActive] as const,
+  boxes: (categoryId: string, onlyActive: boolean) =>
+    ['catalog', 'boxes', categoryId, onlyActive] as const,
 };
 
 /** Flat product array for dropdowns/reports (no pagination UI). */
@@ -88,6 +93,48 @@ export function useDeleteCategory() {
   return useMutation({
     mutationFn: (id: string) => productsApi.deleteCategory(id),
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.categories }),
+  });
+}
+
+// ---------- Boxes (colored gift boxes per category) ----------
+export function useBoxes(categoryId: string | null | undefined, onlyActive = false) {
+  return useQuery({
+    queryKey: productKeys.boxes(categoryId ?? '', onlyActive),
+    queryFn: () => productsApi.listBoxes(categoryId as string, onlyActive ? { only_active: true } : {}),
+    enabled: Boolean(categoryId),
+  });
+}
+
+export function useCreateBox(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: BoxCreate) => productsApi.createBox(categoryId, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+export function useUpdateBox(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: BoxUpdate }) => productsApi.updateBox(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+export function useDeleteBox(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => productsApi.deleteBox(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+export function useSetBoxStock(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: BoxStockUpdate }) =>
+      productsApi.setBoxStock(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
   });
 }
 

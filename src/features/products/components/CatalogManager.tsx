@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react';
-import { Check, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { Check, ChevronDown, Palette, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { CategoryBoxes } from './CategoryBoxes';
 import {
   Badge,
   Button,
@@ -245,6 +246,7 @@ function CategoryTab() {
   const [editId, setEditId] = useState<string | null>(null);
   const [editDraft, setEditDraft] = useState<CatDraft>(emptyCat);
   const [deleting, setDeleting] = useState<CategoryOut | null>(null);
+  const [boxesId, setBoxesId] = useState<string | null>(null);
 
   const parentOptions = useMemo<SelectOption[]>(
     () => (list.data ?? []).filter((c) => c.id !== editId).map((c) => ({ value: c.id, label: pickName(c, lang) })),
@@ -289,19 +291,40 @@ function CategoryTab() {
               }
             />
           ) : (
-            <div key={c.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
-              <div className="min-w-0">
-                <p className="truncate text-sm font-medium text-text">{pickName(c, lang)}</p>
-                <p className="text-2xs text-muted">{c.slug}</p>
+            <div key={c.id} className="rounded-lg border border-border">
+              <div className="flex items-center justify-between gap-3 px-3 py-2">
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-text">{pickName(c, lang)}</p>
+                  <p className="text-2xs text-muted">{c.slug}</p>
+                </div>
+                <div className="flex items-center gap-1">
+                  <button
+                    aria-label="Ranglar / qutilar"
+                    aria-expanded={boxesId === c.id}
+                    onClick={() => setBoxesId((id) => (id === c.id ? null : c.id))}
+                    className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                      boxesId === c.id ? 'bg-accent-soft text-accent-ink' : 'text-muted hover:text-text'
+                    }`}
+                  >
+                    <Palette className="h-4 w-4" strokeWidth={1.5} /> Ranglar
+                    <ChevronDown
+                      className={`h-3.5 w-3.5 transition-transform ${boxesId === c.id ? 'rotate-180' : ''}`}
+                      strokeWidth={1.5}
+                    />
+                  </button>
+                  <button aria-label="Tahrirlash" onClick={() => startEdit(c)} className="rounded p-1.5 text-muted hover:text-accent-ink">
+                    <Pencil className="h-4 w-4" strokeWidth={1.5} />
+                  </button>
+                  <button aria-label="O'chirish" onClick={() => setDeleting(c)} className="rounded p-1.5 text-muted hover:text-danger">
+                    <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+                  </button>
+                </div>
               </div>
-              <div className="flex items-center gap-2">
-                <button aria-label="Tahrirlash" onClick={() => startEdit(c)} className="rounded p-1.5 text-muted hover:text-accent-ink">
-                  <Pencil className="h-4 w-4" strokeWidth={1.5} />
-                </button>
-                <button aria-label="O'chirish" onClick={() => setDeleting(c)} className="rounded p-1.5 text-muted hover:text-danger">
-                  <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                </button>
-              </div>
+              {boxesId === c.id && (
+                <div className="px-3 pb-3">
+                  <CategoryBoxes categoryId={c.id} />
+                </div>
+              )}
             </div>
           ),
         )}

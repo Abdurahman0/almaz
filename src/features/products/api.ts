@@ -1,5 +1,9 @@
 import { api, getItems, getList, type Paginated } from '@/shared/api/client';
 import type {
+  BoxCreate,
+  BoxOut,
+  BoxStockUpdate,
+  BoxUpdate,
   CategoryCreate,
   CategoryOut,
   CategoryUpdate,
@@ -104,6 +108,34 @@ export async function updateCategory(id: string, body: CategoryUpdate): Promise<
 
 export async function deleteCategory(id: string): Promise<void> {
   await api.delete(`/catalog/categories/${id}`);
+}
+
+// ---------- Boxes (colored gift boxes, scoped to a category) ----------
+export interface BoxListParams extends ListParams {
+  only_active?: boolean;
+}
+
+export async function listBoxes(categoryId: string, params: BoxListParams = {}): Promise<BoxOut[]> {
+  return getItems<BoxOut>(`/catalog/categories/${categoryId}/boxes`, {
+    params: { limit: 200, ...params },
+  });
+}
+
+export async function createBox(categoryId: string, body: BoxCreate): Promise<BoxOut> {
+  return (await api.post<BoxOut>(`/catalog/categories/${categoryId}/boxes`, body)).data;
+}
+
+export async function updateBox(boxId: string, body: BoxUpdate): Promise<BoxOut> {
+  return (await api.patch<BoxOut>(`/catalog/boxes/${boxId}`, body)).data;
+}
+
+export async function deleteBox(boxId: string): Promise<void> {
+  await api.delete(`/catalog/boxes/${boxId}`);
+}
+
+/** Absolute (stock_qty) or relative (delta ±) stock change. */
+export async function setBoxStock(boxId: string, body: BoxStockUpdate): Promise<BoxOut> {
+  return (await api.post<BoxOut>(`/catalog/boxes/${boxId}/stock`, body)).data;
 }
 
 // ---------- Reference dictionaries: genders / materials / stones ----------

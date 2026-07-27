@@ -12,6 +12,7 @@ const uz = {
   'nav.knowledge': 'AI bilim bazasi',
   'nav.staff': 'Xodimlar',
   'nav.audit': 'Amallar jurnali',
+  'nav.integrations': 'Integratsiyalar',
   'nav.settings': 'Sozlamalar',
   'nav.logout': 'Chiqish',
   // common
@@ -166,6 +167,7 @@ const ru: Partial<Record<TranslationKey, string>> = {
   'nav.reports': 'Отчёты',
   'nav.staff': 'Сотрудники',
   'nav.audit': 'Журнал действий',
+  'nav.integrations': 'Интеграции',
   'nav.settings': 'Настройки',
   'common.search': 'Поиск...',
   'common.save': 'Сохранить',

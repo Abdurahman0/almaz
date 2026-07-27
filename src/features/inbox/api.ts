@@ -1,5 +1,6 @@
 import { api, getItems } from '@/shared/api/client';
 import type {
+  AgentRespondOut,
   AiControlRequest,
   AiState,
   Channel,
@@ -62,4 +63,19 @@ export async function setAiControl(
   body: AiControlRequest,
 ): Promise<ConversationOut> {
   return (await api.post<ConversationOut>(`/inbox/conversations/${conversationId}/ai`, body)).data;
+}
+
+/**
+ * Force the AI to answer now, overriding pause/handoff/off for this conversation
+ * (clears ai_paused_until, sets ai_enabled=true). Global kill-switch + closed
+ * conversations are still respected server-side.
+ */
+export async function forceAiRespond(conversationId: string): Promise<AgentRespondOut> {
+  return (
+    await api.post<AgentRespondOut>(
+      `/ai/conversations/${conversationId}/respond`,
+      {},
+      { params: { force: true } },
+    )
+  ).data;
 }
