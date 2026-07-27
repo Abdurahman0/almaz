@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { Coins, Gem, Receipt, Users } from 'lucide-react';
 import {
   Card,
@@ -27,6 +27,7 @@ function greeting(): string {
 }
 
 export default function DashboardPage() {
+  const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
   const stats = useDashboardStats();
   const clients = useClients();
@@ -57,9 +58,10 @@ export default function DashboardPage() {
             suffix="so'm"
             icon={Coins}
             trend={12}
+            to="/reports"
           />
-          <StatCard label="Yangi buyurtmalar" value={stats.data.todayOrders} icon={Users} trend={5} />
-          <StatCard label="Sotilgan uzuklar" value={stats.data.ringsSold} icon={Gem} trend={8} />
+          <StatCard label="Yangi buyurtmalar" value={stats.data.todayOrders} icon={Users} trend={5} to="/orders" />
+          <StatCard label="Sotilgan uzuklar" value={stats.data.ringsSold} icon={Gem} trend={8} to="/products" />
           <StatCard
             label="O'rtacha chek"
             value={stats.data.avgCheck}
@@ -67,6 +69,7 @@ export default function DashboardPage() {
             suffix="so'm"
             icon={Receipt}
             trend={-3}
+            to="/reports"
           />
         </div>
       )}
@@ -122,11 +125,12 @@ export default function DashboardPage() {
           <table className="data-table mt-3 min-w-[560px]">
             <tbody>
               {stats.data.latest.map((o) => (
-                <tr key={o.id}>
+                <tr key={o.id} className="cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)}>
                   <td>
                     <Link
                       to={`/orders/${o.id}`}
                       className="font-mono text-xs font-semibold text-text hover:text-accent-ink"
+                      onClick={(e) => e.stopPropagation()}
                     >
                       {o.order_no}
                     </Link>

@@ -37,7 +37,7 @@ const statusFilterOptions: SelectOption[] = [
   { value: 'archived', label: 'Arxiv' },
 ];
 
-function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete }: {
+function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete, onView }: {
   product: ProductOut;
   name: string;
   material: string;
@@ -45,6 +45,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
   lowStock: boolean;
   onEdit: () => void;
   onDelete: () => void;
+  onView: () => void;
 }) {
   // available comes straight from the API (active stocked variants, stock-reserved)
   const stock = product.available;
@@ -70,8 +71,9 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
 
   return (
     <div
-      className={`group relative overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 ${
-        soldOut ? 'opacity-70' : 'hover:-translate-y-0.5 hover:shadow-md'
+      onClick={onView}
+      className={`group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 ${
+        soldOut ? 'opacity-70 hover:opacity-100' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
@@ -87,7 +89,10 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
           </div>
         )}
 
-        <span className="absolute right-2 top-2 z-10">
+        <span
+          className="absolute right-2 top-2 z-10"
+          onClick={(e) => e.stopPropagation()}
+        >
           {soldOut ? <Tooltip content="Qayta buyurtma berasizmi?"><span>{menu}</span></Tooltip> : menu}
         </span>
 
@@ -127,6 +132,85 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
             </span>
           )}
         </span>
+      </div>
+    </div>
+  );
+}
+
+/** Read-only product detail shown when a card is clicked. */
+function ProductView({
+  product,
+  name,
+  meta,
+  onEdit,
+}: {
+  product: ProductOut;
+  name: string;
+  meta: string;
+  onEdit: () => void;
+}) {
+  const discounted = product.discount_price != null;
+  return (
+    <div className="space-y-5">
+      <div className="grid gap-5 sm:grid-cols-[220px_1fr]">
+        <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-surface-2">
+          {product.media[0]?.image_url ? (
+            <img src={product.media[0].image_url} alt={name} className="h-full w-full object-cover" />
+          ) : (
+            <div className="flex h-full w-full items-center justify-center">
+              <Gem className="h-12 w-12 text-muted/50" strokeWidth={1.25} />
+            </div>
+          )}
+        </div>
+        <div className="min-w-0">
+          <div className="mb-2 flex items-center gap-2">
+            <Badge tone={product.status === 'active' ? 'success' : 'muted'}>
+              {productStatusLabels[product.status]}
+            </Badge>
+            <Badge tone={product.available > 0 ? 'muted' : 'danger'}>{product.available} dona mavjud</Badge>
+          </div>
+          <p className="text-lg font-semibold text-text">{name}</p>
+          {meta && <p className="text-sm text-muted">{meta}</p>}
+          <p className="mt-3 flex items-baseline gap-2 text-xl tnum text-accent-ink">
+            <Money value={product.effective_price} />
+            {discounted && (
+              <span className="text-sm text-muted line-through">
+                <Money value={product.price} />
+              </span>
+            )}
+          </p>
+          {product.engraving_available && (
+            <p className="mt-2 text-xs text-muted">Gravirovka mavjud</p>
+          )}
+          {(product.description_uz || product.description_ru) && (
+            <p className="mt-3 whitespace-pre-wrap text-sm text-muted">
+              {product.description_uz || product.description_ru}
+            </p>
+          )}
+        </div>
+      </div>
+
+      {product.variants.length > 0 && (
+        <div>
+          <p className="mb-2 text-xs font-medium text-muted">Variantlar</p>
+          <div className="overflow-hidden rounded-xl border border-border">
+            {product.variants.map((v) => (
+              <div
+                key={v.id}
+                className="flex items-center justify-between border-t border-border px-4 py-2.5 text-sm first:border-t-0"
+              >
+                <span className="font-mono text-xs text-text">{v.sku}</span>
+                <span className="tnum text-muted">{v.available} dona</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      <div className="flex justify-end gap-3">
+        <Button variant="secondary" onClick={onEdit}>
+          <Pencil className="h-4 w-4" strokeWidth={1.5} /> Tahrirlash
+        </Button>
       </div>
     </div>
   );
@@ -197,6 +281,7 @@ export default function ProductsPage() {
   const [boxesOpen, setBoxesOpen] = useState(false);
   const [editing, setEditing] = useState<ProductOut | undefined>();
   const [deleting, setDeleting] = useState<ProductOut | undefined>();
+  const [viewing, setViewing] = useState<ProductOut | undefined>();
 
   const refName = (map: Map<string, RefOut>, id: string | null) =>
     id ? pickName(map.get(id), lang) : '';
@@ -288,6 +373,7 @@ export default function ProductsPage() {
                 lowStock={lowStockOnly || isLow(p)}
                 onEdit={() => { setEditing(p); setFormOpen(true); }}
                 onDelete={() => setDeleting(p)}
+                onView={() => setViewing(p)}
               />
             ))}
           </div>
@@ -310,6 +396,26 @@ export default function ProductsPage() {
 
       <Modal open={boxesOpen} onClose={() => setBoxesOpen(false)} heading="Sovg'a qutilari" wide>
         <BoxManager />
+      </Modal>
+
+      <Modal
+        open={Boolean(viewing)}
+        onClose={() => setViewing(undefined)}
+        heading={viewing ? pickName(viewing, lang) : ''}
+        wide
+      >
+        {viewing && (
+          <ProductView
+            product={viewing}
+            name={pickName(viewing, lang)}
+            meta={[refName(materials, viewing.material_id), refName(stones, viewing.stone_id)].filter(Boolean).join(' · ')}
+            onEdit={() => {
+              setEditing(viewing);
+              setViewing(undefined);
+              setFormOpen(true);
+            }}
+          />
+        )}
       </Modal>
 
       <ConfirmDialog

@@ -1,5 +1,6 @@
 import type { LucideIcon } from 'lucide-react';
 import { TrendingUp, TrendingDown } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { Card } from './Card';
 import { useCountUp } from '@/shared/hooks/useCountUp';
 
@@ -11,13 +12,15 @@ interface StatCardProps {
   suffix?: string;
   icon?: LucideIcon;
   trend?: number | null;
+  /** When set, the whole card links here (lifts on hover). */
+  to?: string;
 }
 
-export function StatCard({ label, value, formatter, suffix, icon: Icon, trend }: StatCardProps) {
+export function StatCard({ label, value, formatter, suffix, icon: Icon, trend, to }: StatCardProps) {
   const animated = useCountUp(value);
   const display = formatter ? formatter(animated) : Math.round(animated).toString();
-  return (
-    <Card className="relative">
+  const card = (
+    <Card className={`relative h-full ${to ? 'transition-all duration-200 hover:-translate-y-0.5 hover:shadow-md' : ''}`}>
       <div className="flex items-start justify-between gap-3">
         <p className="text-xs font-medium text-muted">{label}</p>
         {Icon && (
@@ -45,5 +48,12 @@ export function StatCard({ label, value, formatter, suffix, icon: Icon, trend }:
         </span>
       )}
     </Card>
+  );
+  return to ? (
+    <Link to={to} className="block">
+      {card}
+    </Link>
+  ) : (
+    card
   );
 }

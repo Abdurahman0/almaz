@@ -1,10 +1,9 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Bot, Search, Send, UserCheck } from 'lucide-react';
-import { Badge, Button, Card, Checkbox, EmptyState, ErrorCard, Select, SkeletonRows, type SelectOption } from '@/shared/ui';
+import { Bot, ExternalLink, Instagram, Paperclip, Search, Send } from 'lucide-react';
+import { Badge, Card, Checkbox, EmptyState, ErrorCard, Select, SkeletonRows, type SelectOption } from '@/shared/ui';
 import { formatTime } from '@/shared/lib/format';
-import { useAuthStore } from '@/shared/stores/auth';
-import { useAssign, useConversations, useMarkRead, useMessages, useSendMessage } from '../hooks';
+import { useConversations, useMarkRead, useMessages, useSendMessage } from '../hooks';
 import { AiControl } from '../components/AiControl';
 import type { AiState, Channel, ConversationOut, ConversationStatus } from '@/shared/api/types';
 
@@ -30,6 +29,112 @@ const aiStateLabels: Record<AiState, string> = {
   handed_off: 'Operatorda',
   closed: 'Yopilgan',
 };
+
+// ---------------- message media / links ----------------
+type Media = { kind: 'image' | 'video' | 'audio' | 'ig' | 'file'; url: string };
+const IG_RE = /instagram\.com\//i;
+
+function attUrl(a: unknown): string | null {
+  if (typeof a === 'string') return a;
+  if (a && typeof a === 'object') {
+    const o = a as Record<string, unknown>;
+    for (const k of ['url', 'image_url', 'media_url', 'file_url', 'src', 'preview_url']) {
+      if (typeof o[k] === 'string' && o[k]) return o[k] as string;
+    }
+  }
+  return null;
+}
+function attKind(a: unknown, url: string): Media['kind'] {
+  const o = a && typeof a === 'object' ? (a as Record<string, unknown>) : {};
+  const raw = String(o.type ?? o.kind ?? o.mime_type ?? '').toLowerCase();
+  if (IG_RE.test(url)) return 'ig';
+  if (raw.startsWith('image') || raw === 'photo' || /\.(png|jpe?g|gif|webp|avif)(\?|$)/i.test(url)) return 'image';
+  if (raw.startsWith('video') || /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)) return 'video';
+  if (raw.startsWith('audio') || raw === 'voice' || /\.(mp3|ogg|opus|m4a|wav|aac)(\?|$)/i.test(url)) return 'audio';
+  return 'file';
+}
+
+function MediaChip({ m }: { m: Media }) {
+  if (m.kind === 'image') {
+    return (
+      <img
+        src={m.url}
+        alt=""
+        loading="lazy"
+        onClick={() => window.open(m.url, '_blank')}
+        className="max-h-56 max-w-full cursor-pointer rounded-xl object-cover"
+      />
+    );
+  }
+  if (m.kind === 'ig') {
+    return (
+      <a
+        href={m.url}
+        target="_blank"
+        rel="noreferrer"
+        className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:border-strong"
+      >
+        <Instagram className="h-4 w-4" style={{ color: '#E4405F' }} strokeWidth={1.75} />
+        Instagram’da ochish
+        <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
+      </a>
+    );
+  }
+  const label = m.kind === 'video' ? 'Video' : m.kind === 'audio' ? 'Ovozli xabar' : 'Fayl';
+  return (
+    <a
+      href={m.url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text transition-colors hover:border-strong"
+    >
+      <Paperclip className="h-4 w-4 text-muted" strokeWidth={1.75} /> {label}
+      <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
+    </a>
+  );
+}
+
+function MessageBody({ content, attachments, out }: { content: string | null; attachments: unknown[] | null; out: boolean }) {
+  const media: Media[] = [];
+  for (const a of attachments ?? []) {
+    const url = attUrl(a);
+    if (url) media.push({ kind: attKind(a, url), url });
+  }
+  let text = content ?? '';
+  // pull Instagram links out of the text into proper cards
+  const igLinks = text.match(/https?:\/\/\S*instagram\.com\/\S*/gi) ?? [];
+  for (const u of igLinks) {
+    media.push({ kind: 'ig', url: u });
+    text = text.replace(u, '').trim();
+  }
+  const parts = text.split(/(https?:\/\/[^\s]+)/gi);
+  return (
+    <div className="space-y-2">
+      {media.map((m, i) => (
+        <MediaChip key={i} m={m} />
+      ))}
+      {text && (
+        <p className="whitespace-pre-wrap break-words">
+          {parts.map((part, i) =>
+            /^https?:\/\//i.test(part) ? (
+              <a
+                key={i}
+                href={part}
+                target="_blank"
+                rel="noreferrer"
+                className={`underline underline-offset-2 ${out ? 'text-on-accent' : 'text-accent-ink'}`}
+              >
+                {part}
+              </a>
+            ) : (
+              <span key={i}>{part}</span>
+            ),
+          )}
+        </p>
+      )}
+    </div>
+  );
+}
 
 function ConversationRow({ conv, active, onClick }: {
   conv: ConversationOut;
@@ -100,8 +205,6 @@ export default function InboxPage() {
   const messages = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId);
   const markRead = useMarkRead();
-  const assign = useAssign(conversationId);
-  const user = useAuthStore((s) => s.user);
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -192,16 +295,6 @@ export default function InboxPage() {
                 </div>
                 <div className="flex items-center gap-2">
                   {selected && <AiControl conv={selected} />}
-                  {user && selected?.assigned_operator_id !== user.id && (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      loading={assign.isPending}
-                      onClick={() => assign.mutate(user.id)}
-                    >
-                      <UserCheck className="h-4 w-4" strokeWidth={1.5} /> O'zimga olish
-                    </Button>
-                  )}
                 </div>
               </div>
 
@@ -223,7 +316,7 @@ export default function InboxPage() {
                             <Bot className="h-3 w-3" strokeWidth={1.75} /> AI
                           </span>
                         )}
-                        <p className="whitespace-pre-wrap break-words">{m.content}</p>
+                        <MessageBody content={m.content} attachments={m.attachments} out={out} />
                         <p className={`mt-1 text-right text-2xs ${out ? 'text-on-accent/60' : 'text-muted'}`}>
                           {formatTime(m.created_at)}
                         </p>
