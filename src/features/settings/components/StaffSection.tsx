@@ -36,8 +36,7 @@ export function StaffSection() {
 
   return (
     <Card>
-      <div className="mb-4 flex items-center justify-between">
-        <h2 className="text-md font-semibold text-text">Xodimlar</h2>
+      <div className="mb-4 flex items-center justify-end">
         <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
           <Plus className="h-4 w-4" strokeWidth={1.5} /> Xodim qo'shish
         </Button>

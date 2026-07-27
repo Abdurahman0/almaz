@@ -1,11 +1,11 @@
 import { useState } from 'react';
-import { Check } from 'lucide-react';
+import { Link } from 'react-router-dom';
+import { Check, ChevronRight, ScrollText, Users } from 'lucide-react';
 import { Card, Button, NumberInput, PageHeader, SkeletonRows, toast } from '@/shared/ui';
 import { useUiStore, type Lang } from '@/shared/stores/ui';
 import { PRESETS } from '@/shared/lib/themes';
 import { switchThemeFromEvent } from '@/shared/hooks/useThemeTransition';
 import { useAuthStore } from '@/shared/stores/auth';
-import { formatDateTime } from '@/shared/lib/format';
 import {
   useEngravingPrice,
   useLowStockThreshold,
@@ -13,9 +13,7 @@ import {
   useUpdateSetting,
 } from '../hooks';
 import { SETTING_KEYS } from '../api';
-import { StaffSection } from '../components/StaffSection';
 import { CardsSection } from '../components/CardsSection';
-import { useAudit } from '../rbac';
 
 /** Global commerce settings: engraving price + low-stock threshold. */
 function CommerceSettingsEditor() {
@@ -75,7 +73,6 @@ function CommerceSettingsEditor() {
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
   const { preset, setPreset, lang, setLang } = useUiStore();
-  const audit = useAudit();
 
   return (
     <div>
@@ -184,27 +181,34 @@ export default function SettingsPage() {
           </div>
         </Card>
 
-        <Card>
-          <h2 className="mb-4 text-md font-semibold text-text">Amallar jurnali</h2>
-          {audit.isPending && <SkeletonRows rows={4} />}
-          <div className="max-h-72 space-y-2 overflow-y-auto">
-            {audit.data?.map((a) => (
-              <div key={a.id} className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-xs">
-                <span className="text-text">
-                  {a.action} · <span className="text-muted">{a.entity_type}</span>
-                </span>
-                <span className="text-muted">{formatDateTime(a.created_at)}</span>
-              </div>
-            ))}
-            {audit.isSuccess && audit.data.length === 0 && (
-              <p className="text-sm text-muted">Jurnal bo'sh</p>
-            )}
-          </div>
+        <Card className="h-fit p-0">
+          <Link
+            to="/settings/staff"
+            className="flex items-center gap-3 px-5 py-4 transition-colors hover:bg-accent-soft"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+              <Users className="h-4 w-4" strokeWidth={1.5} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-text">Xodimlar</span>
+              <span className="block text-xs text-muted">Jamoa a'zolari va rollar</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
+          </Link>
+          <Link
+            to="/settings/audit"
+            className="flex items-center gap-3 border-t border-border px-5 py-4 transition-colors hover:bg-accent-soft"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
+              <ScrollText className="h-4 w-4" strokeWidth={1.5} />
+            </span>
+            <span className="min-w-0 flex-1">
+              <span className="block text-sm font-semibold text-text">Amallar jurnali</span>
+              <span className="block text-xs text-muted">Tizimda bajarilgan amallar</span>
+            </span>
+            <ChevronRight className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
+          </Link>
         </Card>
-      </div>
-
-      <div className="mt-6">
-        <StaffSection />
       </div>
     </div>
   );

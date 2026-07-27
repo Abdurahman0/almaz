@@ -119,7 +119,7 @@ export default function InboxPage() {
   return (
     <div>
       <h1 className="mb-6 text-xl text-text">Xabarlar</h1>
-      <Card className="grid h-[calc(100vh-220px)] min-h-[480px] grid-cols-1 overflow-hidden p-0 md:grid-cols-[320px_1fr]">
+      <Card className="grid h-[80vh] grid-cols-1 overflow-hidden p-0 md:grid-cols-[320px_1fr]">
         <div className={`flex flex-col overflow-hidden border-r border-border ${conversationId ? 'hidden md:flex' : ''}`}>
           {/* Filters */}
           <div className="space-y-2 border-b border-border p-3">

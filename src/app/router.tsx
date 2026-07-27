@@ -53,6 +53,14 @@ export const router = createBrowserRouter([
                 path: '/settings',
                 lazy: page(() => import('@/features/settings/pages/SettingsPage')),
               },
+              {
+                path: '/settings/staff',
+                lazy: page(() => import('@/features/settings/pages/StaffPage')),
+              },
+              {
+                path: '/settings/audit',
+                lazy: page(() => import('@/features/settings/pages/AuditLogPage')),
+              },
               // Dev-only visual QA for the UI kit
               ...(import.meta.env.DEV
                 ? [{ path: '/dev/ui', lazy: page(() => import('@/features/dev/UiDemoPage')) }]
