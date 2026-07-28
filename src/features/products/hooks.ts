@@ -10,6 +10,8 @@ import type {
   ComboCreate,
   ComboItemIn,
   ComboUpdate,
+  InstagramMediaCreate,
+  InstagramMediaUpdate,
   ProductCreate,
   ProductMediaCreate,
   ProductStatus,
@@ -227,6 +229,40 @@ export function useAddComboImage() {
     mutationFn: ({ id, image_url }: { id: string; image_url: string }) =>
       productsApi.addComboImage(id, image_url),
     onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+// ---------- Instagram post/story links (per product) ----------
+export function useProductInstagram(productId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['catalog', 'instagram', productId],
+    queryFn: () => productsApi.listProductInstagram(productId as string),
+    enabled: Boolean(productId),
+  });
+}
+
+export function useAddProductInstagram(productId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: InstagramMediaCreate) => productsApi.addProductInstagram(productId, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'instagram', productId] }),
+  });
+}
+
+export function useUpdateInstagramMedia(productId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: InstagramMediaUpdate }) =>
+      productsApi.updateInstagramMedia(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'instagram', productId] }),
+  });
+}
+
+export function useDeleteInstagramMedia(productId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => productsApi.deleteInstagramMedia(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'instagram', productId] }),
   });
 }
 

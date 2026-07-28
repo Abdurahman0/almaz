@@ -16,6 +16,7 @@ import {
 import { pickName } from '@/shared/lib/localize';
 import { uploadFile, uploadFiles, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { useUiStore } from '@/shared/stores/ui';
+import { InstagramSection } from './InstagramSection';
 import {
   useAddProductMedia,
   useCategories,
@@ -100,6 +101,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
   const [newUrls, setNewUrls] = useState<string[]>([]);
   const [urlDraft, setUrlDraft] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const form = useForm<FormValues>({
@@ -165,10 +167,16 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
     if (product) {
       updateProduct.mutate({ id: product.id, body }, { onSuccess: done });
     } else {
+      // Server requires ≥1 image on create; block early with a clear message.
+      if (newUrls.length === 0) {
+        setImgError(true);
+        toast.error('Mahsulot uchun kamida bitta rasm majburiy');
+        return;
+      }
       createProduct.mutate(
         {
           ...body,
-          image_urls: newUrls.length ? newUrls : undefined,
+          image_urls: newUrls,
           variants: [{ fulfillment_type: 'stocked', stock_qty: 1, is_active: true }],
         },
         { onSuccess: done },
@@ -184,6 +192,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       );
     } else {
       setNewUrls((s) => [...s, url]);
+      setImgError(false);
     }
   };
 
@@ -314,9 +323,12 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         <Textarea label="Tavsif (ru)" {...form.register('description_ru')} />
       </div>
 
-      {/* Images */}
+      {/* Images (≥1 required on create) */}
       <div className="space-y-2">
-        <span className="text-xs font-medium text-muted">Rasmlar</span>
+        <span className={`text-xs font-medium ${imgError ? 'text-danger' : 'text-muted'}`}>
+          Rasmlar {!product && <span className="text-danger">*</span>}
+        </span>
+        {imgError && <p className="text-2xs text-danger">Kamida bitta rasm yuklang</p>}
         <div className="flex gap-2">
           <div className="flex-1">
             <Input
@@ -420,6 +432,9 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           )}
         />
       )}
+
+      {/* Instagram links attach to an existing product (need its id). */}
+      {product && <InstagramSection productId={product.id} />}
 
       {mutation.isError && (
         <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">

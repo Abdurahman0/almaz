@@ -12,6 +12,8 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 }
 
 export const router = createBrowserRouter([
+  // Public customer checkout — no auth, no app shell, no ring transition.
+  { path: '/checkout/:token', lazy: page(() => import('@/features/checkout/pages/CheckoutPage')) },
   {
     // Ring transition for every navigation below; guard REPLACE redirects stay silent.
     element: <RingTransitionLayout minMs={1500} />,

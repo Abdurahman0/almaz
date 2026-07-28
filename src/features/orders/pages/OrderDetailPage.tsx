@@ -164,6 +164,24 @@ export default function OrderDetailPage() {
                     <dd className="mt-1 text-text">{delivery.data.address_text}</dd>
                   </div>
                 )}
+                {delivery.data.phone && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted">Telefon</dt>
+                    <dd className="text-text">{delivery.data.phone}</dd>
+                  </div>
+                )}
+                {delivery.data.landmark && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted">Orientir</dt>
+                    <dd className="text-right text-text">{delivery.data.landmark}</dd>
+                  </div>
+                )}
+                {delivery.data.apartment && (
+                  <div className="flex justify-between">
+                    <dt className="text-muted">Xonadon</dt>
+                    <dd className="text-right text-text">{delivery.data.apartment}</dd>
+                  </div>
+                )}
               </dl>
             ) : (
               <p className="text-sm text-muted">Yetkazib berish maʼlumoti yo'q</p>

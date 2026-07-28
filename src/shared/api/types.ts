@@ -277,6 +277,33 @@ export interface ProductMediaCreate {
   image_url: string;
   shortcode_or_url?: string | null;
 }
+
+// ---------- Instagram post/story <-> product (migration 0018) ----------
+export type InstagramMediaType = 'post' | 'reel' | 'story';
+export interface InstagramMediaOut {
+  id: string;
+  product_id: string;
+  media_type: string;
+  shortcode: string | null;
+  /** story media_id (story only). */
+  story_ref: string | null;
+  permalink: string | null;
+  image_url: string | null;
+  is_active: boolean;
+  /** story past its ~24h window. */
+  is_expired: boolean;
+  expires_at: string | null;
+  created_at: string;
+}
+export interface InstagramMediaCreate {
+  /** Full IG post/reel/story URL, or a bare shortcode / story_ref. */
+  link: string;
+  image_url?: string | null;
+}
+export interface InstagramMediaUpdate {
+  is_active?: boolean | null;
+  image_url?: string | null;
+}
 export interface VariantOut {
   id: string;
   product_id: string;
@@ -489,11 +516,35 @@ export interface DeliveryOut {
   address_text: string | null;
   lat: string | null;
   lng: string | null;
+  /** Contact + address detail collected on the checkout page (migration 0019). */
+  phone: string | null;
+  landmark: string | null;
+  apartment: string | null;
   status: DeliveryStatus;
 }
 export interface CheckoutLinkOut {
   url: string;
+  /** Raw one-time token (the frontend builds/uses its own /checkout/<token> page). */
+  token: string;
   expires_at: string;
+}
+/** Public checkout page context (GET /checkout/{token}). */
+export interface CheckoutContextOut {
+  order_no: string;
+  items_total: string;
+  /** zone key -> fee string, e.g. { tashkent: "50000.00", region: "30000.00" }. */
+  zones: Record<string, string>;
+}
+/** Customer location submission (POST /checkout/{token}). Zone is auto-derived
+ * from lat/lng server-side — the customer never picks it. */
+export interface CheckoutSubmit {
+  lat?: number | string | null;
+  lng?: number | string | null;
+  address_text?: string | null;
+  phone?: string | null;
+  landmark?: string | null;
+  apartment?: string | null;
+  zone?: DeliveryZone | null;
 }
 
 // ---------- Payments ----------

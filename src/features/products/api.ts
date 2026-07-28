@@ -12,6 +12,9 @@ import type {
   ComboItemIn,
   ComboOut,
   ComboUpdate,
+  InstagramMediaCreate,
+  InstagramMediaOut,
+  InstagramMediaUpdate,
   ListParams,
   MediaOut,
   ProductCreate,
@@ -87,6 +90,23 @@ export async function addProductMedia(productId: string, body: ProductMediaCreat
 
 export async function deleteMedia(mediaId: string): Promise<void> {
   await api.delete(`/catalog/media/${mediaId}`);
+}
+
+// ---------- Instagram post/story links (migration 0018) ----------
+export async function listProductInstagram(productId: string): Promise<InstagramMediaOut[]> {
+  return (await api.get<InstagramMediaOut[]>(`/catalog/products/${productId}/instagram`)).data;
+}
+
+export async function addProductInstagram(productId: string, body: InstagramMediaCreate): Promise<InstagramMediaOut> {
+  return (await api.post<InstagramMediaOut>(`/catalog/products/${productId}/instagram`, body)).data;
+}
+
+export async function updateInstagramMedia(mediaId: string, body: InstagramMediaUpdate): Promise<InstagramMediaOut> {
+  return (await api.patch<InstagramMediaOut>(`/catalog/instagram-media/${mediaId}`, body)).data;
+}
+
+export async function deleteInstagramMedia(mediaId: string): Promise<void> {
+  await api.delete(`/catalog/instagram-media/${mediaId}`);
 }
 
 // ---------- Categories (full CRUD) ----------
