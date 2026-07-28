@@ -1,12 +1,17 @@
 import { api, getItems, getList, type Paginated } from '@/shared/api/client';
 import type {
   BoxCreate,
+  BoxMediaCreate,
   BoxOut,
   BoxStockUpdate,
   BoxUpdate,
   CategoryCreate,
   CategoryOut,
   CategoryUpdate,
+  ComboCreate,
+  ComboItemIn,
+  ComboOut,
+  ComboUpdate,
   ListParams,
   MediaOut,
   ProductCreate,
@@ -136,6 +141,54 @@ export async function deleteBox(boxId: string): Promise<void> {
 /** Absolute (stock_qty) or relative (delta ±) stock change. */
 export async function setBoxStock(boxId: string, body: BoxStockUpdate): Promise<BoxOut> {
   return (await api.post<BoxOut>(`/catalog/boxes/${boxId}/stock`, body)).data;
+}
+
+// ---------- Box media (photo gallery, migration 0017) ----------
+export async function addBoxMedia(boxId: string, body: BoxMediaCreate): Promise<BoxOut> {
+  return (await api.post<BoxOut>(`/catalog/boxes/${boxId}/media`, body)).data;
+}
+
+export async function deleteBoxMedia(mediaId: string): Promise<void> {
+  await api.delete(`/catalog/boxes/media/${mediaId}`);
+}
+
+// ---------- Combos (multi-category product bundles, migration 0017) ----------
+export interface ComboListParams extends ListParams {
+  status?: ProductStatus;
+  q?: string;
+}
+
+export async function listCombos(params: ComboListParams = {}): Promise<Paginated<ComboOut>> {
+  return getList<ComboOut>('/catalog/combos', { params: { limit: 50, ...params } });
+}
+
+export async function getCombo(id: string): Promise<ComboOut> {
+  return (await api.get<ComboOut>(`/catalog/combos/${id}`)).data;
+}
+
+export async function createCombo(body: ComboCreate): Promise<ComboOut> {
+  return (await api.post<ComboOut>('/catalog/combos', body)).data;
+}
+
+export async function updateCombo(id: string, body: ComboUpdate): Promise<ComboOut> {
+  return (await api.patch<ComboOut>(`/catalog/combos/${id}`, body)).data;
+}
+
+export async function deleteCombo(id: string): Promise<void> {
+  await api.delete(`/catalog/combos/${id}`);
+}
+
+export async function addComboItem(comboId: string, body: ComboItemIn): Promise<ComboOut> {
+  return (await api.post<ComboOut>(`/catalog/combos/${comboId}/items`, body)).data;
+}
+
+export async function deleteComboItem(itemId: string): Promise<void> {
+  await api.delete(`/catalog/combos/items/${itemId}`);
+}
+
+/** A combo is a product, so its gallery uses the product-media endpoint. */
+export async function addComboImage(comboId: string, imageUrl: string): Promise<MediaOut> {
+  return addProductMedia(comboId, { image_url: imageUrl });
 }
 
 // ---------- Reference dictionaries: genders / materials / stones ----------

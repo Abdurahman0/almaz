@@ -1,12 +1,15 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as productsApi from './api';
-import type { ProductListParams } from './api';
+import type { ComboListParams, ProductListParams } from './api';
 import type {
   BoxCreate,
   BoxStockUpdate,
   BoxUpdate,
   CategoryCreate,
   CategoryUpdate,
+  ComboCreate,
+  ComboItemIn,
+  ComboUpdate,
   ProductCreate,
   ProductMediaCreate,
   ProductStatus,
@@ -135,6 +138,95 @@ export function useSetBoxStock(categoryId: string) {
     mutationFn: ({ id, body }: { id: string; body: BoxStockUpdate }) =>
       productsApi.setBoxStock(id, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+export function useAddBoxMedia(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, image_url }: { id: string; image_url: string }) =>
+      productsApi.addBoxMedia(id, { image_url }),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+export function useDeleteBoxMedia(categoryId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (mediaId: string) => productsApi.deleteBoxMedia(mediaId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['catalog', 'boxes', categoryId] }),
+  });
+}
+
+// ---------- Combos (multi-category product bundles) ----------
+export const comboKeys = {
+  all: ['catalog', 'combos'] as const,
+  page: (params: ComboListParams) => ['catalog', 'combos', 'page', params] as const,
+  one: (id: string) => ['catalog', 'combos', id] as const,
+};
+
+export function useCombos(params: ComboListParams = {}) {
+  return useQuery({
+    queryKey: comboKeys.page(params),
+    queryFn: () => productsApi.listCombos(params),
+    placeholderData: keepPreviousData,
+  });
+}
+
+export function useCombo(id: string | null | undefined) {
+  return useQuery({
+    queryKey: comboKeys.one(id ?? ''),
+    queryFn: () => productsApi.getCombo(id as string),
+    enabled: Boolean(id),
+  });
+}
+
+export function useCreateCombo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: ComboCreate) => productsApi.createCombo(body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+export function useUpdateCombo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ComboUpdate }) => productsApi.updateCombo(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+export function useDeleteCombo() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => productsApi.deleteCombo(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+export function useAddComboItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: ComboItemIn }) => productsApi.addComboItem(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+export function useDeleteComboItem() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (itemId: string) => productsApi.deleteComboItem(itemId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
+  });
+}
+
+export function useAddComboImage() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, image_url }: { id: string; image_url: string }) =>
+      productsApi.addComboImage(id, image_url),
+    onSuccess: () => qc.invalidateQueries({ queryKey: comboKeys.all }),
   });
 }
 

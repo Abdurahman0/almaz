@@ -92,7 +92,16 @@ export interface CategoryOut {
   parent_id: string | null;
 }
 
-// ---------- Boxes (colored gift boxes per category, migration 0013) ----------
+// ---------- Boxes (colored gift boxes per category, migration 0013 + media 0017) ----------
+export interface BoxMediaOut {
+  id: string;
+  image_url: string;
+  sort_order: number;
+}
+export interface BoxMediaCreate {
+  image_url: string;
+  sort_order?: number;
+}
 export interface BoxOut {
   id: string;
   category_id: string;
@@ -108,6 +117,8 @@ export interface BoxOut {
   available: number;
   is_active: boolean;
   sort_order: number;
+  /** Box photo gallery (migration 0017). */
+  media: BoxMediaOut[];
   created_at: string;
 }
 export interface BoxCreate {
@@ -131,6 +142,62 @@ export interface BoxUpdate {
 export interface BoxStockUpdate {
   stock_qty?: number;
   delta?: number;
+}
+
+// ---------- Combos (multi-category product bundle, migration 0017) ----------
+/** One component inside a combo (a product variant + how many). */
+export interface ComboComponentOut {
+  combo_item_id: string;
+  variant_id: string;
+  product_id: string;
+  name_uz: string;
+  /** Component unit price, Numeric(12,2) as string. */
+  price: string;
+  quantity: number;
+  /** Component's own stock availability. */
+  available: number;
+  image_url: string | null;
+}
+export interface ComboOut {
+  id: string;
+  name_uz: string;
+  name_ru: string | null;
+  description_uz: string | null;
+  /** Combo bundle price the customer pays, Numeric(12,2) as string. */
+  price: string;
+  /** Struck-through original price; null = no discount. */
+  old_price: string | null;
+  status: ProductStatus;
+  /** Order this combo via this variant_id (order_item.variant_id). */
+  variant_id: string | null;
+  /** min(component.available // quantity) — combo has no stock of its own. */
+  available: number;
+  items: ComboComponentOut[];
+  /** Combo's own gallery (product media). */
+  images: string[];
+  created_at: string;
+}
+/** Component reference when creating/adding to a combo. */
+export interface ComboItemIn {
+  variant_id: string;
+  quantity?: number;
+}
+export interface ComboCreate {
+  name_uz: string;
+  name_ru?: string | null;
+  description_uz?: string | null;
+  price: number | string;
+  discount_price?: number | string | null;
+  status?: ProductStatus;
+  items: ComboItemIn[];
+}
+export interface ComboUpdate {
+  name_uz?: string | null;
+  name_ru?: string | null;
+  description_uz?: string | null;
+  price?: number | string | null;
+  discount_price?: number | string | null;
+  status?: ProductStatus | null;
 }
 
 // ---------- AI operator override (POST /ai/conversations/{id}/respond) ----------

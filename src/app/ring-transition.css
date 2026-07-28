@@ -1,232 +1,96 @@
-/* Almaz 3D ring page transition.
+/* Almaz 3D ring page transition (v2 turntable).
  *
- * One continuous crossing lasting --T: the ring enters from beyond the left
- * edge, glides across the viewport while spinning, and exits right. The old
- * page is erased at the ring's leading edge (clip-path inset left 0% -> 100%),
- * the new page is revealed behind the trailing edge with the same wipe, and
- * the new page's sections stagger in after the wipe passes them. Everything
- * derives from --T — retime it in one place and the whole choreography
- * follows. GPU-only properties: transform, opacity, clip-path.
+ * One continuous crossing lasting --T, driven by a SINGLE JS motion value
+ * (see RingTransition.tsx): a ~100vh ring glides off-screen-left -> off-screen
+ * -right while spinning ~1 turn, and the curved reveal seam (an SVG arc mask,
+ * only mask-position animates) is swept from the SAME value so it stays locked
+ * under the ring's band. GPU-only work: transform, opacity, mask-position, and
+ * ONE fixed blur raster.
+ *
+ * Layers (bottom -> top):
+ *   1. OLD page snapshot (sharp) — static.
+ *   2. OLD page snapshot (blurred once) — fades in over ~120ms.
+ *   3. NEW live page — masked to the region BEHIND the ring (razor-sharp there).
+ *   4. The travelling ring canvas.
+ * The blur lives only on the static snapshot (rasterized once, never re-masked),
+ * so there is no per-frame blur re-raster and no backdrop-filter anywhere.
  */
 
 .ring-root {
-  --ring-size: min(55vh, 480px);
-  --ring-ease: cubic-bezier(0.55, 0.06, 0.45, 0.94);
-  --ring-stagger-base: calc(var(--T, 1300ms) * 0.35);
+  --ring-blur: 12px;
 }
 
-@media (max-width: 640px) {
-  .ring-root {
-    --ring-size: min(45vh, 300px);
-  }
+/* ---- Old page snapshots (static, below the live page) ------------------- */
+
+.ring-old-layer {
+  position: fixed;
+  inset: 0;
+  overflow: hidden;
+  background: var(--bg);
+  pointer-events: none;
 }
 
-/* ---- The travelling ring ------------------------------------------------ */
+.ring-old-layer[hidden] {
+  display: none;
+}
+
+.ring-old-layer.is-sharp {
+  z-index: 39;
+  opacity: 1;
+}
+
+/* Single fixed blur raster (no per-frame re-raster). scale(1.02) hides the
+   blurred edges; the pre-blurred copy fades in over the sharp one below. */
+.ring-old-layer.is-blur {
+  z-index: 40;
+  filter: blur(var(--ring-blur));
+  transform: scale(1.02);
+  transform-origin: center;
+  opacity: 0;
+}
+
+.ring-root[data-mode='crossing'] .ring-old-layer.is-blur,
+.ring-root[data-mode='pending'] .ring-old-layer.is-blur {
+  will-change: opacity;
+  animation: rt-blur-in 120ms linear both;
+}
+
+@keyframes rt-blur-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ---- New (live) page — masked to the revealed region ------------------- */
+
+.ring-stage {
+  position: relative;
+  z-index: 41;
+}
+
+.ring-root[data-mode='crossing'] .ring-stage,
+.ring-root[data-mode='pending'] .ring-stage {
+  will-change: mask-position;
+}
+
+/* ---- The travelling ring (topmost) -------------------------------------- */
 
 .ring-traveler {
   position: fixed;
   top: 50%;
   left: 0;
   z-index: 43;
-  width: var(--ring-size);
-  height: var(--ring-size);
   pointer-events: none;
-  transform: translate(-120%, -50%);
+  /* width/height + transform are set from JS per crossing (≈100vh). */
+  transform: translate(-9999px, -50%);
 }
 
 .ring-traveler[hidden] {
   display: none;
 }
 
-.ring-fade {
-  width: 100%;
-  height: 100%;
-  opacity: 0;
-}
-
-/* No filter here: drop-shadow would re-rasterize every video frame at full
-   ring size and costs ~15fps on software rasterizers. */
-.ring-traveler video,
-.ring-traveler img {
-  width: 100%;
-  height: 100%;
-  object-fit: contain;
-}
-
-/* Crossing: one glide over --T, synced with the wipes below. */
-.ring-root[data-mode='crossing'] .ring-traveler {
-  will-change: transform;
-  animation: ring-glide var(--T) var(--ring-ease) both;
-}
-.ring-root[data-mode='crossing'] .ring-fade {
-  animation: ring-fade var(--T) linear both;
-}
-
-/* Pending (lazy chunk in flight): the ring keeps crossing until the router
-   commits, then the real synced crossing restarts from the left. */
+.ring-root[data-mode='crossing'] .ring-traveler,
 .ring-root[data-mode='pending'] .ring-traveler {
   will-change: transform;
-  animation: ring-glide var(--T) var(--ring-ease) infinite;
-}
-.ring-root[data-mode='pending'] .ring-fade {
-  animation: ring-fade var(--T) linear infinite;
-}
-
-/* --ring-from/--ring-to are px offsets computed per crossing (viewport +
-   ring-size dependent) so the ring, arc mask and veil share one geometry. */
-@keyframes ring-glide {
-  from {
-    transform: translate(var(--ring-from, -120%), -50%);
-  }
-  to {
-    transform: translate(var(--ring-to, calc(100vw + 30%)), -50%);
-  }
-}
-
-/* 0 -> 1 over the first 8% of the path, 1 -> 0 over the last 8%. */
-@keyframes ring-fade {
-  0% {
-    opacity: 0;
-  }
-  8% {
-    opacity: 1;
-  }
-  92% {
-    opacity: 1;
-  }
-  100% {
-    opacity: 0;
-  }
-}
-
-/* ---- Light veil trailing the ring --------------------------------------- */
-
-.ring-veil {
-  position: fixed;
-  top: 0;
-  bottom: 0;
-  left: 0;
-  z-index: 42;
-  width: 45vw;
-  pointer-events: none;
-  transform: translateX(calc(-45vw - var(--ring-size)));
-  background: linear-gradient(
-    90deg,
-    transparent,
-    color-mix(in srgb, var(--accent) 10%, transparent) 65%,
-    color-mix(in srgb, var(--accent) 18%, transparent)
-  );
-}
-
-.ring-veil[hidden] {
-  display: none;
-}
-
-.ring-root[data-mode='crossing'] .ring-veil {
-  animation: ring-veil-glide var(--T) var(--ring-ease) both;
-}
-.ring-root[data-mode='pending'] .ring-veil {
-  animation: ring-veil-glide var(--T) var(--ring-ease) infinite;
-}
-
-@keyframes ring-veil-glide {
-  from {
-    transform: translateX(var(--veil-from, calc(-45vw - var(--ring-size))));
-  }
-  to {
-    transform: translateX(var(--veil-to, calc(100vw + var(--ring-size))));
-  }
-}
-
-/* ---- The wipe -------------------------------------------------------------
- * The new page renders normally in flow. The OLD page (snapshot clone) sits
- * above it in a fixed viewport-sized layer, masked to "everything right of
- * the ring's trailing arc" — a static feathered SVG mask built per crossing
- * in JS. Only mask-position animates (same bitmap, GPU re-blend), sweeping
- * the arc left -> right in lockstep with the ring: the old page is erased at
- * the curved boundary, the new page appears behind it.
- *
- * Content must never paint outside the masked element's border-box —
- * composited child transforms escaping the box make Chromium drop the mask
- * entirely (that killed the translate+counter-translate variant). The host
- * is exactly viewport-sized with in-box content, so this holds by design.
- *
- * pointer-events none — the clone's links are dead DOM without React
- * handlers; a stray click there would be a native full-page navigation.
- */
-.ring-wipe-old {
-  position: fixed;
-  inset: 0;
-  z-index: 40;
-  overflow: hidden;
-  pointer-events: none;
-}
-
-.ring-wipe-old[hidden] {
-  display: none;
-}
-
-.ring-wipe-slide {
-  position: absolute;
-  inset: 0;
-  overflow: hidden;
-  background: var(--bg);
-}
-
-.ring-root[data-crossing] .ring-wipe-old {
-  will-change: mask-position;
-  animation: ring-arc-pos var(--T) var(--ring-ease) both;
-}
-
-@keyframes ring-arc-pos {
-  from {
-    -webkit-mask-position: var(--arc-from, -100vw) 0;
-    mask-position: var(--arc-from, -100vw) 0;
-  }
-  to {
-    -webkit-mask-position: var(--arc-to, 0) 0;
-    mask-position: var(--arc-to, 0) 0;
-  }
-}
-
-/* ---- Sections trail in behind the ring ----------------------------------- */
-
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > *,
-.ring-root[data-crossing] > [data-ring-stage] .follow {
-  /* Promote up-front: without will-change each section becomes a layer only
-     when its delayed animation starts, causing raster spikes mid-crossing. */
-  will-change: transform, opacity;
-  animation: ring-follow 500ms cubic-bezier(0.22, 1, 0.36, 1) both;
-  animation-delay: var(--ring-stagger-base);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(2) {
-  animation-delay: calc(var(--ring-stagger-base) + 130ms);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(3) {
-  animation-delay: calc(var(--ring-stagger-base) + 260ms);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(4) {
-  animation-delay: calc(var(--ring-stagger-base) + 390ms);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(5) {
-  animation-delay: calc(var(--ring-stagger-base) + 520ms);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(6) {
-  animation-delay: calc(var(--ring-stagger-base) + 650ms);
-}
-.ring-root[data-crossing] > [data-ring-stage] main > div > * > :nth-child(n + 7) {
-  animation-delay: calc(var(--ring-stagger-base) + 780ms);
-}
-
-@keyframes ring-follow {
-  from {
-    opacity: 0;
-    transform: translateX(-40px);
-  }
-  to {
-    opacity: 1;
-    transform: none;
-  }
 }
 
 /* ---- Manual overlay (RingOverlay export, for saves/refetches) ------------ */
@@ -261,13 +125,11 @@
   filter: drop-shadow(0 12px 24px rgba(0, 0, 0, 0.18));
 }
 
-/* ---- Reduced motion: no travel, no wipe --------------------------------- */
+/* ---- Reduced motion: no travel, no wipe, instant swap ------------------- */
 
 @media (prefers-reduced-motion: reduce) {
   .ring-traveler,
-  .ring-veil,
-  .ring-wipe-old,
-  .ring-overlay {
+  .ring-old-layer {
     display: none !important;
   }
 }

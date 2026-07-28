@@ -1,5 +1,5 @@
-import { useEffect, useState } from 'react';
-import { Check, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState } from 'react';
+import { Check, ImagePlus, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -13,13 +13,16 @@ import {
   SkeletonRows,
   toast,
 } from '@/shared/ui';
+import { uploadFile, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import {
+  useAddBoxMedia,
   useBoxes,
   useCategories,
   useCreateBox,
   useDeleteBox,
+  useDeleteBoxMedia,
   useSetBoxStock,
   useUpdateBox,
 } from '../hooks';
@@ -164,6 +167,69 @@ function BoxEditor({
   );
 }
 
+/** Per-box photo gallery: thumbnails + upload (files -> URL -> box media). */
+function BoxMediaStrip({ box, categoryId }: { box: BoxOut; categoryId: string }) {
+  const add = useAddBoxMedia(categoryId);
+  const remove = useDeleteBoxMedia(categoryId);
+  const inputRef = useRef<HTMLInputElement | null>(null);
+  const [uploading, setUploading] = useState(false);
+
+  const onUpload = async (files: FileList | null) => {
+    if (!files || files.length === 0) return;
+    setUploading(true);
+    try {
+      for (const file of Array.from(files)) {
+        const up = await uploadFile(file);
+        await add.mutateAsync({ id: box.id, image_url: up.url });
+      }
+    } catch {
+      toast.error('Rasm yuklashda xatolik');
+    } finally {
+      setUploading(false);
+      if (inputRef.current) inputRef.current.value = '';
+    }
+  };
+
+  const media = [...box.media].sort((a, b) => a.sort_order - b.sort_order);
+
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      {media.map((m) => (
+        <span key={m.id} className="group relative h-11 w-11 overflow-hidden rounded-lg border border-border">
+          <img src={m.image_url} alt="" className="h-full w-full object-cover" />
+          <button
+            type="button"
+            aria-label="Rasmni o'chirish"
+            onClick={() =>
+              remove.mutate(m.id, { onError: () => toast.error("Rasmni o'chirishда xatolik") })
+            }
+            className="absolute inset-0 flex items-center justify-center bg-black/50 opacity-0 transition-opacity group-hover:opacity-100"
+          >
+            <Trash2 className="h-4 w-4 text-white" strokeWidth={1.5} />
+          </button>
+        </span>
+      ))}
+      <button
+        type="button"
+        aria-label="Rasm qo'shish"
+        onClick={() => inputRef.current?.click()}
+        disabled={uploading}
+        className="flex h-11 w-11 items-center justify-center rounded-lg border border-dashed border-border text-muted transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-50"
+      >
+        <ImagePlus className="h-4 w-4" strokeWidth={1.5} />
+      </button>
+      <input
+        ref={inputRef}
+        type="file"
+        accept={UPLOAD_ACCEPT}
+        multiple
+        className="hidden"
+        onChange={(e) => onUpload(e.target.files)}
+      />
+    </div>
+  );
+}
+
 /**
  * Standalone gift-box manager: pick a category, then manage its colored boxes
  * like any other product line (price, stock, colors). Boxes are category-scoped
@@ -288,10 +354,8 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
               }
             />
           ) : (
-            <div
-              key={b.id}
-              className="flex flex-wrap items-center gap-3 rounded-lg border border-border px-3 py-2"
-            >
+            <div key={b.id} className="rounded-lg border border-border px-3 py-2">
+              <div className="flex flex-wrap items-center gap-3">
               <span
                 className="h-6 w-6 shrink-0 rounded-md border border-strong"
                 style={{ background: b.color_hex }}
@@ -346,6 +410,10 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
                 >
                   <Trash2 className="h-4 w-4" strokeWidth={1.5} />
                 </button>
+              </div>
+              </div>
+              <div className="mt-2 border-t border-border/60 pt-2">
+                <BoxMediaStrip box={b} categoryId={categoryId} />
               </div>
             </div>
           ),

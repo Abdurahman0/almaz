@@ -9,7 +9,7 @@ import { formatMoney } from '@/shared/lib/format';
 import { useCreateOrder } from '../hooks';
 import { RingSizeCone, RING_SIZES } from '../components/RingSizeCone';
 import { useCustomers } from '@/features/inbox/hooks';
-import { useBoxes, useProducts } from '@/features/products/hooks';
+import { useBoxes, useCombos, useProducts } from '@/features/products/hooks';
 import { useBoxesEnabled } from '@/features/settings/hooks';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
@@ -32,6 +32,7 @@ export default function NewOrderPage() {
   const lang = useUiStore((s) => s.lang);
   const customers = useCustomers();
   const products = useProducts();
+  const combos = useCombos({ status: 'active', limit: 100 });
   const createOrder = useCreateOrder();
 
   const form = useForm<FormValues>({
@@ -44,6 +45,9 @@ export default function NewOrderPage() {
   const selectedProductEarly = products.data?.find((p) =>
     p.variants.some((vr) => vr.id === values.variant_id),
   );
+  // A combo is ordered by its own variant_id (no ring size, no gift box).
+  const selectedCombo = (combos.data?.items ?? []).find((c) => c.variant_id === values.variant_id) ?? null;
+  const isCombo = Boolean(selectedCombo);
   const categoryId = selectedProductEarly?.category_id ?? null;
   const boxesEnabled = useBoxesEnabled();
   const boxes = useBoxes(boxesEnabled ? categoryId : null, true);
@@ -70,12 +74,14 @@ export default function NewOrderPage() {
       {
         customer_id: v.customer_id,
         items: [
-          {
-            variant_id: v.variant_id,
-            quantity: v.quantity,
-            ring_size: v.ring_size.toFixed(1),
-            box_id: boxesEnabled && v.box_id ? v.box_id : null,
-          },
+          isCombo
+            ? { variant_id: v.variant_id, quantity: v.quantity }
+            : {
+                variant_id: v.variant_id,
+                quantity: v.quantity,
+                ring_size: v.ring_size.toFixed(1),
+                box_id: boxesEnabled && v.box_id ? v.box_id : null,
+              },
         ],
       },
       { onSuccess: (order) => navigate(`/orders/${order.id}`) },
@@ -158,18 +164,28 @@ export default function NewOrderPage() {
                 name="variant_id"
                 render={({ field, fieldState }) => (
                   <Combobox
-                    label="Mahsulot varianti"
+                    label="Mahsulot yoki to'plam"
                     placeholder="Variantni tanlang"
-                    options={products.data.flatMap((p) =>
-                      p.variants
-                        .filter((vr) => vr.is_active)
-                        .map((vr) => ({
-                          value: vr.id,
-                          label: `${pickName(p, lang)} · ${vr.sku}`,
-                          description: `${formatMoney(Number(p.effective_price))} — ${vr.available} dona mavjud`,
-                          disabled: vr.available <= 0,
+                    options={[
+                      ...products.data.flatMap((p) =>
+                        p.variants
+                          .filter((vr) => vr.is_active)
+                          .map((vr) => ({
+                            value: vr.id,
+                            label: `${pickName(p, lang)} · ${vr.sku}`,
+                            description: `${formatMoney(Number(p.effective_price))} — ${vr.available} dona mavjud`,
+                            disabled: vr.available <= 0,
+                          })),
+                      ),
+                      ...(combos.data?.items ?? [])
+                        .filter((c) => c.variant_id)
+                        .map((c) => ({
+                          value: c.variant_id as string,
+                          label: `${pickName(c, lang)} · To'plam`,
+                          description: `${formatMoney(Number(c.price))} — ${c.available} to'plam mavjud`,
+                          disabled: c.available <= 0,
                         })),
-                    )}
+                    ]}
                     value={field.value}
                     onChange={field.onChange}
                     error={fieldState.error?.message}
@@ -221,12 +237,17 @@ export default function NewOrderPage() {
             </div>
           ))}
 
-        {step === 2 && (
-          <RingSizeCone
-            value={RING_SIZES.includes(values.ring_size) ? values.ring_size : 17}
-            onChange={(size) => form.setValue('ring_size', size, { shouldValidate: true })}
-          />
-        )}
+        {step === 2 &&
+          (isCombo ? (
+            <div className="rounded-xl border border-border bg-surface-2/40 px-4 py-6 text-center text-sm text-muted">
+              To'plam uchun uzuk o'lchami talab qilinmaydi — «Keyingi»ni bosing.
+            </div>
+          ) : (
+            <RingSizeCone
+              value={RING_SIZES.includes(values.ring_size) ? values.ring_size : 17}
+              onChange={(size) => form.setValue('ring_size', size, { shouldValidate: true })}
+            />
+          ))}
 
         {step === 3 && (
           <div className="space-y-3 text-sm">
@@ -265,17 +286,21 @@ export default function NewOrderPage() {
             </dd>
           </div>
           <div className="flex justify-between border-b border-border pb-2">
-            <dt className="text-muted">Mahsulot</dt>
-            <dd className="text-right text-text">{selectedProduct ? pickName(selectedProduct, lang) : '—'}</dd>
+            <dt className="text-muted">{isCombo ? "To'plam" : 'Mahsulot'}</dt>
+            <dd className="text-right text-text">
+              {isCombo ? pickName(selectedCombo, lang) : selectedProduct ? pickName(selectedProduct, lang) : '—'}
+            </dd>
           </div>
           <div className="flex justify-between border-b border-border pb-2">
             <dt className="text-muted">Miqdor</dt>
             <dd className="text-text">{values.quantity || 1} dona</dd>
           </div>
-          <div className="flex justify-between border-b border-border pb-2">
-            <dt className="text-muted">O'lcham</dt>
-            <dd className="text-text">{values.ring_size.toFixed(1)}</dd>
-          </div>
+          {!isCombo && (
+            <div className="flex justify-between border-b border-border pb-2">
+              <dt className="text-muted">O'lcham</dt>
+              <dd className="text-text">{values.ring_size.toFixed(1)}</dd>
+            </div>
+          )}
           {selectedBox && (
             <div className="flex items-center justify-between border-b border-border pb-2">
               <dt className="flex items-center gap-1.5 text-muted">
@@ -293,7 +318,9 @@ export default function NewOrderPage() {
           <div className="flex items-baseline justify-between pt-1">
             <dt className="text-muted">Taxminiy summa</dt>
             <dd className="text-md tnum text-accent-ink">
-              {selectedProduct ? (
+              {isCombo ? (
+                <Money value={Number(selectedCombo!.price) * (values.quantity || 1)} />
+              ) : selectedProduct ? (
                 <Money value={(Number(selectedProduct.effective_price) + boxPrice) * (values.quantity || 1)} />
               ) : (
                 '—'

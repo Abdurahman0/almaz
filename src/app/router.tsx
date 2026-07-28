@@ -14,7 +14,7 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 export const router = createBrowserRouter([
   {
     // Ring transition for every navigation below; guard REPLACE redirects stay silent.
-    element: <RingTransitionLayout minMs={1600} />,
+    element: <RingTransitionLayout minMs={1500} />,
     children: [
       { path: '/login', lazy: page(() => import('@/features/auth/pages/LoginPage')) },
       {
@@ -41,6 +41,10 @@ export const router = createBrowserRouter([
               {
                 path: '/products',
                 lazy: page(() => import('@/features/products/pages/ProductsPage')),
+              },
+              {
+                path: '/combos',
+                lazy: page(() => import('@/features/products/pages/CombosPage')),
               },
               { path: '/clients', lazy: page(() => import('@/features/clients/pages/ClientsPage')) },
               {

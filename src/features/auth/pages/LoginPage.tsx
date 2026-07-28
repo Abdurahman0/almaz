@@ -1,9 +1,10 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { Navigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
+import { Volume2, VolumeX } from 'lucide-react';
 import { Button, Input, PasswordInput } from '@/shared/ui';
 import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { useIsAuthenticated } from '@/shared/stores/auth';
@@ -17,6 +18,83 @@ const schema = z.object({
   password: z.string().min(4, "Parol kamida 4 ta belgi bo'lishi kerak"),
 });
 type FormValues = z.infer<typeof schema>;
+
+const POSTER = '/video/login-poster.webp';
+
+/**
+ * Full-bleed cinematic video behind the login card. Starts muted (autoplay
+ * policy) with a discreet speaker toggle to enable sound. Degrades to the
+ * poster-only still under prefers-reduced-motion, a data-saver connection, or a
+ * decode failure — and never blocks the form: it renders behind the card and
+ * loads lazily (preload="metadata"), the card is interactive immediately.
+ */
+function LoginBackground() {
+  const videoRef = useRef<HTMLVideoElement | null>(null);
+  const [muted, setMuted] = useState(true);
+  const [failed, setFailed] = useState(false);
+
+  // Poster-only when motion is reduced or the OS/browser signals data-saver.
+  const posterOnly = useMemo(() => {
+    const reduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const saveData = (navigator as unknown as { connection?: { saveData?: boolean } }).connection?.saveData;
+    return reduced || Boolean(saveData);
+  }, []);
+
+  const still = posterOnly || failed;
+
+  const toggleAudio = () => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = !v.muted;
+    if (!v.muted) void v.play().catch(() => {});
+    setMuted(v.muted);
+  };
+
+  return (
+    <>
+      <div aria-hidden className="fixed inset-0 z-0 overflow-hidden bg-bg">
+        {still ? (
+          <img src={POSTER} alt="" className="h-full w-full object-cover" />
+        ) : (
+          <video
+            ref={videoRef}
+            autoPlay
+            muted
+            loop
+            playsInline
+            preload="metadata"
+            poster={POSTER}
+            onError={() => setFailed(true)}
+            className="h-full w-full object-cover"
+          >
+            <source src="/video/login.webm" type="video/webm" />
+            <source src="/video/login.mp4" type="video/mp4" />
+          </video>
+        )}
+        {/* Legibility scrim — darker behind the centered card, so the form always
+            reads over any frame and across all 5 theme presets. */}
+        <div
+          className="absolute inset-0"
+          style={{
+            background:
+              'radial-gradient(72% 60% at 50% 50%, rgba(0,0,0,0.62), rgba(0,0,0,0.44) 68%, rgba(0,0,0,0.52))',
+          }}
+        />
+      </div>
+
+      {!still && (
+        <button
+          type="button"
+          onClick={toggleAudio}
+          aria-label={muted ? 'Ovozni yoqish' : "Ovozni o'chirish"}
+          className="login-audio-toggle fixed bottom-5 right-5 z-20 flex h-10 w-10 items-center justify-center rounded-full border border-white/15 bg-black/35 text-white/70 backdrop-blur-sm transition-colors hover:border-[var(--accent)] hover:text-[var(--accent)]"
+        >
+          {muted ? <VolumeX className="h-[18px] w-[18px]" strokeWidth={1.75} /> : <Volume2 className="h-[18px] w-[18px]" strokeWidth={1.75} />}
+        </button>
+      )}
+    </>
+  );
+}
 
 export default function LoginPage() {
   const authed = useIsAuthenticated();
@@ -38,14 +116,7 @@ export default function LoginPage() {
 
   return (
     <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
-      <div
-        aria-hidden
-        className="pointer-events-none absolute inset-0"
-        style={{
-          background:
-            'radial-gradient(55% 45% at 50% 8%, var(--accent-soft), transparent 70%), radial-gradient(40% 40% at 80% 100%, var(--accent-soft), transparent 75%)',
-        }}
-      />
+      <LoginBackground />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -53,7 +124,7 @@ export default function LoginPage() {
         className="card-velvet relative z-10 w-full max-w-md p-10 shadow-lg"
       >
         <div className="mb-8 flex flex-col items-center gap-3">
-          <RingCanvas size={148} rotationMs={9000} className="-my-6" />
+          <RingCanvas size={96} rotationMs={9000} className="-my-3" />
           <h1 className="brand-gradient text-xl font-bold tracking-tight">{t('auth.title')}</h1>
           <p className="text-sm text-muted">{t('auth.subtitle')}</p>
         </div>

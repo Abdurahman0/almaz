@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -226,6 +227,7 @@ function useRefMap(kind: 'materials' | 'stones' | 'genders') {
 }
 
 export default function ProductsPage() {
+  const navigate = useNavigate();
   const lang = useUiStore((s) => s.lang);
   const deleteProduct = useDeleteProduct();
   const materials = useRefMap('materials');
@@ -298,6 +300,9 @@ export default function ProductsPage() {
         subheading="Baxmal patnisdagi kolleksiya"
         actions={
           <div className="flex flex-wrap gap-2">
+            <Button variant="secondary" onClick={() => navigate('/combos')}>
+              <Layers className="h-4 w-4" strokeWidth={1.5} /> To'plamlar
+            </Button>
             <Button variant="secondary" onClick={() => setBoxesOpen(true)}>
               <Gift className="h-4 w-4" strokeWidth={1.5} /> Sovg'a qutilari
             </Button>
