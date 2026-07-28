@@ -29,37 +29,67 @@ export function frameIndexFor(pos: number): number {
   return ((Math.round((((pos % 1) + 1) % 1) * n) % n) + n) % n;
 }
 
+// ---------------- fetch pool + progress ----------------
+/** Parallel fetch+decode workers. 6 keeps the pipe full without stalling the
+ *  main thread with 180 simultaneous decodes; the browser interleaves these
+ *  fetch() requests with the (streaming, preload=metadata) background video. */
+const CONCURRENCY = 6;
+
+async function loadOne(url: string): Promise<ImageBitmap> {
+  const res = await fetch(url);
+  if (!res.ok) throw new Error(`ring asset ${url}: ${res.status}`);
+  return createImageBitmap(await res.blob());
+}
+
+/** Drain `urls` into `out` with a fixed worker pool; `onEach` ticks per decode. */
+async function loadPool(urls: string[], out: ImageBitmap[], onEach?: () => void): Promise<ImageBitmap[]> {
+  let next = 0;
+  const worker = async () => {
+    for (;;) {
+      const i = next++;
+      if (i >= urls.length) return;
+      out[i] = await loadOne(urls[i]);
+      onEach?.();
+    }
+  };
+  await Promise.all(Array.from({ length: Math.min(CONCURRENCY, urls.length) }, worker));
+  return out;
+}
+
 // ---------------- full-res frame sequence (intro) ----------------
 let framesCache: Promise<ImageBitmap[]> | null = null;
+let framesLoaded = 0;
+let framesReadyFlag = false;
+
+/** True once the whole turntable is decoded (the intro can play instantly). */
+export function ringFramesReady(): boolean {
+  return framesReadyFlag;
+}
+/** 0..1 fraction of the turntable decoded so far (drives the gate + hint). */
+export function ringFramesRatio(): number {
+  return framesLoaded / FRAME_COUNT;
+}
 
 export function getRingFrames(assetPath = '/'): Promise<ImageBitmap[]> {
   if (!framesCache) {
     framesCache = loadFrames(assetPath).catch((e) => {
       framesCache = null; // allow retry on transient failure
+      framesReadyFlag = false;
+      framesLoaded = 0;
       throw e;
     });
   }
   return framesCache;
 }
 
-async function loadOne(url: string): Promise<ImageBitmap> {
-  const res = await fetch(url);
-  if (!res.ok) throw new Error(`ring frame ${url}: ${res.status}`);
-  return createImageBitmap(await res.blob());
-}
-
 async function loadFrames(assetPath: string): Promise<ImageBitmap[]> {
   const base = `${assetPath}${RING_ASSET_BASE}/frames`;
   const urls = Array.from({ length: FRAME_COUNT }, (_, i) => `${base}/ring_${String(i).padStart(4, '0')}.webp`);
   const out: ImageBitmap[] = new Array(FRAME_COUNT);
-  // decode in bounded-concurrency batches: parallel enough to be fast, not so
-  // wide it stalls the main thread with 180 simultaneous decodes
-  const BATCH = 12;
-  for (let i = 0; i < urls.length; i += BATCH) {
-    const slice = urls.slice(i, i + BATCH);
-    const bmps = await Promise.all(slice.map(loadOne));
-    bmps.forEach((b, j) => (out[i + j] = b));
-  }
+  framesLoaded = 0;
+  framesReadyFlag = false;
+  await loadPool(urls, out, () => { framesLoaded += 1; });
+  framesReadyFlag = true;
   return out;
 }
 
@@ -90,14 +120,7 @@ export function getTiltFrames(assetPath = '/'): Promise<ImageBitmap[]> {
 async function loadTiltFrames(assetPath: string): Promise<ImageBitmap[]> {
   const base = `${assetPath}${TILT_ASSET_BASE}`;
   const urls = Array.from({ length: TILT_COUNT }, (_, i) => `${base}/tilt_${String(i).padStart(4, '0')}.webp`);
-  const out: ImageBitmap[] = new Array(TILT_COUNT);
-  const BATCH = 12;
-  for (let i = 0; i < urls.length; i += BATCH) {
-    const slice = urls.slice(i, i + BATCH);
-    const bmps = await Promise.all(slice.map(loadOne));
-    bmps.forEach((b, j) => (out[i + j] = b));
-  }
-  return out;
+  return loadPool(urls, new Array(TILT_COUNT));
 }
 
 // ---------------- spritesheet (sidebar idle) ----------------
@@ -182,20 +205,21 @@ export function getEngraveReady(assetPath = '/'): Promise<void> {
 }
 
 /**
- * Warm all intro asset sets in the background (login screen): the heavy 180-frame
- * turntable, the 48-frame tilt sequence (~5.6 MB), the small spritesheet, and the
- * two tiny engraving heroes (~0.19 MB). The tilt frames and heroes must never be
- * why the intro skips — the readiness gate only ever waits on the turntable
- * (getRingFrames); everything else rides in on idle time behind it.
+ * Warm all intro asset sets in the background from the moment the login route
+ * mounts — NOT gated behind requestIdleCallback, so the ~20 MB actually lands
+ * during the 10-30s a user typically spends on the login screen and the intro
+ * can start instantly on submit.
+ *
+ * Priority order (chained so each set gets the full 6-worker pipe in turn):
+ *   turntable (gate asset) -> tilt -> heroes -> sidebar spritesheet.
+ * The background video is preload="metadata" and streams via range requests, so
+ * it never starves these fetches. The turntable + heroes must never be the skip
+ * reason — the readiness gate only ever waits on the turntable.
  */
 export function prefetchRingAssets(assetPath = '/'): void {
-  const kick = () => {
-    void getRingSheet(assetPath).catch(() => {});
-    void getEngraveReady(assetPath).catch(() => {});
-    void getTiltFrames(assetPath).catch(() => {});
-    void getRingFrames(assetPath).catch(() => {});
-  };
-  const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
-  if (ric) ric(kick);
-  else window.setTimeout(kick, 200);
+  void getRingFrames(assetPath)
+    .catch(() => {})
+    .then(() => getTiltFrames(assetPath).catch(() => {}))
+    .then(() => getEngraveReady(assetPath).catch(() => {}))
+    .then(() => getRingSheet(assetPath).catch(() => {}));
 }

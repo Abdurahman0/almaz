@@ -16,6 +16,7 @@ import {
 import { animate, type AnimationPlaybackControls } from 'framer-motion';
 import './ring-transition.css';
 import { useIntroStore } from '@/shared/stores/intro';
+import { useUiStore } from '@/shared/stores/ui';
 import { getRingFrames, frameIndexFor } from '@/shared/lib/ringFrames';
 import { SimpleTransitionLayout } from './SimpleTransition';
 
@@ -35,18 +36,29 @@ import { SimpleTransitionLayout } from './SimpleTransition';
  * minMs prop): glide, both wipes, veil and section stagger retime together.
  */
 
+/** Play the full ring crossing only every Nth eligible navigation; the rest use
+ *  the quick fade/rise. Eligible = not REPLACE, not same-route, not the first
+ *  nav after the intro, not reduced-motion. Configurable. */
+export const RING_TRANSITION_EVERY = 5;
+
 // One slow turn per crossing, rendered from the v2 turntable frames on a canvas.
 const ROTATIONS_PER_CROSSING = 1;
 const RING_EASE: [number, number, number, number] = [0.5, 0.05, 0.5, 0.95];
 
+// ~62vh ring (an elegant object crossing the screen, not a wall). The silhouette
+// fills ~0.845*S, so S = 0.62*vh / 0.845.
+const RING_VH = 0.62;
+
 // v2 frames are perfectly centered (silhouette center = frame center). Measured
 // band geometry: outer rim at 0.41*S, band centerline at 0.39*S. The reveal arc
-// radius rides the band centerline so the curved seam always tucks under the
-// ring's rim (the ~40px feather covers the band's ~0.035*S width as insurance).
+// radius rides the band centerline so the curved seam tucks under the ring's rim.
 const RING_R_FRAC = 0.39;
 const RING_CX_FRAC = 0;
 const RING_CY_FRAC = 0;
-const ARC_FEATHER = 14; // Gaussian stdDeviation; ~40px soft edge
+// Larger feather (~90px) than the full-screen ring: with a ring shorter than the
+// viewport, the arc only covers its own vertical span, so the boundary must blend
+// smoothly (no hard corner) into a soft vertical edge above/below the ring.
+const ARC_FEATHER = 30; // Gaussian stdDeviation; ~90px soft edge
 
 function subscribeToReducedMotion(onChange: () => void): () => void {
   const query = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -221,11 +233,25 @@ function RingTransitionLayoutRing({
   const framesRef = useRef<ImageBitmap[]>([]);
   const geomRef = useRef<CrossGeometry | null>(null);
   const driveRef = useRef<AnimationPlaybackControls | null>(null);
-  const [crossing, setCrossing] = useState(false);
+  // null = idle; 'ring' = full ring crossing; 'simple' = quick fade/rise.
+  const [crossKind, setCrossKind] = useState<null | 'ring' | 'simple'>(null);
+  const crossing = crossKind === 'ring';
+  // Per-nav bookkeeping for the every-Nth decision.
+  const prevPathRef = useRef(location.pathname);
+  const freePassRef = useRef(false); // the first nav after the intro never rings
+
+  const bumpRingNav = useUiStore((s) => s.bumpRingNav);
 
   // The one-time post-login intro owns the screen: no page-transition ring
   // while it is pending or playing.
   const introActive = useIntroStore((s) => s.stage === 'pending' || s.stage === 'playing');
+  // When the intro finishes, mark the NEXT eligible nav as a free pass (fade,
+  // uncounted) — the first navigation right after the intro shouldn't ring.
+  const introWasActiveRef = useRef(introActive);
+  useEffect(() => {
+    if (introWasActiveRef.current && !introActive) freePassRef.current = true;
+    introWasActiveRef.current = introActive;
+  }, [introActive]);
 
   const pendingSilent = isSilentNavigation(navigation.location?.state, showOnRedirect);
   const pending = !reducedMotion && !introActive && navigation.state !== 'idle' && !pendingSilent;
@@ -277,9 +303,9 @@ function RingTransitionLayoutRing({
     if (!root || !stage || !canvas) return;
     const vw = window.innerWidth;
     const vh = window.innerHeight;
-    // ~100vh tall ring: the silhouette fills ~0.845*S, so S = vh/0.845 makes the
-    // ring roughly viewport height. A touch smaller on phones.
-    const S = Math.round((vw <= 640 ? Math.min(vh, vw * 1.2) : vh) / 0.845);
+    // ~62vh ring (S = 0.62*vh / 0.845); a touch smaller on narrow phones.
+    const targetH = vw <= 640 ? Math.min(RING_VH * vh, vw) : RING_VH * vh;
+    const S = Math.round(targetH / 0.845);
     const r = Math.round(RING_R_FRAC * S);
     const cxOff = RING_CX_FRAC * S;
     const cy = Math.round(vh / 2 + RING_CY_FRAC * S);
@@ -355,84 +381,102 @@ function RingTransitionLayoutRing({
     }
   }
 
-  // Run the crossing on every completed navigation.
+  // Run a transition on every completed navigation — the ring every Nth time,
+  // a quick fade/rise otherwise.
   useEffect(() => {
     if (lastKeyRef.current === location.key) return;
     const isFirst = lastKeyRef.current === undefined;
+    const prevPath = prevPathRef.current;
     lastKeyRef.current = location.key;
+    prevPathRef.current = location.pathname;
     if (isFirst) return;
     if (!showOnRedirect && navigationType === 'REPLACE') { captureRef.current = null; return; }
     if (reducedMotion || introActive) { captureRef.current = null; return; }
+
+    // Decide ring vs fade. Same-route navs and the first nav after the intro
+    // always fade and are NOT counted, so the counter only tracks genuine
+    // page-to-page moves and the ring lands on a true every-Nth cadence.
+    let useRing = false;
+    let counted = -1;
+    if (freePassRef.current) {
+      freePassRef.current = false;
+    } else if (prevPath === location.pathname) {
+      /* same-route: fade, uncounted */
+    } else {
+      counted = bumpRingNav();
+      useRing = counted % RING_TRANSITION_EVERY === 0;
+    }
+    // Test hooks (no-op in production): force a ring crossing, and log decisions.
+    const w = window as unknown as { __RING_FORCE?: boolean; __RING_DEBUG?: boolean; __ringLog?: unknown[] };
+    if (w.__RING_FORCE) useRing = true;
+    if (w.__RING_DEBUG) (w.__ringLog ??= []).push({ path: location.pathname, count: counted, ring: useRing });
 
     const snap = captureRef.current;
     captureRef.current = null;
     const blur = oldBlurRef.current;
     const sharp = oldSharpRef.current;
+    const stage = stageRef.current;
     if (blur) blur.innerHTML = '';
     if (sharp) sharp.innerHTML = '';
-    if (snap) {
-      // Two static copies of the old page: a sharp one, and a pre-blurred one
-      // that fades in over ~120ms (opacity, not an animated radius) so the blur
-      // never pops. Neither is masked, so the blur rasterizes exactly once.
-      snap.el.style.transform = `translateY(-${snap.scrollY}px)`;
-      const sharpEl = snap.el.cloneNode(true) as HTMLElement;
-      sharpEl.style.transform = `translateY(-${snap.scrollY}px)`;
-      if (sharp) sharp.appendChild(sharpEl);
-      if (blur) blur.appendChild(snap.el);
+
+    if (useRing) {
+      if (snap) {
+        // Two static copies of the old page: a sharp one, and a pre-blurred one
+        // that fades in over ~120ms (opacity, not an animated radius). Neither is
+        // masked, so the blur rasterizes exactly once.
+        snap.el.style.transform = `translateY(-${snap.scrollY}px)`;
+        const sharpEl = snap.el.cloneNode(true) as HTMLElement;
+        sharpEl.style.transform = `translateY(-${snap.scrollY}px)`;
+        if (sharp) sharp.appendChild(sharpEl);
+        if (blur) blur.appendChild(snap.el);
+      }
+      applyGeometry();
+      if (blur) { blur.style.animation = 'none'; void blur.offsetWidth; blur.style.animation = ''; }
+      activeRef.current = true;
+      setCrossKind('ring');
+      startDrive(false);
+      window.clearTimeout(cleanupTimerRef.current);
+      cleanupTimerRef.current = window.setTimeout(() => { activeRef.current = false; setCrossKind(null); }, minMs + 60);
+    } else {
+      // Quick fade/rise: old snapshot fades out on top of the rising new page.
+      if (snap && sharp) { snap.el.style.transform = `translateY(-${snap.scrollY}px)`; sharp.appendChild(snap.el); }
+      if (sharp) { sharp.style.animation = 'none'; void sharp.offsetWidth; sharp.style.animation = 'rt-page-out 140ms ease-out both'; }
+      if (stage) { stage.style.animation = 'none'; void stage.offsetWidth; stage.style.animation = 'rt-page-in 240ms cubic-bezier(.2,.8,.2,1) both'; }
+      activeRef.current = true;
+      setCrossKind('simple');
+      window.clearTimeout(cleanupTimerRef.current);
+      cleanupTimerRef.current = window.setTimeout(() => { activeRef.current = false; setCrossKind(null); }, 480);
     }
+  }, [applyGeometry, bumpRingNav, introActive, location.key, location.pathname, minMs, navigationType, reducedMotion, showOnRedirect, startDrive]);
 
-    applyGeometry();
-    // Restart the blur fade-in animation for back-to-back navigations.
-    if (blur) { blur.style.animation = 'none'; void blur.offsetWidth; blur.style.animation = ''; }
-
-    activeRef.current = true;
-    setCrossing(true);
-    startDrive(false);
-    window.clearTimeout(cleanupTimerRef.current);
-    cleanupTimerRef.current = window.setTimeout(() => {
-      activeRef.current = false;
-      setCrossing(false);
-    }, minMs + 60);
-  }, [applyGeometry, introActive, location.key, minMs, navigationType, reducedMotion, showOnRedirect, startDrive]);
-
-  // Pending loop (chunk in flight): keep the ring crossing over the still-visible
-  // old page (no mask — the new page has not committed yet) until commit. Guarded
-  // by activeRef so a `pending` that lingers true INTO the commit render can't
-  // wipe the mask the crossing effect just set (both run in the same commit; the
-  // crossing effect runs first and sets activeRef).
+  // Idle: stop the drive, drop the snapshots, clear the mask + canvas + anims.
   useEffect(() => {
-    if (!pending || activeRef.current) return;
-    applyGeometry(false);
-    startDrive(true);
-  }, [applyGeometry, pending, startDrive]);
-
-  // Idle: stop the drive, drop the snapshots, clear the mask + canvas.
-  useEffect(() => {
-    if (crossing || pending || activeRef.current) return;
+    if (crossKind !== null || pending || activeRef.current) return;
     driveRef.current?.stop();
     driveRef.current = null;
     if (oldBlurRef.current) oldBlurRef.current.innerHTML = '';
-    if (oldSharpRef.current) oldSharpRef.current.innerHTML = '';
+    if (oldSharpRef.current) { oldSharpRef.current.innerHTML = ''; oldSharpRef.current.style.animation = ''; }
+    if (stageRef.current) stageRef.current.style.animation = '';
     clearMask();
     const canvas = canvasRef.current;
     const ctx = canvas?.getContext('2d');
     if (canvas && ctx) ctx.clearRect(0, 0, canvas.width, canvas.height);
-  }, [clearMask, crossing, pending]);
+  }, [clearMask, crossKind, pending]);
 
-  // Keep geometry fresh if the window resizes mid-crossing.
+  // Keep geometry fresh if the window resizes mid-ring-crossing.
   useEffect(() => {
-    if (!crossing && !pending) return;
+    if (crossKind !== 'ring') return;
     const onResize = () => applyGeometry();
     window.addEventListener('resize', onResize);
     return () => window.removeEventListener('resize', onResize);
-  }, [applyGeometry, crossing, pending]);
+  }, [applyGeometry, crossKind]);
 
   useEffect(() => () => {
     window.clearTimeout(cleanupTimerRef.current);
     driveRef.current?.stop();
   }, []);
 
-  const mode = pending ? 'pending' : crossing ? 'crossing' : 'idle';
+  const mode = crossing ? 'crossing' : 'idle';
 
   return (
     <div
@@ -440,20 +484,23 @@ function RingTransitionLayoutRing({
       className="ring-root"
       data-mode={mode}
       data-crossing={crossing ? 'true' : undefined}
+      data-sim={crossKind === 'simple' ? 'true' : undefined}
       style={{ '--T': `${minMs}ms` } as CSSProperties}
     >
       <ScrollRestoration />
-      {/* OLD page (bottom) — a static snapshot, blurred, so everything still
-          ahead of the ring reads soft; the ring sweeps the blur away. */}
-      <div ref={oldSharpRef} className="ring-old-layer is-sharp" hidden={!crossing && !pending} aria-hidden="true" />
-      <div ref={oldBlurRef} className="ring-old-layer is-blur" hidden={!crossing && !pending} aria-hidden="true" />
+      {/* OLD page snapshot: sharp copy (used by both ring + fade) and a
+          blurred copy the ring sweeps away (ring only). */}
+      <div ref={oldSharpRef} className="ring-old-layer is-sharp" hidden={crossKind === null} aria-hidden="true" />
+      <div ref={oldBlurRef} className="ring-old-layer is-blur" hidden={crossKind !== 'ring'} aria-hidden="true" />
       {/* NEW page — live, sharp, interactive; masked to the revealed region so it
           shows only where the ring has already passed (razor-sharp behind it). */}
       <div ref={stageRef} data-ring-stage="live" className="ring-stage">
         <Outlet />
       </div>
-      {/* The travelling ring (topmost), v2 frames on a canvas */}
-      <canvas ref={canvasRef} className="ring-traveler" hidden={mode === 'idle'} aria-hidden="true" />
+      {/* The travelling ring (topmost, ring crossings only), v2 frames on a canvas */}
+      <canvas ref={canvasRef} className="ring-traveler" hidden={crossKind !== 'ring'} aria-hidden="true" />
+      {/* 2px accent bar while a lazy chunk loads (any nav) */}
+      {pending && <div className="nav-progress" aria-hidden="true"><span /></div>}
     </div>
   );
 }

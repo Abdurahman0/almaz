@@ -5,6 +5,8 @@ import {
   getRingFrames,
   getTiltFrames,
   getEngraveReady,
+  ringFramesReady,
+  ringFramesRatio,
   frameIndexFor,
   GEM_FRAME,
   FRAME_COUNT,
@@ -453,14 +455,24 @@ export function IntroOverlay() {
       if (ready) begin();
       else finish();
     };
-    const timer = window.setTimeout(() => done(false), 1200);
-    // Gate only on the heavy turntable sequence; the tilt frames and engraving
-    // heroes ride in behind it and must never be the reason the intro skips.
-    getRingFrames()
-      .then(() => done(true))
-      .catch(() => done(false))
-      .finally(() => window.clearTimeout(timer));
-    return () => window.clearTimeout(timer);
+    // Readiness gate on the heavy turntable sequence (the tilt frames + heroes
+    // ride in behind it and are never the skip reason):
+    //   - fully decoded              -> play instantly
+    //   - >=80% downloaded           -> wait up to 3s (dashboard loads under it)
+    //   - <80%                       -> silently skip the intro this session
+    if (ringFramesReady()) {
+      done(true);
+      return;
+    }
+    if (ringFramesRatio() >= 0.8) {
+      const timer = window.setTimeout(() => done(false), 3000);
+      getRingFrames()
+        .then(() => done(true))
+        .catch(() => done(false))
+        .finally(() => window.clearTimeout(timer));
+      return () => window.clearTimeout(timer);
+    }
+    done(false);
   }, [stage, begin, finish]);
 
   if (stage !== 'playing') return null;

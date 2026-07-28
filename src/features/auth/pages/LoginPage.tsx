@@ -10,7 +10,7 @@ import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { useIsAuthenticated } from '@/shared/stores/auth';
 import { useLogin } from '../hooks';
 import { useT } from '@/shared/lib/i18n';
-import { prefetchRingAssets } from '@/shared/lib/ringFrames';
+import { prefetchRingAssets, ringFramesRatio } from '@/shared/lib/ringFrames';
 import type { ApiError } from '@/shared/api/client';
 
 const schema = z.object({
@@ -71,13 +71,23 @@ function LoginBackground() {
             <source src="/video/login.mp4" type="video/mp4" />
           </video>
         )}
-        {/* Legibility scrim — darker behind the centered card, so the form always
-            reads over any frame and across all 5 theme presets. */}
+        {/* Legibility scrim. Tablet/mobile: an even dark overlay (card centered).
+            Desktop (≥1024px): directional — transparent on the left so the scene
+            stays visible, darkening toward the right under the card, plus a soft
+            radial directly beneath it. The card is opaque (bg-surface) so it
+            stays legible across all 5 presets on either scrim. */}
         <div
-          className="absolute inset-0"
+          className="absolute inset-0 lg:hidden"
           style={{
             background:
-              'radial-gradient(72% 60% at 50% 50%, rgba(0,0,0,0.62), rgba(0,0,0,0.44) 68%, rgba(0,0,0,0.52))',
+              'radial-gradient(78% 62% at 50% 50%, rgba(0,0,0,0.60), rgba(0,0,0,0.46) 70%, rgba(0,0,0,0.54))',
+          }}
+        />
+        <div
+          className="absolute inset-0 hidden lg:block"
+          style={{
+            background:
+              'linear-gradient(100deg, transparent 36%, rgba(0,0,0,0.30) 62%, rgba(0,0,0,0.60) 100%), radial-gradient(42% 58% at 82% 50%, rgba(0,0,0,0.42), transparent 72%)',
           }}
         />
       </div>
@@ -106,16 +116,27 @@ export default function LoginPage() {
     formState: { errors },
   } = useForm<FormValues>({ resolver: zodResolver(schema) });
 
-  // warm both ring asset sets (intro sequence + sidebar spritesheet) at low
-  // priority while the user types credentials, so the intro is decode-ready
+  // Start downloading + decoding the intro assets the moment the form is up, so
+  // the intro is ready by submit. A barely-visible accent line at the card's
+  // bottom edge hints at turntable progress; it vanishes once fully loaded.
+  const [assetProgress, setAssetProgress] = useState(0);
   useEffect(() => {
     prefetchRingAssets();
+    const mountT = performance.now();
+    const w = window as unknown as { __ringRatio?: number; __ringReadyMs?: number };
+    const id = window.setInterval(() => {
+      const r = ringFramesRatio();
+      setAssetProgress(r);
+      w.__ringRatio = r;
+      if (r >= 1) { w.__ringReadyMs = Math.round(performance.now() - mountT); window.clearInterval(id); }
+    }, 200);
+    return () => window.clearInterval(id);
   }, []);
 
   if (authed) return <Navigate to="/" replace />;
 
   return (
-    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4">
+    <div className="relative flex min-h-screen items-center justify-center overflow-hidden p-4 lg:justify-end lg:pr-[7vw]">
       <LoginBackground />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -158,6 +179,19 @@ export default function LoginPage() {
             {t('auth.submit')}
           </Button>
         </form>
+
+        {assetProgress > 0.02 && assetProgress < 1 && (
+          <span
+            aria-hidden
+            className="pointer-events-none absolute inset-x-0 bottom-0 h-[2px] overflow-hidden"
+            style={{ borderBottomLeftRadius: 'var(--r-lg)', borderBottomRightRadius: 'var(--r-lg)' }}
+          >
+            <span
+              className="block h-full bg-accent/60 transition-[width] duration-300 ease-out"
+              style={{ width: `${Math.round(assetProgress * 100)}%` }}
+            />
+          </span>
+        )}
       </motion.div>
     </div>
   );

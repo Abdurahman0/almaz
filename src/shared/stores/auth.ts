@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 import type { MeResponse } from '@/shared/api/types';
+import { useUiStore } from './ui';
 
 interface AuthState {
   accessToken: string | null;
@@ -19,7 +20,10 @@ export const useAuthStore = create<AuthState>()(
       user: null,
       setTokens: (access, refresh) => set({ accessToken: access, refreshToken: refresh }),
       setUser: (user) => set({ user }),
-      logout: () => set({ accessToken: null, refreshToken: null, user: null }),
+      logout: () => {
+        useUiStore.getState().resetRingNav();
+        set({ accessToken: null, refreshToken: null, user: null });
+      },
     }),
     {
       name: 'almaz-auth',

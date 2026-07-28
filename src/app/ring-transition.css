@@ -67,9 +67,57 @@
   z-index: 41;
 }
 
-.ring-root[data-mode='crossing'] .ring-stage,
-.ring-root[data-mode='pending'] .ring-stage {
+.ring-root[data-mode='crossing'] .ring-stage {
   will-change: mask-position;
+}
+
+/* ---- Simple fade/rise (the non-Nth navigations) ------------------------
+ * The old snapshot rides ABOVE the live stage (which rises + fades in beneath
+ * it) and fades out. Animations are applied imperatively (rt-page-in/out) so
+ * they restart reliably on every navigation. */
+.ring-root[data-sim='true'] .ring-old-layer.is-sharp {
+  z-index: 42;
+}
+
+@keyframes rt-page-in {
+  from { opacity: 0; transform: translateY(10px) scale(0.995); }
+  to { opacity: 1; transform: none; }
+}
+
+@keyframes rt-page-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+/* ---- Lazy-load progress bar (2px accent, any navigation) --------------- */
+.nav-progress {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 2px;
+  z-index: 55;
+  overflow: hidden;
+  opacity: 0;
+  pointer-events: none;
+  animation: nav-bar-appear 0.2s ease-out 0.15s both;
+}
+
+.nav-progress > span {
+  display: block;
+  height: 100%;
+  width: 35%;
+  background: var(--accent);
+  animation: nav-bar-slide 1s ease-in-out infinite;
+}
+
+@keyframes nav-bar-appear {
+  to { opacity: 1; }
+}
+
+@keyframes nav-bar-slide {
+  from { transform: translateX(-40vw); }
+  to { transform: translateX(105vw); }
 }
 
 /* ---- The travelling ring (topmost) -------------------------------------- */
