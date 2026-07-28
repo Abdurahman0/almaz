@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Link2, XCircle } from 'lucide-react';
+import { ArrowLeft, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -18,7 +18,7 @@ import { formatDateTime } from '@/shared/lib/format';
 import { api } from '@/shared/api/client';
 import type { PaymentOut } from '@/shared/api/types';
 import { CraftStepper } from '../components/CraftStepper';
-import { useCancelOrder, useCreateCheckoutLink, useDelivery, useOrder } from '../hooks';
+import { useCancelOrder, useDelivery, useOrder } from '../hooks';
 import { orderStatusLabels } from '@/shared/ui/Badge';
 
 const deliveryLabels: Record<string, string> = {
@@ -35,7 +35,6 @@ export default function OrderDetailPage() {
   const order = useOrder(orderId);
   const delivery = useDelivery(orderId);
   const cancelMutation = useCancelOrder(orderId);
-  const checkoutLink = useCreateCheckoutLink(orderId);
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -185,25 +184,6 @@ export default function OrderDetailPage() {
               </dl>
             ) : (
               <p className="text-sm text-muted">Yetkazib berish maʼlumoti yo'q</p>
-            )}
-            <Button
-              variant="secondary"
-              size="sm"
-              className="mt-4 w-full"
-              loading={checkoutLink.isPending}
-              onClick={() => checkoutLink.mutate()}
-            >
-              <Link2 className="h-4 w-4" strokeWidth={1.5} /> Checkout havola
-            </Button>
-            {checkoutLink.isSuccess && (
-              <a
-                href={checkoutLink.data.url}
-                target="_blank"
-                rel="noreferrer"
-                className="mt-2 block truncate text-xs text-accent-ink underline"
-              >
-                {checkoutLink.data.url}
-              </a>
             )}
           </Card>
         </div>

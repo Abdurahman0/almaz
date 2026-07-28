@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers } from 'lucide-react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, Sparkles } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -77,7 +77,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
         soldOut ? 'opacity-70 hover:opacity-100' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
-      <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
+      <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
         {product.media[0]?.image_url ? (
           <img
             src={product.media[0].image_url}
@@ -86,7 +86,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
-            <Gem className="h-10 w-10 text-muted/50" strokeWidth={1.25} />
+            <Gem className="h-9 w-9 text-muted/50" strokeWidth={1.25} />
           </div>
         )}
 
@@ -113,8 +113,8 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
         )}
       </div>
 
-      <div className="p-4">
-        <div className="mb-2 flex items-start justify-between gap-2">
+      <div className="p-3.5">
+        <div className="mb-1.5 flex items-start justify-between gap-2">
           <div className="min-w-0">
             <p className={`truncate text-sm font-semibold ${soldOut ? 'text-muted' : 'text-text'}`}>{name}</p>
             <p className="truncate text-xs text-muted">
@@ -125,6 +125,19 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
             {productStatusLabels[product.status]}
           </Badge>
         </div>
+
+        {/* main details */}
+        <div className="mb-2.5 flex flex-wrap items-center gap-1.5 text-2xs text-muted">
+          <span className="rounded-md bg-surface-2 px-1.5 py-0.5">
+            {product.variants.length} variant
+          </span>
+          {product.engraving_available && (
+            <span className="flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-0.5">
+              <Sparkles className="h-3 w-3" strokeWidth={1.5} /> Gravirovka
+            </span>
+          )}
+        </div>
+
         <span className={`flex items-baseline gap-1.5 text-md tnum ${soldOut ? 'text-muted' : 'text-accent-ink'}`}>
           <Money short value={product.effective_price} />
           {discounted && (
