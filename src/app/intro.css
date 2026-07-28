@@ -1,7 +1,8 @@
 /* Intro peak — inner-band engraving hero.
- * The engraving reveal is a masked gradient sweeping along the letters'
- * baseline (measured 42.5deg); --eng-reveal is a registered custom property so
- * WAAPI can interpolate the mask smoothly with a ~40px soft feather. */
+ * The engraving reveal is a masked gradient sweeping along the letters' baseline
+ * (re-measured 27deg image / 124deg CSS from the new heroes); --eng-reveal is a
+ * registered custom property so WAAPI can step the mask in discrete letter-cuts
+ * with a ~30px soft feather (an engraver biting each character). */
 
 @property --eng-reveal {
   syntax: '<length-percentage>';
@@ -37,16 +38,16 @@
    * reveal doesn't pay a first-paint decode. 0.4% bleed-through is invisible. */
   opacity: 0.996;
   -webkit-mask-image: linear-gradient(
-    var(--eng-angle, 131deg),
+    var(--eng-angle, 124deg),
     transparent 0,
-    transparent calc(var(--eng-reveal) - 40px),
+    transparent calc(var(--eng-reveal) - 30px),
     #000 var(--eng-reveal),
     #000 200%
   );
   mask-image: linear-gradient(
-    var(--eng-angle, 131deg),
+    var(--eng-angle, 124deg),
     transparent 0,
-    transparent calc(var(--eng-reveal) - 40px),
+    transparent calc(var(--eng-reveal) - 30px),
     #000 var(--eng-reveal),
     #000 200%
   );

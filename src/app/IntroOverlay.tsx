@@ -3,45 +3,56 @@ import { useAnimate, animate as animateValue } from 'framer-motion';
 import { useIntroStore } from '@/shared/stores/intro';
 import {
   getRingFrames,
+  getTiltFrames,
   getEngraveReady,
   frameIndexFor,
   GEM_FRAME,
   FRAME_COUNT,
+  TILT_COUNT,
   ENGRAVE_CLEAN,
   ENGRAVE_ENGRAVED,
-  ENGRAVE_CENTROID,
 } from '@/shared/lib/ringFrames';
 import './intro.css';
 
 /*
- * One-time post-login intro (v2 turntable + inner-band engraving peak).
+ * One-time post-login intro (v2 turntable + real 3D tilt + engraving peak).
  *
- * corner -> center (gem-facing frame 0) -> turn & present into the inner-band
- * hero (crossfade from the turntable to the clean hero, one continuous move)
- * -> reveal "Almaz Silver" engraved along the band with a directional mask
- * -> hold -> reverse-crossfade back to the turntable -> rocket to the sidebar.
+ * One continuous timeline, no cuts:
+ *   corner -> center on turntable frame 0 (gem facing viewer)
+ *   -> play the 48-frame tilt (tilt_0000..0047) while scaling in, so the ring
+ *      physically tips up and presents its inner band (NO crossfade, NO swap:
+ *      turntable f0 == tilt f0, and tilt f47 == the clean hero, pixel-for-pixel)
+ *   -> hand to the hero still and cut "Almaz Silver" into the band letter by
+ *      letter with a stepped mask along the measured baseline, then one glint
+ *   -> hold -> heal the letters, reverse the tilt fast while shrinking
+ *   -> rocket to the sidebar logo slot (FLIP landing).
  *
  * INTRO_PEAK swaps the peak: 'engrave' (default) or the older 'gem' dive.
  */
 const INTRO_PEAK: 'engrave' | 'gem' = 'engrave';
 
-// engrave-phase mask sweep angle (CSS gradient deg): reveal grows from the
-// Almaz end (upper-left) toward Silver (lower-right) along the measured ~41deg
-// baseline. Re-derived from the upright render (was 313deg for the flipped one).
-const ENGRAVE_ANGLE = '131deg';
+// Engrave-phase mask sweep angle (CSS gradient deg). Re-measured from the NEW
+// heroes: the baseline runs down-right (~27deg image), text reads Almaz
+// (upper-left, ~51.7% along the gradient) -> Silver (lower-right, ~74.4%), so
+// the reveal sweeps UL->LR at a CSS gradient angle of ~124deg.
+const ENGRAVE_ANGLE = '124deg';
+// Sweep the mask across just the letters (with feather + margin) so all 11
+// discrete steps land on characters. Percentages are along the 124deg gradient.
+const REVEAL_START = 48;
+const REVEAL_END = 80;
 
 const ENTER_MS = 1400;
 const SETTLE_BEAT_MS = 160;
-// engrave peak
-const TURN_MS = 700;
-const CROSS_MS = 260; // crossfade overlap
-const TURN_END_FRAME = 24; // ~3/4 pose, close to the hero's inner-band view
-const PUSH_MS = 520; // reveal-time push-in that brings engraving to center
-const REVEAL_MS = 1100;
+// engrave peak — real tilt + stepped reveal
+const TILT_MS = 950; // scale in while the ring tips up (tilt 0 -> 47)
+const REVEAL_STEPS = 11; // one discrete cut per letter of "Almaz Silver"
+const REVEAL_STEP_MS = 60; // ~60ms per cut (engraver biting each glyph)
+const REVEAL_MS = REVEAL_STEPS * REVEAL_STEP_MS; // 660
 const GLINT_MS = 150;
 const HERO_HOLD_MS = 700;
-const RETURN_MS = 250;
-const HERO_VH = 1.6; // ~160vh hero
+const HEAL_MS = 150; // letters withdraw before handing back to the tilt frames
+const RETURN_MS = 280; // reverse tilt (47 -> 0) + shrink, flows into the rocket
+const HERO_VH = 1.6; // ~160vh hero at the peak
 // gem peak (legacy)
 const DIVE_MS = 560;
 const WORD_MS = 550;
@@ -56,7 +67,10 @@ const SETTLE_MS = 80;
 const GEM_ANGLE = GEM_FRAME / FRAME_COUNT;
 const ENTER_START_ANGLE = GEM_ANGLE - 0.4;
 const RPS_ROCKET = 0.5 / (FLIGHT_MS / 1000);
-const RPS_TURN = TURN_END_FRAME / FRAME_COUNT / (TURN_MS / 1000); // reaches the 3/4 pose
+// Native frame resolution (1200px turntable, 1600px tilt) — the canvas backs at
+// 1600 so tilt f47 upscales exactly like the 1600px hero <img>, keeping the
+// tilt->hero handoff pixel-identical at the peak.
+const CANVAS_PX = 1600;
 
 function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone: () => void }) {
   const [scope, animate] = useAnimate();
@@ -64,6 +78,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
   const angleRef = useRef(ENTER_START_ANGLE);
   const spinRef = useRef(false);
   const rpsRef = useRef(0);
+  const modeRef = useRef<'turntable' | 'tilt'>('turntable');
+  const tiltRef = useRef(0); // 0..1 progress through the tilt sequence
+  const tiltFramesRef = useRef<ImageBitmap[]>([]);
   const ranRef = useRef(false);
   const skippedRef = useRef(false);
   const heroCleanRef = useRef<HTMLImageElement | null>(null);
@@ -94,28 +111,40 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
     const vw = window.innerWidth;
     const vh = window.innerHeight;
     const mobile = vw <= 640;
-    const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660);
-    const diveScale = (2.3 * vh) / S;
+    const S = mobile ? 0.4 * vw : Math.min(0.72 * vh, 660); // settle size (~72vh)
+    const HH = HERO_VH * vh; // peak / hero box (~160vh)
+    const sSettle = S / HH; // ring scale that renders the box at the settle size
+    const diveScale = (2.3 * vh) / HH; // gem legacy
     const START = 120;
     const x0 = vw / 2 + START / 2;
     const y0 = -(vh / 2) - START / 2;
 
-    const startSpin = (frames: ImageBitmap[]) => {
+    // Single canvas plays the turntable (entrance) then the tilt (peak). The two
+    // sequences are framed identically at their shared poses so switching frame
+    // source mid-flight is invisible. Tilt frames arrive via tiltFramesRef (they
+    // load concurrently with the entrance, so the entrance never waits on them).
+    const startCanvas = (turntable: ImageBitmap[]) => {
       const canvas = canvasRef.current;
       const ctx = canvas?.getContext('2d');
       if (!canvas || !ctx || disposed) return;
-      const dpr = Math.min(window.devicePixelRatio || 1, 2);
-      canvas.width = Math.round(S * dpr);
-      canvas.height = Math.round(S * dpr);
+      canvas.width = CANVAS_PX;
+      canvas.height = CANVAS_PX;
       ctx.imageSmoothingQuality = 'high';
       let lastT: number | null = null;
       const tick = (now: number) => {
         if (disposed) return;
-        if (spinRef.current && lastT !== null) angleRef.current += ((now - lastT) / 1000) * rpsRef.current;
+        let frame: ImageBitmap;
+        const tilt = tiltFramesRef.current;
+        if (modeRef.current === 'tilt' && tilt.length) {
+          const idx = Math.max(0, Math.min(TILT_COUNT - 1, Math.round(tiltRef.current * (TILT_COUNT - 1))));
+          frame = tilt[idx];
+        } else {
+          if (spinRef.current && lastT !== null) angleRef.current += ((now - lastT) / 1000) * rpsRef.current;
+          frame = turntable[frameIndexFor(angleRef.current)];
+        }
         lastT = now;
-        const idx = frameIndexFor(angleRef.current);
         ctx.clearRect(0, 0, canvas.width, canvas.height);
-        ctx.drawImage(frames[idx], 0, 0, canvas.width, canvas.height);
+        ctx.drawImage(frame, 0, 0, canvas.width, canvas.height);
         raf = requestAnimationFrame(tick);
       };
       raf = requestAnimationFrame(tick);
@@ -129,49 +158,45 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         onDone();
         return;
       }
-      // The engraving heroes are decoded before the peak, but their failure must
-      // never abort the intro (they are tiny vs the frames the gate already
-      // cleared): if they don't load, degrade to entrance -> rocket, no peak.
-      let engraveOk = INTRO_PEAK === 'engrave';
-      if (engraveOk) {
-        try {
-          await getEngraveReady(assetPath);
-        } catch {
-          engraveOk = false;
-        }
-      }
+      // The tilt frames and the two engraving heroes drive the peak, but they
+      // must never stall the entrance nor abort the intro (the gate already
+      // cleared the heavy turntable; these ride in behind it). Kick their loads
+      // now and let them resolve DURING the entrance; only just before the peak
+      // do we require them — if they are missing or still not ready, degrade to
+      // entrance -> rocket, no peak. The readiness gate never waits on them.
+      let peakOk = INTRO_PEAK === 'engrave';
+      const peakAssets = peakOk
+        ? Promise.all([
+            getTiltFrames(assetPath).then((f) => { tiltFramesRef.current = f; }),
+            getEngraveReady(assetPath),
+          ])
+        : Promise.resolve();
       if (disposed) return;
-      startSpin(frames);
+      startCanvas(frames);
       await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
       if (disposed) return;
 
-      // The two 2400px hero <img>s otherwise pay their first-paint cost on the
-      // main thread mid-animation: inner_clean janks the crossfade, inner_engraved
-      // janks the reveal (~80ms source decode + ~66ms raster/GPU-upload each,
-      // because Chrome decodes per target raster size). Warm both off-screen
-      // during the pre-roll (ring still parked in the corner, backdrop still
-      // transparent) so the animated phases are paint-free:
-      //   1. decode() the real elements (not the throwaway Images),
-      //   2. briefly composite the hero at ~0 opacity with the engraved layer
-      //      fully unmasked, to force raster + GPU upload of both layers.
-      if (engraveOk) {
+      // Warm the two hero <img>s off-screen during the pre-roll (ring parked in
+      // the corner, backdrop transparent) so the tilt->hero handoff and the
+      // reveal never pay a first-paint decode. Decode the real elements, then
+      // briefly composite the hero at ~0 opacity (engraved layer fully revealed)
+      // to force raster + GPU upload of both layers. The hero stays at scale 1
+      // the whole time (the ring grows to meet it), so there is no scale-up
+      // re-decode later.
+      if (peakOk) {
         await Promise.all(
           [heroCleanRef.current, heroEngravedRef.current].map((img) =>
             img?.decode ? img.decode().catch(() => {}) : Promise.resolve(),
           ),
         );
         if (disposed) return;
+        const clean = heroCleanRef.current;
         const hero = document.querySelector('.intro-hero') as HTMLElement | null;
-        if (hero) {
-          // The hero renders at scale 1 the whole time (the turntable grows to
-          // meet it; the reveal only pans), so there is never a scale-up to force
-          // a higher-res re-decode. Warm both layers' raster + GPU upload here,
-          // off-screen, and keep the hero composited at ~0 opacity through the
-          // entrance so those tiles are not evicted before the crossfade/reveal.
-          hero.style.transformOrigin = '50% 50%';
-          hero.style.transform = 'translate(0px, 0px) scale(1)';
+        if (hero && clean) {
+          clean.style.setProperty('--eng-reveal', '150%'); // engraved fully shown -> raster it
           hero.style.opacity = '0.012';
           await new Promise<void>((r) => requestAnimationFrame(() => requestAnimationFrame(() => r())));
+          clean.style.setProperty('--eng-reveal', '0%'); // back to clean-covered
         }
         if (disposed) return;
       }
@@ -180,7 +205,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       const step = (el: string, kf: object, opts: object) =>
         skippedRef.current || disposed ? Promise.resolve() : animate(el as never, kf as never, opts as never);
 
-      // Phase 1 — entrance (unchanged): corner -> center, gem-facing frame 0.
+      // Phase 1 — entrance (unchanged): corner -> center, settling on the
+      // gem-facing turntable frame 0 at the settle size (~72vh). One tween.
+      modeRef.current = 'turntable';
       spinRef.current = false;
       const angleTween = animateValue(ENTER_START_ANGLE, GEM_ANGLE, {
         duration: ENTER_MS / 1000,
@@ -189,7 +216,7 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       });
       const backdropIn = step('.intro-backdrop', { opacity: [0, 1] }, { duration: 0.3, ease: 'easeOut' });
       await guard(
-        step('.intro-ring', { x: [x0, 0], y: [y0, 0], scale: [START / S, 1] }, { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] }),
+        step('.intro-ring', { x: [x0, 0], y: [y0, 0], scale: [START / HH, sSettle] }, { duration: ENTER_MS / 1000, ease: [0.2, 0.7, 0.3, 1] }),
         ENTER_MS,
       );
       angleRef.current = GEM_ANGLE;
@@ -197,40 +224,50 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       await guard(backdropIn, 400);
       if (!skippedRef.current) await new Promise((r) => setTimeout(r, SETTLE_BEAT_MS));
 
-      if (INTRO_PEAK === 'engrave' && engraveOk) {
-        // Hero geometry (transform-origin = element center). During the
-        // crossfade the hero sits ring-centered at the turntable's size so the
-        // dissolve registers; during the reveal it pushes in to `1` scale and
-        // pans so the measured engraving centroid lands at the optical center.
-        const HH = HERO_VH * vh;
-        // Turntable grows to the hero's box size so the crossfade is size-matched
-        // while the hero stays at scale 1 (no scale-up later -> no re-decode).
-        const turnScale = HH / S;
-        const pushX = -(ENGRAVE_CENTROID.x - 0.5) * HH;
-        const pushY = 0.46 * vh - vh / 2 - (ENGRAVE_CENTROID.y - 0.5) * HH;
+      // Require the peak assets now (they loaded during the entrance). If they
+      // failed or a slow network never delivered them in time, degrade to
+      // entrance -> rocket rather than stalling on the settled pose.
+      if (peakOk) {
+        const ready = await Promise.race([
+          peakAssets.then(() => true).catch(() => false),
+          new Promise<boolean>((r) => setTimeout(() => r(false), 900)),
+        ]);
+        if (!ready || !tiltFramesRef.current.length) peakOk = false;
+      }
 
-        // Phase 2 — turn & present: short turntable run + crossfade into the
-        // full-size clean hero, both centered and size-matched (ONE move).
-        spinRef.current = true;
-        rpsRef.current = RPS_TURN;
-        const ringScale = step('.intro-ring', { scale: turnScale }, { duration: TURN_MS / 1000, ease: [0.2, 0.7, 0.3, 1] });
-        const ringFade = step('.intro-ring', { opacity: 0 }, { duration: CROSS_MS / 1000, ease: 'linear', delay: (TURN_MS - CROSS_MS) / 1000 });
-        const heroIn = step('.intro-hero', { opacity: [0.012, 1] }, { duration: CROSS_MS / 1000, ease: 'easeOut', delay: (TURN_MS - CROSS_MS) / 1000 });
-        await guard(Promise.all([ringScale, ringFade, heroIn]), TURN_MS + 40);
-        spinRef.current = false;
-
-        // Phase 3 — engraving reveal: pan the engraving to the optical center
-        // (translate only, no scale -> no re-decode) while the mask sweeps along
-        // the baseline so letters emerge in reading order; then one glint.
-        const pushIn = step('.intro-hero', { x: [0, pushX], y: [0, pushY] }, { duration: PUSH_MS / 1000, ease: [0.3, 0.1, 0.3, 1] });
-        // mask lives on the clean (top) layer now: hiding it uncovers the engraving
-        const engEl = document.querySelector('.intro-hero-clean') as HTMLElement | null;
-        const reveal = engEl?.animate([{ '--eng-reveal': '-5%' } as Keyframe, { '--eng-reveal': '150%' } as Keyframe], {
-          duration: REVEAL_MS,
-          easing: 'cubic-bezier(.3,.1,.3,1)',
-          fill: 'forwards',
+      if (INTRO_PEAK === 'engrave' && peakOk) {
+        // Phase 2 — tilt & approach: play tilt 0 -> 47 (ring tips up, presents
+        // the inner wall) while scaling the SAME canvas from the settle size to
+        // the full hero box (~72vh -> ~160vh) in ONE continuous tween. The frame
+        // source switches turntable->tilt at their shared pose, so it is invisible.
+        modeRef.current = 'tilt';
+        tiltRef.current = 0;
+        const tiltTween = animateValue(0, 1, {
+          duration: TILT_MS / 1000,
+          ease: [0.3, 0.7, 0.3, 1],
+          onUpdate: (v) => { if (!skippedRef.current) tiltRef.current = v; },
         });
-        await guard(Promise.all([pushIn, reveal?.finished]), REVEAL_MS);
+        await guard(step('.intro-ring', { scale: 1 }, { duration: TILT_MS / 1000, ease: [0.3, 0.7, 0.3, 1] }), TILT_MS);
+        tiltRef.current = 1;
+        tiltTween.stop();
+
+        // Handoff — tilt f47 (on the canvas at scale 1) == the clean hero,
+        // pixel-for-pixel. Show the hero and hide the canvas in the same frame:
+        // no fade, no swap, identical pixels.
+        const hero = document.querySelector('.intro-hero') as HTMLElement | null;
+        if (hero) hero.style.opacity = '1';
+        const ring = document.querySelector('.intro-ring') as HTMLElement | null;
+        if (ring) ring.style.opacity = '0';
+
+        // Phase 3 — engraving reveal: step the mask along the baseline in 11
+        // discrete cuts (~60ms each) so "Almaz Silver" is engraved letter by
+        // letter in reading order, then one glint. Rect/scale unchanged.
+        const clean = heroCleanRef.current;
+        const reveal = clean?.animate(
+          [{ '--eng-reveal': `${REVEAL_START}%` } as Keyframe, { '--eng-reveal': `${REVEAL_END}%` } as Keyframe],
+          { duration: REVEAL_MS, easing: `steps(${REVEAL_STEPS}, end)`, fill: 'forwards' },
+        );
+        await guard(reveal?.finished, REVEAL_MS);
         if (!skippedRef.current && !disposed) {
           (document.querySelector('.intro-glint') as HTMLElement | null)?.animate(
             [
@@ -243,14 +280,30 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
         }
         if (!skippedRef.current) await new Promise((r) => setTimeout(r, HERO_HOLD_MS));
 
-        // Phase 4 — return: reverse the push + crossfade back to the turntable,
-        // aligned the same way so the hand-back reads as one move too.
-        spinRef.current = true;
-        rpsRef.current = RPS_TURN * 0.6;
-        const heroOut = step('.intro-hero', { opacity: 0, x: 0, y: 0 }, { duration: RETURN_MS / 1000, ease: 'easeIn' });
-        const ringBack = step('.intro-ring', { opacity: 1 }, { duration: RETURN_MS / 1000, ease: 'linear' });
-        await guard(Promise.all([heroOut, ringBack]), RETURN_MS);
-        spinRef.current = false;
+        // Phase 4 — return: heal the letters (clean re-covers the engraving in
+        // reverse), which brings the hero back to == tilt f47; hand back to the
+        // canvas (pixel-identical) and reverse the tilt fast while shrinking,
+        // flowing straight into the rocket.
+        const heal = clean?.animate(
+          [{ '--eng-reveal': `${REVEAL_END}%` } as Keyframe, { '--eng-reveal': '0%' } as Keyframe],
+          { duration: HEAL_MS, easing: 'ease-in', fill: 'forwards' },
+        );
+        await guard(heal?.finished, HEAL_MS);
+        if (ring) ring.style.opacity = '1';
+        if (hero) hero.style.opacity = '0';
+        modeRef.current = 'tilt';
+        tiltRef.current = 1;
+        const backTween = animateValue(1, 0, {
+          duration: RETURN_MS / 1000,
+          ease: [0.4, 0, 0.2, 1],
+          onUpdate: (v) => { if (!skippedRef.current) tiltRef.current = v; },
+        });
+        await guard(step('.intro-ring', { scale: sSettle }, { duration: RETURN_MS / 1000, ease: [0.4, 0, 0.2, 1] }), RETURN_MS);
+        tiltRef.current = 0;
+        backTween.stop();
+        // tilt f0 == turntable frame 0 — hand back to the turntable for the rocket.
+        modeRef.current = 'turntable';
+        angleRef.current = GEM_ANGLE;
       } else if (INTRO_PEAK === 'gem') {
         // Legacy gem dive.
         const scrimIn = step('.intro-scrim', { opacity: [0, 1] }, { duration: DIVE_MS / 1000, ease: 'easeOut' });
@@ -267,9 +320,9 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       // Phase 5 — rocket exit (FLIP from the current turntable scale).
       const slot = document.querySelector('[data-intro-logo-slot]');
       const slotRect = slot ? slot.getBoundingClientRect() : null;
-      // rocket flies from wherever the peak left the turntable: grown to the
-      // hero's box size (engrave), the dive scale (gem), or plain center (degraded).
-      const curScale = INTRO_PEAK === 'gem' ? diveScale : engraveOk ? (HERO_VH * vh) / S : 1;
+      // rocket flies from wherever the peak left the ring: the settle scale
+      // (engrave return / degraded), or the dive scale (gem legacy).
+      const curScale = INTRO_PEAK === 'gem' ? diveScale : sSettle;
       await guard(step('.intro-ring', { scale: curScale * 1.02 }, { duration: ANTICIPATION_MS / 1000, ease: 'easeOut' }), ANTICIPATION_MS);
 
       spinRef.current = true;
@@ -278,7 +331,7 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
       if (slotRect && slotRect.width > 0) {
         const dx = slotRect.x + slotRect.width / 2 - vw / 2;
         const dy = slotRect.y + slotRect.height / 2 - vh / 2;
-        const target = slotRect.width / S;
+        const target = slotRect.width / HH;
         await guard(step('.intro-ring', { x: dx, y: dy, scale: target * 1.04 }, { duration: FLIGHT_MS / 1000, ease: [0.7, 0, 0.9, 0.4] }), FLIGHT_MS);
         spinRef.current = false;
         await guard(step('.intro-ring', { scale: target }, { duration: SETTLE_MS / 1000, ease: 'easeOut' }), SETTLE_MS);
@@ -302,30 +355,31 @@ function IntroSequence({ assetPath = '/', onDone }: { assetPath?: string; onDone
 
   const vh = window.innerHeight;
   const vw = window.innerWidth;
-  const S = vw <= 640 ? 0.4 * vw : Math.min(0.72 * vh, 660);
   const START = 120;
   const wordSize = Math.min(vw, vh) * 0.05;
-  // hero renders at full size (scale 1), centered; the turntable grows to meet
-  // it for the crossfade, and the reveal only pans it to engraving-center.
+  // The ring canvas and the hero share the same big box (~160vh); the ring is
+  // transform-scaled down to the settle size for the entrance and grows to fill
+  // the box during the tilt, meeting the hero at scale 1 with identical framing.
   const HH = HERO_VH * vh;
 
   return (
     <div ref={scope} className="pointer-events-none fixed inset-0 z-[55]" aria-hidden="true">
       <div className="intro-backdrop absolute inset-0 opacity-0" style={{ background: 'color-mix(in srgb, var(--bg) 78%, transparent)' }} />
 
-      {/* turntable ring — parked outside the top-right corner */}
+      {/* ring canvas (turntable + tilt) — parked outside the top-right corner */}
       <div
         className="intro-ring fixed"
         style={{
-          left: vw / 2 - S / 2,
-          top: vh / 2 - S / 2,
-          width: S,
-          height: S,
+          left: vw / 2 - HH / 2,
+          top: vh / 2 - HH / 2,
+          width: HH,
+          height: HH,
           willChange: 'transform',
-          transform: `translate(${vw / 2 + START / 2}px, ${-vh / 2 - START / 2}px) scale(${START / S})`,
+          transformOrigin: '50% 50%',
+          transform: `translate(${vw / 2 + START / 2}px, ${-vh / 2 - START / 2}px) scale(${START / HH})`,
         }}
       >
-        <canvas ref={canvasRef} className="h-full w-full" style={{ width: S, height: S }} />
+        <canvas ref={canvasRef} className="h-full w-full" style={{ width: '100%', height: '100%' }} />
       </div>
 
       {INTRO_PEAK === 'engrave' && (
@@ -400,7 +454,8 @@ export function IntroOverlay() {
       else finish();
     };
     const timer = window.setTimeout(() => done(false), 1200);
-    // engrave heroes are tiny — the gate only waits on the frame sequence
+    // Gate only on the heavy turntable sequence; the tilt frames and engraving
+    // heroes ride in behind it and must never be the reason the intro skips.
     getRingFrames()
       .then(() => done(true))
       .catch(() => done(false))

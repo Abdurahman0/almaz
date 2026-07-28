@@ -63,6 +63,43 @@ async function loadFrames(assetPath: string): Promise<ImageBitmap[]> {
   return out;
 }
 
+// ---------------- tilt sequence (intro peak approach) ----------------
+/*
+ * 48-frame 3D tilt (public/ring/tilt/tilt_0000.webp … tilt_0047.webp), 1600px
+ * transparent WebP. Frame 0 is framed identically to turntable frame 0 (gem
+ * facing camera, silhouette bbox measured pixel-for-pixel equal) so the
+ * turntable->tilt handoff is seamless; frame 47 is pixel-identical to the
+ * inner-band hero (inner_clean), so the tilt->hero handoff is seamless too. The
+ * peak plays 0->47 (tip up, present the inner wall) while the ring scales in.
+ */
+export const TILT_ASSET_BASE = 'ring/tilt';
+export const TILT_COUNT = 48;
+
+let tiltCache: Promise<ImageBitmap[]> | null = null;
+
+export function getTiltFrames(assetPath = '/'): Promise<ImageBitmap[]> {
+  if (!tiltCache) {
+    tiltCache = loadTiltFrames(assetPath).catch((e) => {
+      tiltCache = null; // allow retry on transient failure
+      throw e;
+    });
+  }
+  return tiltCache;
+}
+
+async function loadTiltFrames(assetPath: string): Promise<ImageBitmap[]> {
+  const base = `${assetPath}${TILT_ASSET_BASE}`;
+  const urls = Array.from({ length: TILT_COUNT }, (_, i) => `${base}/tilt_${String(i).padStart(4, '0')}.webp`);
+  const out: ImageBitmap[] = new Array(TILT_COUNT);
+  const BATCH = 12;
+  for (let i = 0; i < urls.length; i += BATCH) {
+    const slice = urls.slice(i, i + BATCH);
+    const bmps = await Promise.all(slice.map(loadOne));
+    bmps.forEach((b, j) => (out[i + j] = b));
+  }
+  return out;
+}
+
 // ---------------- spritesheet (sidebar idle) ----------------
 export interface RingSheet {
   image: ImageBitmap;
@@ -108,15 +145,17 @@ async function loadSheet(assetPath: string): Promise<RingSheet> {
 export const ENGRAVE_CLEAN = 'ring/engrave/inner_clean.webp';
 export const ENGRAVE_ENGRAVED = 'ring/engrave/inner_engraved.webp';
 /**
- * Engraving geometry measured from the upright render (2400px frame): the
- * "Almaz Silver" letters occupy x 57-80%, y 31-53%, centroid (0.692, 0.392),
- * baseline principal axis ~41deg. Text reads upper-left (Almaz) -> lower-right
- * (Silver) along the band arc, so the reveal mask sweeps UL->LR; that maps to a
- * CSS gradient angle of ~131deg (see ENGRAVE_ANGLE in IntroOverlay). Flip
- * ENGRAVE_SWEEP_DIR to reverse.
+ * Engraving geometry re-measured from the NEW heroes (tilt frame 47 render,
+ * 1600px) by diffing inner_clean vs inner_engraved (6222 cut pixels):
+ *   - letters occupy x 55.6-82.0%, y 43.2-64.6%, centroid (0.686, 0.497)
+ *   - principal axis ~26.8deg (image coords), i.e. the baseline runs down-right
+ *   - reading order Almaz(0.557,0.458, upper-left) -> Silver(0.817,0.636,
+ *     lower-right), reading direction (0.826,0.564)
+ * The reveal mask sweeps along that baseline UL->LR, a CSS gradient angle of
+ * ~124deg (see ENGRAVE_ANGLE in IntroOverlay). Flip ENGRAVE_SWEEP_DIR to reverse.
  */
-export const ENGRAVE_CENTROID = { x: 0.692, y: 0.392 };
-export const ENGRAVE_BASELINE_DEG = 41;
+export const ENGRAVE_CENTROID = { x: 0.686, y: 0.497 };
+export const ENGRAVE_BASELINE_DEG = 27;
 export const ENGRAVE_SWEEP_DIR = 1; // 1: Almaz(UL) -> Silver(LR), measured reading order
 
 let engraveCache: Promise<void> | null = null;
@@ -143,14 +182,17 @@ export function getEngraveReady(assetPath = '/'): Promise<void> {
 }
 
 /**
- * Warm all intro asset sets in the background (login screen): the heavy frame
- * sequence, the small spritesheet, and the two tiny engraving heroes. The
- * engraving pair (~0.42 MB) is trivial and must never be why the intro skips.
+ * Warm all intro asset sets in the background (login screen): the heavy 180-frame
+ * turntable, the 48-frame tilt sequence (~5.6 MB), the small spritesheet, and the
+ * two tiny engraving heroes (~0.19 MB). The tilt frames and heroes must never be
+ * why the intro skips — the readiness gate only ever waits on the turntable
+ * (getRingFrames); everything else rides in on idle time behind it.
  */
 export function prefetchRingAssets(assetPath = '/'): void {
   const kick = () => {
     void getRingSheet(assetPath).catch(() => {});
     void getEngraveReady(assetPath).catch(() => {});
+    void getTiltFrames(assetPath).catch(() => {});
     void getRingFrames(assetPath).catch(() => {});
   };
   const ric = (window as unknown as { requestIdleCallback?: (cb: () => void) => void }).requestIdleCallback;
