@@ -89,7 +89,7 @@ export default function OrderDetailPage() {
 
       <Card>
         <h2 className="mb-5 text-md font-semibold text-text">Tayyorlanish bosqichi</h2>
-        <CraftStepper status={o.status} />
+        <CraftStepper status={o.status} history={o.history} />
       </Card>
 
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">

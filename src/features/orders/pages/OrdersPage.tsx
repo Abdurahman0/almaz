@@ -15,6 +15,8 @@ import {
 } from '@/shared/ui';
 import { formatDate, formatDateTime } from '@/shared/lib/format';
 import { useOrders, useOrdersPage } from '../hooks';
+import { StageIcon, STAGE_ORDER } from '../components/StageIcon';
+import { craftStageIndex } from '../stages';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
 const PAGE_SIZE = 30;
@@ -163,7 +165,14 @@ function OrderList() {
                       {order.order_no}
                     </Link>
                   </td>
-                  <td><OrderStatusBadge status={order.status} /></td>
+                  <td>
+                    <span className="flex items-center gap-2">
+                      {craftStageIndex(order.status) >= 0 && (
+                        <StageIcon stage={STAGE_ORDER[craftStageIndex(order.status)]} status="active" size="sm" />
+                      )}
+                      <OrderStatusBadge status={order.status} />
+                    </span>
+                  </td>
                   <td className="tnum text-right text-muted">{order.items.length} ta</td>
                   <td className="text-right font-semibold text-accent-ink"><Money value={order.grand_total} /></td>
                   <td className="tnum text-right text-muted">{formatDateTime(order.created_at)}</td>

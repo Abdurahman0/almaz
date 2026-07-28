@@ -1,19 +1,10 @@
 import type { OrderStatus } from '@/shared/api/types';
 
 /**
- * The API's 13 order statuses mapped onto the 5 jewelry crafting stages
- * shown in the stepper. Cancelled/refunded/returned fall outside the pipeline.
+ * The API's order statuses mapped onto the 5 jewelry crafting stages shown in
+ * the pipeline (see STAGE_META in StageIcon.tsx for the stage labels/icons).
+ * Cancelled/refunded/returned fall outside the pipeline (-1).
  */
-export const craftStages = [
-  { key: 'eskiz', label: 'Eskiz' },
-  { key: 'quyish', label: 'Quyish' },
-  { key: 'tosh', label: "Tosh o'rnatish" },
-  { key: 'sayqal', label: 'Sayqal' },
-  { key: 'topshirildi', label: 'Topshirildi' },
-] as const;
-
-export type CraftStageKey = (typeof craftStages)[number]['key'];
-
 const stageByStatus: Record<OrderStatus, number> = {
   draft: 0,
   pending: 0,
@@ -30,7 +21,7 @@ const stageByStatus: Record<OrderStatus, number> = {
   returned: -1,
 };
 
-/** Index of the active craft stage, or -1 for cancelled-family statuses. */
+/** Index (0..4) of the active craft stage, or -1 for cancelled-family statuses. */
 export function craftStageIndex(status: OrderStatus): number {
   return stageByStatus[status];
 }
