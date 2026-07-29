@@ -12,9 +12,9 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
+import { ErrorCard, Money, SkeletonRows } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
-import { useOrders, useSetOrderStatus } from '../hooks';
+import { useOrders } from '../hooks';
 import { craftStageIndex } from '../stages';
 import { StageIcon, STAGE_META, STAGE_ORDER, type StageKey } from './StageIcon';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
@@ -71,7 +71,7 @@ function Column({ stage, orders, onOpen }: { stage: StageKey; orders: OrderOut[]
   const { setNodeRef, isOver } = useDroppable({ id: stage });
   const total = orders.reduce((s, o) => s + Number(o.grand_total), 0);
   return (
-    <div className="flex h-[calc(100dvh-198px)] w-[280px] shrink-0 flex-col rounded-[var(--r-md)] border border-border bg-bg/40">
+    <div className="flex h-[calc(100dvh-250px)] max-h-[640px] w-[280px] shrink-0 flex-col rounded-[var(--r-md)] border border-border bg-bg/40">
       <div className="flex items-center justify-between gap-2 px-3.5 py-3">
         <span className="flex items-center gap-2 text-sm font-semibold text-text">
           <StageIcon stage={stage} status="done" size="sm" />
@@ -100,7 +100,6 @@ function Column({ stage, orders, onOpen }: { stage: StageKey; orders: OrderOut[]
 export function OrderBoardDnd() {
   const navigate = useNavigate();
   const query = useOrders(undefined, 200);
-  const setStatus = useSetOrderStatus();
   const [local, setLocal] = useState<OrderOut[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
 
@@ -133,13 +132,10 @@ export function OrderBoardDnd() {
     if (!order) return;
     const targetIdx = STAGE_META[stage].index;
     if (craftStageIndex(order.status) === targetIdx) return; // same column
+    // Move locally only — the API has no manual stage-transition endpoint yet
+    // (docs/API-GAPS.md). Persisted the moment one ships; session-local for now.
     const newStatus = STAGE_PRIMARY[stage];
-    const prev = local;
-    setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: newStatus } : o))); // optimistic
-    setStatus.mutate(
-      { id: order.id, status: newStatus },
-      { onError: () => { setLocal(prev); toast.error("Bosqichni o'zgartirib bo'lmadi"); } },
-    );
+    setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: newStatus } : o)));
   };
 
   if (query.isPending) return <SkeletonRows rows={6} />;
@@ -147,6 +143,9 @@ export function OrderBoardDnd() {
 
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <p className="mb-2 text-2xs text-muted">
+        Kartani sudrab bosqichni o'zgartiring — o'zgarishlar hozircha faqat shu sessiyada saqlanadi (backend endpointi kutilmoqda).
+      </p>
       <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-3">
         {STAGE_ORDER.map((stage) => (
           <Column key={stage} stage={stage} orders={byStage.get(stage) ?? []} onOpen={(id) => navigate(`/orders/${id}`)} />

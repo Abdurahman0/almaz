@@ -31,6 +31,11 @@ import { deriveKind, type SocialItem, type SocialKind } from '../api';
 type Tab = 'feed' | 'reels';
 
 const kindLabel: Record<string, string> = { post: 'Post', reel: 'Reel', story: 'Story' };
+const linkHint: Record<SocialKind, string> = {
+  post: 'https://www.instagram.com/p/...',
+  reel: 'https://www.instagram.com/reel/...',
+  story: 'https://www.instagram.com/stories/.../',
+};
 
 /** ⋯ actions button used on tiles and story rings. */
 function ActionMenu({ items, className }: { items: MenuItem[]; className?: string }) {
@@ -110,7 +115,7 @@ function Tile({ item, reel, onOpen, menu }: { item: SocialItem; reel: boolean; o
   );
 }
 
-const emptyDraft = { productId: '', link: '', imageUrl: '' };
+const emptyDraft = { productId: '', link: '', imageUrl: '', kind: 'post' as SocialKind };
 
 export default function SocialPage() {
   const lang = useUiStore((s) => s.lang);
@@ -160,10 +165,11 @@ export default function SocialPage() {
     setDraft(emptyDraft);
     setCreateOpen(true);
   };
-  // Type detected live from the link. Reel links crash the backend unless an
-  // image is supplied, so we require one before allowing submit.
-  const detectedKind: SocialKind | null = draft.link.trim() ? deriveKind(draft.link) : null;
-  const reelNeedsImage = detectedKind === 'reel' && !draft.imageUrl.trim();
+  // User chooses the type; we also detect it from the link to warn on mismatch.
+  // Reel links crash the backend unless an image is supplied → require one.
+  const linkKind: SocialKind | null = draft.link.trim() ? deriveKind(draft.link) : null;
+  const kindMismatch = Boolean(linkKind && linkKind !== draft.kind);
+  const reelNeedsImage = draft.kind === 'reel' && !draft.imageUrl.trim();
   const canSubmit = Boolean(draft.productId && draft.link.trim() && !reelNeedsImage);
 
   const submitCreate = () => {
@@ -326,30 +332,59 @@ export default function SocialPage() {
       {/* Create */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Instagram kontent qo'shish">
         <div className="space-y-4">
-          <Select
-            label="Mahsulot"
-            placeholder="Mahsulotni tanlang"
-            options={productOptions}
-            value={draft.productId}
-            onChange={(v) => setDraft((d) => ({ ...d, productId: v }))}
-            searchable
-          />
+          {/* content type chooser */}
+          <div>
+            <p className="mb-1.5 text-xs font-medium text-muted">Kontent turi</p>
+            <div className="flex gap-1 rounded-[var(--r-sm)] bg-surface-2 p-0.5">
+              {(['post', 'reel', 'story'] as SocialKind[]).map((k) => (
+                <button
+                  key={k}
+                  type="button"
+                  onClick={() => setDraft((d) => ({ ...d, kind: k }))}
+                  className={`flex-1 rounded-[var(--r-xs)] py-1.5 text-xs font-semibold transition-colors ${
+                    draft.kind === k ? 'bg-surface text-text shadow-xs' : 'text-muted hover:text-text'
+                  }`}
+                >
+                  {kindLabel[k]}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* product picker + load state */}
+          <div>
+            <Select
+              label="Mahsulot"
+              placeholder="Mahsulotni tanlang"
+              options={productOptions}
+              value={draft.productId}
+              onChange={(v) => setDraft((d) => ({ ...d, productId: v }))}
+              searchable
+              disabled={products.isPending}
+            />
+            {products.isPending && <p className="mt-1 text-2xs text-muted">Mahsulotlar yuklanmoqda…</p>}
+            {products.isError && <p className="mt-1 text-2xs text-danger">Mahsulotlar yuklanmadi</p>}
+            {products.isSuccess && productOptions.length === 0 && (
+              <p className="mt-1 text-2xs text-muted">Mahsulot yo'q — avval mahsulot qo'shing</p>
+            )}
+          </div>
+
           <div>
             <Input
-              label="Instagram havolasi"
-              placeholder="https://www.instagram.com/p/... , /reel/... yoki /stories/.../"
+              label={`${kindLabel[draft.kind]} havolasi`}
+              placeholder={linkHint[draft.kind]}
               value={draft.link}
               onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))}
             />
-            {detectedKind && (
-              <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted">
-                Aniqlangan tur:
-                <span className="rounded-full bg-surface-2 px-2 py-0.5 font-semibold text-text">{kindLabel[detectedKind]}</span>
+            {kindMismatch && (
+              <p className="mt-1.5 text-2xs text-danger">
+                Havola «{kindLabel[linkKind!]}» ga o'xshaydi — tur havoladan aniqlanadi.
               </p>
             )}
           </div>
+
           <ImageUpload
-            label={detectedKind === 'reel' ? 'Rasm (reel uchun majburiy)' : 'Rasm (tavsiya etiladi)'}
+            label={draft.kind === 'reel' ? 'Rasm (reel uchun majburiy)' : 'Rasm (tavsiya etiladi)'}
             value={draft.imageUrl || null}
             onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url ?? '' }))}
           />
@@ -359,7 +394,7 @@ export default function SocialPage() {
             </p>
           ) : (
             <p className="text-2xs text-muted">
-              Instagram rasmni avtomatik olib kelmaydi — lentada ko'rinishi uchun rasm yuklang. Tur havoladan aniqlanadi.
+              Instagram rasmni avtomatik olib kelmaydi — lentada ko'rinishi uchun rasm yuklang.
             </p>
           )}
           <div className="flex justify-end gap-3">

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { LayoutGrid, List, Plus } from 'lucide-react';
 import {
@@ -15,14 +15,13 @@ import {
   Money,
   type SelectOption,
 } from '@/shared/ui';
-import { formatDate, formatDateTime } from '@/shared/lib/format';
+import { formatDateTime } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
-import { useOrders, useOrdersPage } from '../hooks';
+import { useOrdersPage } from '../hooks';
 import { StageIcon, STAGE_ORDER } from '../components/StageIcon';
 import { OrderBoardDnd } from '../components/OrderBoardDnd';
 import { craftStageIndex } from '../stages';
-import { FEATURES } from '@/shared/config/flags';
-import type { OrderOut, OrderStatus } from '@/shared/api/types';
+import type { OrderStatus } from '@/shared/api/types';
 
 const PAGE_SIZE = 30;
 
@@ -34,89 +33,6 @@ const statusOptions: SelectOption[] = [
   { value: '', label: 'Barcha holatlar' },
   ...STATUS_FILTERS.map((s) => ({ value: s, label: orderStatusLabels[s] })),
 ];
-
-/** Board columns — each groups a few statuses into one pipeline stage. */
-const COLUMNS: Array<{ key: string; label: string; color: string; statuses: OrderStatus[] }> = [
-  { key: 'new', label: 'Yangi', color: '#8b929e', statuses: ['draft', 'pending'] },
-  { key: 'payment', label: "To'lov", color: '#c69a4a', statuses: ['waiting_payment', 'payment_review'] },
-  { key: 'confirmed', label: 'Tasdiqlangan', color: '#5b86c4', statuses: ['confirmed'] },
-  { key: 'prep', label: 'Tayyorlanmoqda', color: '#9575cd', statuses: ['preparing', 'packed'] },
-  { key: 'shipping', label: "Yo'lda", color: '#4aa3c8', statuses: ['shipping'] },
-  { key: 'done', label: 'Yakunlangan', color: '#4caf7d', statuses: ['delivered', 'completed'] },
-  { key: 'cancelled', label: 'Bekor / qaytgan', color: '#d06868', statuses: ['cancelled', 'refunded', 'returned'] },
-];
-
-function OrderCard({ order, color, onOpen }: { order: OrderOut; color: string; onOpen: () => void }) {
-  return (
-    <button
-      onClick={onOpen}
-      style={{ borderLeftColor: color }}
-      className="w-full rounded-xl border border-l-[3px] border-border bg-surface p-3 text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm"
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-semibold text-text">{order.order_no}</span>
-        <span className="tnum text-sm font-semibold text-accent-ink">
-          <Money short value={order.grand_total} />
-        </span>
-      </div>
-      <div className="mt-1.5 flex items-center justify-between gap-2 text-2xs text-muted">
-        <span>{order.items.length} ta mahsulot</span>
-        <span className="tnum">{formatDate(order.created_at)}</span>
-      </div>
-    </button>
-  );
-}
-
-function OrderBoard() {
-  const navigate = useNavigate();
-  const orders = useOrders(undefined, 200);
-
-  const grouped = useMemo(() => {
-    const map = new Map<string, OrderOut[]>();
-    for (const c of COLUMNS) map.set(c.key, []);
-    const colOf = (s: OrderStatus) => COLUMNS.find((c) => c.statuses.includes(s))?.key;
-    for (const o of orders.data ?? []) {
-      const k = colOf(o.status);
-      if (k) map.get(k)!.push(o);
-    }
-    return map;
-  }, [orders.data]);
-
-  if (orders.isPending) return <SkeletonRows rows={6} />;
-  if (orders.isError) return <ErrorCard error={orders.error} onRetry={() => orders.refetch()} />;
-
-  return (
-    <div className="-mx-1 flex gap-4 overflow-x-auto px-1 pb-3">
-      {COLUMNS.map((col) => {
-        const items = grouped.get(col.key) ?? [];
-        return (
-          <div
-            key={col.key}
-            className="flex h-[calc(100dvh-198px)] w-[280px] shrink-0 flex-col rounded-2xl border border-border bg-bg/40"
-          >
-            <div className="flex items-center justify-between gap-2 px-3.5 py-3">
-              <span className="flex items-center gap-2 text-sm font-semibold text-text">
-                <span className="h-2.5 w-2.5 rounded-full" style={{ background: col.color }} />
-                {col.label}
-              </span>
-              <span className="tnum rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-semibold text-muted">
-                {items.length}
-              </span>
-            </div>
-            <div className="min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 pb-3">
-              {items.map((o) => (
-                <OrderCard key={o.id} order={o} color={col.color} onOpen={() => navigate(`/orders/${o.id}`)} />
-              ))}
-              {items.length === 0 && (
-                <p className="px-2 py-6 text-center text-xs text-muted">Bo'sh</p>
-              )}
-            </div>
-          </div>
-        );
-      })}
-    </div>
-  );
-}
 
 function OrderList() {
   const navigate = useNavigate();
@@ -230,7 +146,7 @@ export default function OrdersPage() {
         }
       />
 
-      {view === 'board' ? (FEATURES.ordersKanbanDnd ? <OrderBoardDnd /> : <OrderBoard />) : <OrderList />}
+      {view === 'board' ? <OrderBoardDnd /> : <OrderList />}
     </div>
   );
 }
