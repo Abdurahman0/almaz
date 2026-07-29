@@ -12,16 +12,15 @@ export function AppLayout() {
       <Sidebar />
       <div className="flex min-w-0 flex-1 flex-col gap-3 overflow-hidden lg:gap-4">
         <Topbar />
-        <div className="glass relative flex min-h-0 flex-1 flex-col overflow-hidden rounded-[var(--r-lg)]">
-          <main
-            className="flex-1 overflow-y-auto overflow-x-hidden px-5 pb-20 pt-6 md:pb-8 lg:px-8"
-            style={{ scrollbarGutter: 'stable' }}
-          >
-            <div className="mx-auto w-full max-w-content">
-              <Outlet />
-            </div>
-          </main>
-        </div>
+        {/* No content panel — page components float directly on the canvas. */}
+        <main
+          className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-0.5 pb-20 md:pb-2"
+          style={{ scrollbarGutter: 'stable' }}
+        >
+          <div className="mx-auto w-full max-w-content">
+            <Outlet />
+          </div>
+        </main>
       </div>
       <MobileNav />
       <IntroOverlay />

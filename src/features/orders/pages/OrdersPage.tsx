@@ -16,6 +16,7 @@ import {
   type SelectOption,
 } from '@/shared/ui';
 import { formatDate, formatDateTime } from '@/shared/lib/format';
+import { useClients } from '@/features/clients/hooks';
 import { useOrders, useOrdersPage } from '../hooks';
 import { StageIcon, STAGE_ORDER } from '../components/StageIcon';
 import { OrderBoardDnd } from '../components/OrderBoardDnd';
@@ -119,6 +120,8 @@ function OrderBoard() {
 
 function OrderList() {
   const navigate = useNavigate();
+  const clients = useClients();
+  const clientName = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? null;
   const [status, setStatus] = useState<string>(''); // '' = all
   const [offset, setOffset] = useState(0);
   useEffect(() => setOffset(0), [status]);
@@ -145,6 +148,7 @@ function OrderList() {
             <thead>
               <tr>
                 <th>Raqam</th>
+                <th>Mijoz</th>
                 <th>Holat</th>
                 <th className="!text-right">Mahsulotlar</th>
                 <th className="!text-right">Summa</th>
@@ -163,6 +167,7 @@ function OrderList() {
                       {order.order_no}
                     </Link>
                   </td>
+                  <td className="text-text">{clientName(order.customer_id) ?? <span className="text-muted">—</span>}</td>
                   <td>
                     <span className="flex items-center gap-2">
                       {craftStageIndex(order.status) >= 0 && (

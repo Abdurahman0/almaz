@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, Pencil, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
@@ -19,8 +19,11 @@ import { formatDateTime } from '@/shared/lib/format';
 import { api } from '@/shared/api/client';
 import { FEATURES } from '@/shared/config/flags';
 import type { PaymentOut } from '@/shared/api/types';
-import { CraftStepper } from '../components/CraftStepper';
 import { useCancelOrder, useDelivery, useDuplicateOrder, useOrder } from '../hooks';
+import { useProducts } from '@/features/products/hooks';
+import { useClients } from '@/features/clients/hooks';
+import { pickName } from '@/shared/lib/localize';
+import { useUiStore } from '@/shared/stores/ui';
 import { orderStatusLabels } from '@/shared/ui/Badge';
 
 const deliveryLabels: Record<string, string> = {
@@ -38,8 +41,18 @@ export default function OrderDetailPage() {
   const delivery = useDelivery(orderId);
   const cancelMutation = useCancelOrder(orderId);
   const duplicateMutation = useDuplicateOrder();
+  const lang = useUiStore((s) => s.lang);
+  const clients = useClients();
+  const products = useProducts();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
+
+  // resolve real names from the backend (order items carry only ids)
+  const variantNames = useMemo(() => {
+    const m = new Map<string, { product: string; sku: string }>();
+    for (const p of products.data ?? []) for (const v of p.variants) m.set(v.id, { product: pickName(p, lang), sku: v.sku });
+    return m;
+  }, [products.data, lang]);
 
   const payments = useQuery({
     queryKey: ['payments', 'order', orderId],
@@ -60,6 +73,7 @@ export default function OrderDetailPage() {
   if (order.isError) return <ErrorCard error={order.error} onRetry={() => order.refetch()} />;
 
   const o = order.data;
+  const clientName = clients.data?.find((c) => c.id === o.customer_id)?.name ?? null;
   const paid = payments.data?.filter((p) => p.status === 'approved').length ?? 0;
   const totalPayments = payments.data?.length ?? 0;
   const paidPercent = totalPayments === 0 ? 0 : Math.round((paid / totalPayments) * 100);
@@ -78,7 +92,9 @@ export default function OrderDetailPage() {
           </button>
           <div>
             <h1 className="text-xl text-text">{o.order_no}</h1>
-            <p className="text-sm text-muted">{formatDateTime(o.created_at)}</p>
+            <p className="text-sm text-muted">
+              {clientName ? `${clientName} · ` : ''}{formatDateTime(o.created_at)}
+            </p>
           </div>
           <OrderStatusBadge status={o.status} />
         </div>
@@ -111,11 +127,6 @@ export default function OrderDetailPage() {
         </div>
       </div>
 
-      <Card>
-        <h2 className="mb-5 text-md font-semibold text-text">Tayyorlanish bosqichi</h2>
-        <CraftStepper status={o.status} history={o.history} />
-      </Card>
-
       <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
         <Card>
           <h2 className="mb-4 text-md font-semibold text-text">Mahsulotlar</h2>
@@ -125,9 +136,12 @@ export default function OrderDetailPage() {
                 key={item.id}
                 className="flex items-center justify-between rounded-lg border border-border p-4"
               >
-                <div>
-                  <p className="font-mono text-xs font-medium text-text">Variant {item.variant_id.slice(0, 8)}</p>
+                <div className="min-w-0">
+                  <p className="truncate text-sm font-medium text-text">
+                    {variantNames.get(item.variant_id)?.product ?? `Variant ${item.variant_id.slice(0, 8)}`}
+                  </p>
                   <p className="text-xs text-muted">
+                    {variantNames.get(item.variant_id)?.sku ? `${variantNames.get(item.variant_id)!.sku} · ` : ''}
                     {item.quantity} dona{item.ring_size ? ` · o'lcham ${item.ring_size}` : ''}
                   </p>
                 </div>

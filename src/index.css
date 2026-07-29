@@ -470,9 +470,8 @@
   z-index: -1;
   pointer-events: none;
   background:
-    radial-gradient(40rem 40rem at 10% 4%, color-mix(in srgb, var(--accent) 26%, transparent), transparent 60%),
-    radial-gradient(36rem 36rem at 92% 96%, color-mix(in srgb, var(--accent) 22%, transparent), transparent 60%),
-    radial-gradient(30rem 30rem at 66% 16%, color-mix(in srgb, var(--accent) 14%, transparent), transparent 58%);
+    radial-gradient(40rem 40rem at 8% 2%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 58%),
+    radial-gradient(36rem 36rem at 94% 98%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 58%);
 }
 /* When glass is disabled, drop the blobs too so panels read as flat surfaces. */
 :root[data-glass='off'] .app-canvas::before { display: none; }

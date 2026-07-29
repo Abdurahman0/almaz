@@ -205,7 +205,7 @@ export default function SocialPage() {
         subheading="Do'kon kontenti — postlar, reels va stories"
         actions={
           <Button onClick={openCreate}>
-            <Plus className="h-4 w-4" strokeWidth={2} /> Post qo'shish
+            <Plus className="h-4 w-4" strokeWidth={2} /> Kontent qo'shish
           </Button>
         }
       />
@@ -231,8 +231,8 @@ export default function SocialPage() {
         <Card>
           <EmptyState
             heading="Hali Instagram kontenti yo'q"
-            hint="«Post qo'shish» tugmasi orqali Instagram post/reel/story havolasini qo'shing"
-            action={<Button variant="secondary" size="sm" onClick={openCreate}>Post qo'shish</Button>}
+            hint="«Kontent qo'shish» orqali Instagram post, reel yoki story havolasini qo'shing"
+            action={<Button variant="secondary" size="sm" onClick={openCreate}>Kontent qo'shish</Button>}
           />
         </Card>
       )}
@@ -265,7 +265,7 @@ export default function SocialPage() {
           </div>
 
           {grid.length === 0 ? (
-            <p className="py-10 text-center text-sm text-muted">{tab === 'reels' ? "Reels yo'q" : "Post yo'q"}</p>
+            <p className="py-10 text-center text-sm text-muted">{tab === 'reels' ? "Reels yo'q" : "Kontent yo'q"}</p>
           ) : (
             <div className="grid grid-cols-3 gap-1.5 sm:gap-2">
               {grid.map((item) => (
@@ -324,7 +324,7 @@ export default function SocialPage() {
       </Modal>
 
       {/* Create */}
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Instagram post qo'shish">
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Instagram kontent qo'shish">
         <div className="space-y-4">
           <Select
             label="Mahsulot"

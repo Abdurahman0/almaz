@@ -97,47 +97,62 @@ export default function PaymentsPage() {
             />
           </Card>
         )}
-        {payments.isSuccess && payments.data.map((p) => (
-          <Card key={p.id} className="flex flex-wrap items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="flex items-center gap-2">
-                <PaymentStatusBadge status={p.status} />
-                <Link
-                  to={`/orders/${p.order_id}`}
-                  className="text-sm font-semibold text-text hover:text-accent-ink"
-                >
-                  Buyurtma {p.order_id.slice(0, 8)}
-                </Link>
-              </div>
-              <p className="mt-1 text-xs text-muted">
-                {p.payer_name ?? 'Nomaʼlum to‘lovchi'} · {formatDateTime(p.created_at)}
-              </p>
-              {p.reject_reason && <p className="mt-1 text-xs text-danger">{p.reject_reason}</p>}
-            </div>
-            <div className="flex items-center gap-2">
-              {p.receipt_url && (
-                <a
-                  href={p.receipt_url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 rounded-lg border border-border px-3 py-2 text-xs text-muted transition-colors hover:text-accent-ink"
-                >
-                  <Receipt className="h-4 w-4" strokeWidth={1.5} /> Chek
-                </a>
-              )}
-              {p.status === 'pending' && (
-                <>
-                  <Button size="sm" onClick={() => approve.mutate({ id: p.id }, { onSuccess: () => toast.success("To'lov tasdiqlandi"), onError: () => toast.error('Tasdiqlashda xatolik') })}>
-                    <Check className="h-4 w-4" strokeWidth={2} /> Tasdiqlash
-                  </Button>
-                  <Button size="sm" variant="danger" onClick={() => setRejectId(p.id)}>
-                    <X className="h-4 w-4" strokeWidth={2} /> Rad etish
-                  </Button>
-                </>
-              )}
-            </div>
+        {payments.isSuccess && payments.data.length > 0 && (
+          <Card className="overflow-x-auto p-0">
+            <table className="data-table min-w-[760px]">
+              <thead>
+                <tr>
+                  <th>Holat</th>
+                  <th>Buyurtma</th>
+                  <th>To'lovchi</th>
+                  <th>Sana</th>
+                  <th>Chek</th>
+                  <th className="!text-right">Amallar</th>
+                </tr>
+              </thead>
+              <tbody>
+                {payments.data.map((p) => (
+                  <tr key={p.id}>
+                    <td>
+                      <PaymentStatusBadge status={p.status} />
+                      {p.reject_reason && <p className="mt-1 max-w-[180px] truncate text-2xs text-danger" title={p.reject_reason}>{p.reject_reason}</p>}
+                    </td>
+                    <td>
+                      <Link to={`/orders/${p.order_id}`} className="font-mono text-xs font-semibold text-text hover:text-accent-ink">
+                        {p.order_id.slice(0, 8)}
+                      </Link>
+                    </td>
+                    <td className="text-text">{p.payer_name ?? <span className="text-muted">Nomaʼlum</span>}</td>
+                    <td className="tnum text-muted">{formatDateTime(p.created_at)}</td>
+                    <td>
+                      {p.receipt_url ? (
+                        <a href={p.receipt_url} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-xs text-accent-ink hover:underline">
+                          <Receipt className="h-3.5 w-3.5" strokeWidth={1.5} /> Chek
+                        </a>
+                      ) : (
+                        <span className="text-muted">—</span>
+                      )}
+                    </td>
+                    <td>
+                      {p.status === 'pending' ? (
+                        <div className="flex items-center justify-end gap-2">
+                          <Button size="sm" onClick={() => approve.mutate({ id: p.id }, { onSuccess: () => toast.success("To'lov tasdiqlandi"), onError: () => toast.error('Tasdiqlashda xatolik') })}>
+                            <Check className="h-4 w-4" strokeWidth={2} /> Tasdiqlash
+                          </Button>
+                          <Button size="sm" variant="danger" onClick={() => setRejectId(p.id)}>
+                            <X className="h-4 w-4" strokeWidth={2} /> Rad etish
+                          </Button>
+                        </div>
+                      ) : (
+                        <p className="text-right text-muted">—</p>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
           </Card>
-        ))}
+        )}
       </div>
 
       <Modal open={Boolean(rejectId)} onClose={() => setRejectId(null)} heading="To'lovni rad etish">
