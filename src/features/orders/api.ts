@@ -8,6 +8,7 @@ import type {
   OrderCreate,
   OrderOut,
   OrderStatus,
+  OrderUpdate,
 } from '@/shared/api/types';
 
 export interface OrdersListParams extends ListParams {
@@ -40,6 +41,35 @@ export async function createOrder(body: OrderCreate): Promise<OrderOut> {
 
 export async function cancelOrder(orderId: string, body: OrderCancel): Promise<OrderOut> {
   return (await api.post<OrderOut>(`/orders/${orderId}/cancel`, body)).data;
+}
+
+/** Re-create an order from an existing one's line items (a real POST /orders). */
+export async function duplicateOrder(order: OrderOut): Promise<OrderOut> {
+  return createOrder({
+    customer_id: order.customer_id,
+    items: order.items.map((it) => ({
+      variant_id: it.variant_id,
+      quantity: it.quantity,
+      ring_size: it.ring_size,
+      engraving_text: it.engraving_text,
+      box_id: it.box_id,
+    })),
+  });
+}
+
+/*
+ * Endpoints below DO NOT EXIST on the API yet (see docs/API-GAPS.md). They are
+ * wired to the expected shapes and gated by feature flags (FEATURES.orderEditing
+ * / FEATURES.ordersKanbanDnd) so the UI can be switched on the moment the backend
+ * ships them — without further frontend work. Do not call them while the flag is
+ * off (they will 405 today).
+ */
+export async function updateOrder(orderId: string, body: OrderUpdate): Promise<OrderOut> {
+  return (await api.patch<OrderOut>(`/orders/${orderId}`, body)).data;
+}
+
+export async function setOrderStatus(orderId: string, status: OrderStatus): Promise<OrderOut> {
+  return (await api.post<OrderOut>(`/orders/${orderId}/status`, { status })).data;
 }
 
 export async function getDelivery(orderId: string): Promise<DeliveryOut> {

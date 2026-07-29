@@ -1,7 +1,8 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as ordersApi from './api';
 import type { OrdersListParams } from './api';
-import type { OrderCreate, OrderStatus } from '@/shared/api/types';
+import type { OrderCreate, OrderOut, OrderStatus, OrderUpdate } from '@/shared/api/types';
+import { toast } from '@/shared/ui';
 
 export const orderKeys = {
   all: ['orders'] as const,
@@ -49,6 +50,49 @@ export function useCancelOrder(orderId: string) {
   return useMutation({
     mutationFn: (reason: string | null) => ordersApi.cancelOrder(orderId, { reason }),
     onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/** Duplicate an order (real POST /orders from its line items). */
+export function useDuplicateOrder() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (order: OrderOut) => ordersApi.duplicateOrder(order),
+    onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/*
+ * Flag-gated (FEATURES.orderEditing / .ordersKanbanDnd) — the endpoints don't
+ * exist yet (docs/API-GAPS.md). Optimistic update + rollback + toast, so they
+ * behave correctly the moment the backend ships. Never invoked while off.
+ */
+export function useUpdateOrder(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: OrderUpdate) => ordersApi.updateOrder(orderId, body),
+    onMutate: async (body) => {
+      await qc.cancelQueries({ queryKey: orderKeys.detail(orderId) });
+      const prev = qc.getQueryData<OrderOut>(orderKeys.detail(orderId));
+      if (prev) qc.setQueryData<OrderOut>(orderKeys.detail(orderId), { ...prev, ...body } as OrderOut);
+      return { prev };
+    },
+    onError: (_e, _v, ctx) => {
+      if (ctx?.prev) qc.setQueryData(orderKeys.detail(orderId), ctx.prev);
+      toast.error("Buyurtmani yangilashda xatolik");
+    },
+    onSuccess: () => toast.success('Saqlandi'),
+    onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/** Optimistic stage change (kanban DnD / inline). Flag-gated. */
+export function useSetOrderStatus() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => ordersApi.setOrderStatus(id, status),
+    onError: () => toast.error("Bosqichni o'zgartirishda xatolik"),
+    onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
   });
 }
 

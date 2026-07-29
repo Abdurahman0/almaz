@@ -75,6 +75,28 @@ export async function deleteProduct(id: string): Promise<void> {
   await api.delete(`/catalog/products/${id}`);
 }
 
+/** Re-create a product from an existing one (as a draft, images carried over). */
+export async function duplicateProduct(p: ProductOut): Promise<ProductOut> {
+  return createProduct({
+    name_uz: `${p.name_uz} (nusxa)`,
+    name_ru: p.name_ru,
+    description_uz: p.description_uz,
+    description_ru: p.description_ru,
+    category_id: p.category_id,
+    gender_id: p.gender_id,
+    material_id: p.material_id,
+    stone_id: p.stone_id,
+    price: Number(p.price),
+    discount_price: p.discount_price != null ? Number(p.discount_price) : null,
+    engraving_available: p.engraving_available,
+    engraving_price: p.engraving_price != null ? Number(p.engraving_price) : null,
+    low_stock_threshold: p.low_stock_threshold,
+    status: 'draft',
+    image_urls: p.media.map((m) => m.image_url).filter((u): u is string => Boolean(u)),
+    variants: [{ fulfillment_type: 'stocked', stock_qty: 1, is_active: true }],
+  });
+}
+
 export async function addVariant(productId: string, body: VariantCreate): Promise<VariantOut> {
   return (await api.post<VariantOut>(`/catalog/products/${productId}/variants`, body)).data;
 }

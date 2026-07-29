@@ -14,6 +14,7 @@ import type {
   InstagramMediaUpdate,
   ProductCreate,
   ProductMediaCreate,
+  ProductOut,
   ProductStatus,
   ProductUpdate,
   RefCreate,
@@ -324,6 +325,14 @@ export function useDeleteProduct() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => productsApi.deleteProduct(id),
+    onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
+  });
+}
+
+export function useDuplicateProduct() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (p: ProductOut) => productsApi.duplicateProduct(p),
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
 }

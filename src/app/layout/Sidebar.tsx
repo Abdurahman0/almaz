@@ -1,4 +1,5 @@
 import { NavLink } from 'react-router-dom';
+import { motion } from 'framer-motion';
 import {
   LayoutDashboard,
   MessageCircle,
@@ -47,27 +48,22 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`hidden h-full shrink-0 flex-col overflow-hidden rounded-[24px] border border-border bg-surface shadow-sm transition-[width] duration-300 md:flex ${
-        collapsed ? 'w-[76px]' : 'w-[248px]'
+      className={`glass hidden h-full shrink-0 flex-col overflow-hidden rounded-[var(--r-lg)] transition-[width] duration-200 ease-out md:flex ${
+        collapsed ? 'w-16' : 'w-[248px]'
       }`}
     >
-      <div className={`flex items-center gap-1.5 px-4 py-5 ${collapsed ? 'justify-center px-2' : ''}`}>
-        {/* The intro's flying ring FLIP-lands exactly on this slot; the slot's
-            own ring stays hidden until the landing so there is never a double.
-            v2 frames fill 92% of the box, so a 40px box renders a ~37px ring;
-            ~8px visual gap to the brand text, vertically center-aligned. */}
+      {/* brand: ring mark always; wordmark collapses away */}
+      <div className={`flex items-center py-5 ${collapsed ? 'justify-center px-2' : 'gap-1.5 px-4'}`}>
         <span
           data-intro-logo-slot
           className={`-my-1 block h-10 w-10 shrink-0 ${introPlaying ? 'opacity-0' : ''}`}
         >
           <RingCanvas size={40} rotationMs={7000} />
         </span>
-        {!collapsed && (
-          <span className="brand-gradient text-lg font-bold tracking-tight">Almaz Silver</span>
-        )}
+        {!collapsed && <span className="brand-gradient text-lg font-bold tracking-tight">Almaz Silver</span>}
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto px-3 py-2" aria-label="Asosiy">
+      <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2.5 py-2" aria-label="Asosiy">
         {items.map(({ to, icon: Icon, label }) => {
           const link = (
             <NavLink
@@ -76,15 +72,32 @@ export function Sidebar() {
               end={to === '/' || to === '/settings'}
               aria-label={t(label)}
               className={({ isActive }) =>
-                `group flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors duration-150 ${
+                `group relative flex h-10 items-center rounded-[var(--r-sm)] text-sm font-medium transition-colors duration-150 ${
+                  collapsed ? 'justify-center' : 'gap-3 px-3'
+                } ${
                   isActive
-                    ? 'bg-accent-btn text-on-accent shadow-xs'
+                    ? 'bg-accent-soft text-accent-ink'
                     : 'text-muted hover:bg-surface-2 hover:text-text'
-                } ${collapsed ? 'justify-center' : ''}`
+                }`
               }
             >
-              <Icon className="h-[18px] w-[18px] shrink-0" strokeWidth={1.75} />
-              {!collapsed && <span className="truncate">{t(label)}</span>}
+              {({ isActive }) => (
+                <>
+                  {/* 3px accent indicator — shared layout transition between items */}
+                  {isActive && (
+                    <motion.span
+                      layoutId="nav-active-bar"
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
+                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                    />
+                  )}
+                  <Icon
+                    className="h-[20px] w-[20px] shrink-0"
+                    strokeWidth={isActive ? 2.1 : 1.75}
+                  />
+                  <span className={collapsed ? 'sr-only' : 'truncate'}>{t(label)}</span>
+                </>
+              )}
             </NavLink>
           );
           return collapsed ? (
@@ -100,7 +113,8 @@ export function Sidebar() {
       <button
         onClick={toggle}
         aria-label={collapsed ? 'Yon panelni ochish' : 'Yon panelni yopish'}
-        className="m-3 flex items-center justify-center rounded-xl border border-border py-2.5 text-muted transition-colors hover:bg-surface-2 hover:text-text"
+        aria-pressed={collapsed}
+        className="m-2.5 flex h-10 items-center justify-center rounded-[var(--r-sm)] border border-border text-muted transition-colors hover:bg-surface-2 hover:text-text"
       >
         {collapsed ? (
           <ChevronsRight className="h-4 w-4" strokeWidth={1.5} />
@@ -131,8 +145,12 @@ export function MobileNav() {
             }`
           }
         >
-          <Icon className="h-5 w-5" strokeWidth={1.5} />
-          {t(label)}
+          {({ isActive }) => (
+            <>
+              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.1 : 1.5} />
+              {t(label)}
+            </>
+          )}
         </NavLink>
       ))}
     </nav>

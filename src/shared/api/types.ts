@@ -505,6 +505,15 @@ export interface OrderOut {
 export interface OrderCancel {
   reason?: string | null;
 }
+/** Shape for the not-yet-existing PATCH /orders/{id} (see docs/API-GAPS.md). */
+export interface OrderUpdate {
+  customer_id?: string;
+  items?: OrderItemCreate[];
+  status?: OrderStatus;
+  notes?: string | null;
+  due_date?: string | null;
+  assigned_operator_id?: string | null;
+}
 
 // ---------- Delivery ----------
 export interface DeliveryOut {
@@ -648,8 +657,18 @@ export interface NotificationOut {
   entity_id: string | null;
   created_at: string;
 }
-/** /analytics/dashboard is untyped in the spec — keep it defensive. */
-export type DashboardAnalytics = Record<string, unknown>;
+/** GET /analytics/dashboard — server-computed all-time totals + KPIs. NOTE: this
+ * endpoint has NO time-windowing (no today/weekly series, no trends, no order
+ * list) — those are fetched separately from a paginated /orders window. */
+export interface AnalyticsDashboard {
+  conversations_total: number;
+  orders_total: number;
+  ai_created_orders: number;
+  revenue: number;
+  orders_by_status: Record<string, number>;
+  payments: { total: number; approved: number; approval_rate: number };
+  kpi: { sales_conversion: number; lead_conversion: number; ai_handled_share: number };
+}
 
 /** GET /analytics/top-products — exact ordered/sold counts per product. */
 export interface TopProductOut {

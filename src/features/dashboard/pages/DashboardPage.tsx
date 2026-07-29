@@ -1,5 +1,5 @@
 import { Link, useNavigate } from 'react-router-dom';
-import { Coins, Gem, Receipt, Users } from 'lucide-react';
+import { ArrowDownRight, ArrowUpRight, Bot, Coins, Gem, Receipt } from 'lucide-react';
 import {
   Card,
   EmptyState,
@@ -15,7 +15,7 @@ import {
 import { formatDateTime, formatNumber, formatShortAmount } from '@/shared/lib/format';
 import { useAuthStore } from '@/shared/stores/auth';
 import { useIntroSettled } from '@/shared/stores/intro';
-import { useDashboardStats } from '../hooks';
+import { useDashboardAnalytics, useDashboardWeek, useLatestOrders } from '../hooks';
 import { NecklaceChart } from '../components/NecklaceChart';
 import { useClients } from '@/features/clients/hooks';
 
@@ -29,11 +29,12 @@ function greeting(): string {
 export default function DashboardPage() {
   const navigate = useNavigate();
   const user = useAuthStore((s) => s.user);
-  const stats = useDashboardStats();
+  const analytics = useDashboardAnalytics();
+  const week = useDashboardWeek();
+  const latest = useLatestOrders(8);
   const clients = useClients();
-  // Queries above run immediately (data in flight from login); only the heavy
-  // render — the Recharts chart and the orders table — waits for the intro so it
-  // doesn't drop frames under the overlay. Cached data paints them instantly.
+  // Heavy render (Recharts + tables) waits for the intro so it doesn't drop
+  // frames under the overlay; data fetching is not gated.
   const heavyReady = useIntroSettled();
 
   const vip = [...(clients.data ?? [])].sort((a, b) => b.total - a.total).slice(0, 4);
@@ -44,42 +45,46 @@ export default function DashboardPage() {
         <h1 className="text-xl text-text">
           {greeting()}, {user?.full_name ?? 'mehmon'}
         </h1>
-        <p className="mt-1 text-sm text-muted">Bugungi do'kon manzarasi</p>
+        <p className="mt-1 text-sm text-muted">Do'kon manzarasi</p>
       </div>
 
-      {stats.isPending && <SkeletonCards count={4} />}
-      {stats.isError && <ErrorCard error={stats.error} onRetry={() => stats.refetch()} />}
-      {stats.isSuccess && (
+      {/* Headline totals — server-computed (/analytics/dashboard), all-time. */}
+      {analytics.isPending && <SkeletonCards count={4} />}
+      {analytics.isError && <ErrorCard error={analytics.error} onRetry={() => analytics.refetch()} />}
+      {analytics.isSuccess && (
         <div className="grid grid-cols-2 gap-5 xl:grid-cols-4">
-          <StatCard
-            label="Bugungi savdo"
-            value={stats.data.todayRevenue}
-            formatter={formatShortAmount}
-            suffix="so'm"
-            icon={Coins}
-            trend={12}
-            to="/reports"
-          />
-          <StatCard label="Yangi buyurtmalar" value={stats.data.todayOrders} icon={Users} trend={5} to="/orders" />
-          <StatCard label="Sotilgan uzuklar" value={stats.data.ringsSold} icon={Gem} trend={8} to="/products" />
-          <StatCard
-            label="O'rtacha chek"
-            value={stats.data.avgCheck}
-            formatter={formatShortAmount}
-            suffix="so'm"
-            icon={Receipt}
-            trend={-3}
-            to="/reports"
-          />
+          <StatCard label="Umumiy savdo" value={analytics.data.revenue} formatter={formatShortAmount} suffix="so'm" icon={Coins} to="/reports" />
+          <StatCard label="Jami buyurtmalar" value={analytics.data.orders_total} icon={Gem} to="/orders" />
+          <StatCard label="AI buyurtmalar" value={analytics.data.ai_created_orders} icon={Bot} to="/orders" />
+          <StatCard label="To'lov tasdig'i" value={Math.round(analytics.data.payments.approval_rate * 100)} suffix="%" icon={Receipt} to="/payments" />
         </div>
       )}
 
       <div className="mt-6 grid gap-6 lg:grid-cols-3">
         <Card className="lg:col-span-2">
-          <h2 className="mb-2 text-md font-semibold text-text">Haftalik savdo marjoni</h2>
-          <p className="mb-4 text-xs text-muted">Har bir marvarid — bir kun; brilliant — rekord kun</p>
-          {(stats.isPending || (stats.isSuccess && !heavyReady)) && <Skeleton className="h-64 w-full" />}
-          {stats.isSuccess && heavyReady && <NecklaceChart data={stats.data.week} />}
+          <div className="mb-4 flex items-start justify-between gap-4">
+            <div>
+              <h2 className="text-md font-semibold text-text">Haftalik savdo</h2>
+              <p className="text-xs text-muted">So'nggi 7 kun</p>
+            </div>
+            {week.isSuccess && (
+              <div className="text-right">
+                <p className="text-2xs text-muted">Bugun</p>
+                <p className="flex items-center justify-end gap-1.5 tnum text-sm font-semibold text-accent-ink">
+                  <Money short value={week.data.todayRevenue} />
+                  {week.data.trend != null && (
+                    <span className={`flex items-center gap-0.5 rounded-full px-1.5 py-0.5 text-2xs ${week.data.trend >= 0 ? 'bg-success-soft text-success' : 'bg-danger-soft text-danger'}`}>
+                      {week.data.trend >= 0 ? <ArrowUpRight className="h-3 w-3" strokeWidth={2} /> : <ArrowDownRight className="h-3 w-3" strokeWidth={2} />}
+                      {Math.abs(week.data.trend)}%
+                    </span>
+                  )}
+                </p>
+              </div>
+            )}
+          </div>
+          {(week.isPending || !heavyReady) && <Skeleton className="h-64 w-full" />}
+          {week.isError && heavyReady && <ErrorCard error={week.error} onRetry={() => week.refetch()} />}
+          {week.isSuccess && heavyReady && <NecklaceChart data={week.data.week} />}
         </Card>
 
         <Card>
@@ -95,7 +100,7 @@ export default function DashboardPage() {
             <Link
               key={c.id}
               to="/clients"
-              className="mb-3 flex items-center justify-between rounded-lg border border-border p-3 transition-colors last:mb-0 hover:border-strong"
+              className="mb-3 flex items-center justify-between rounded-[var(--r-sm)] border border-border p-3 transition-colors last:mb-0 hover:border-strong"
             >
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold text-text">{c.name}</p>
@@ -104,27 +109,24 @@ export default function DashboardPage() {
               <HallmarkBadge tier={tierForTotal(c.total)} size="sm" />
             </Link>
           ))}
-          {clients.isSuccess && vip.length === 0 && (
-            <p className="text-sm text-muted">Mijozlar hali yo'q</p>
-          )}
+          {clients.isSuccess && vip.length === 0 && <p className="text-sm text-muted">Mijozlar hali yo'q</p>}
         </Card>
       </div>
 
       <Card className="mt-6 overflow-x-auto p-0">
         <div className="flex items-center justify-between px-6 pt-6">
           <h2 className="text-md font-semibold text-text">So'nggi buyurtmalar</h2>
-          <Link to="/orders" className="text-sm font-semibold text-accent-ink hover:text-accent-ink">
-            Barchasi →
-          </Link>
+          <Link to="/orders" className="text-sm font-semibold text-accent-ink">Barchasi →</Link>
         </div>
-        {stats.isSuccess && !heavyReady && <Skeleton className="mx-6 my-4 h-40" />}
-        {stats.isSuccess && heavyReady && stats.data.latest.length === 0 && (
+        {(latest.isPending || !heavyReady) && <Skeleton className="mx-6 my-4 h-40" />}
+        {latest.isError && heavyReady && <div className="p-4"><ErrorCard error={latest.error} onRetry={() => latest.refetch()} /></div>}
+        {latest.isSuccess && heavyReady && latest.data.length === 0 && (
           <EmptyState heading="Buyurtmalar hali yo'q" hint="Birinchi buyurtma shu yerda ko'rinadi" />
         )}
-        {stats.isSuccess && heavyReady && stats.data.latest.length > 0 && (
+        {latest.isSuccess && heavyReady && latest.data.length > 0 && (
           <table className="data-table mt-3 min-w-[560px]">
             <tbody>
-              {stats.data.latest.map((o) => (
+              {latest.data.map((o) => (
                 <tr key={o.id} className="cursor-pointer" onClick={() => navigate(`/orders/${o.id}`)}>
                   <td>
                     <Link
@@ -135,13 +137,9 @@ export default function DashboardPage() {
                       {o.order_no}
                     </Link>
                   </td>
-                  <td>
-                    <OrderStatusBadge status={o.status} />
-                  </td>
+                  <td><OrderStatusBadge status={o.status} /></td>
                   <td className="tnum text-right text-muted">{formatNumber(o.items.length)} ta</td>
-                  <td className="text-right font-semibold text-accent-ink">
-                    <Money value={o.grand_total} />
-                  </td>
+                  <td className="text-right font-semibold text-accent-ink"><Money value={o.grand_total} /></td>
                   <td className="tnum text-right text-muted">{formatDateTime(o.created_at)}</td>
                 </tr>
               ))}

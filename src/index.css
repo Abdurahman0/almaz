@@ -12,11 +12,13 @@
   --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --dur: 200ms;
 
-  --r-xs: 8px;
-  --r-sm: 10px;
-  --r-md: 14px;
-  --r-lg: 18px;
-  --r-xl: 24px;
+  /* radius scale — inputs/buttons/chips → --r-sm, cards/dropdowns → --r-md,
+     modals/drawers/sidebar → --r-lg, full round only for avatars/pills. */
+  --r-xs: 6px;
+  --r-sm: 8px;
+  --r-md: 12px;
+  --r-lg: 16px;
+  --r-xl: 20px;
 
   /* soft, layered, low-opacity — read as elevation not a drop shadow */
   --shadow-xs: 0 1px 2px rgba(10, 12, 16, 0.05);
@@ -275,11 +277,42 @@
     transition: background-color 0.3s, border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
       transform 0.2s var(--ease);
   }
-  /* Frosted surface for floating chrome (sidebar, sticky bars, hero panels) */
+  /* Liquid-glass — floating CHROME only (sidebar, topbar, modals, popovers,
+     drawers, toasts). Content cards/tables/forms stay solid var(--surface):
+     glass under dense data hurts readability. Perf guardrails below flatten it
+     during the ring transition and when disabled globally (data-glass=off). */
   .glass {
-    background: var(--bg-glass);
-    -webkit-backdrop-filter: saturate(1.4) blur(20px);
-    backdrop-filter: saturate(1.4) blur(20px);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  }
+  /* Light presets: lighter tint + less blur so the card still separates. */
+  :root[data-theme='marble'] .glass,
+  :root[data-theme='pearl'] .glass,
+  :root[data-theme='marble'] .float-panel,
+  :root[data-theme='pearl'] .float-panel {
+    background: color-mix(in srgb, var(--surface) 82%, transparent);
+    -webkit-backdrop-filter: blur(12px) saturate(118%);
+    backdrop-filter: blur(12px) saturate(118%);
+  }
+  /* Escape hatch — turn all glass off globally (html[data-glass='off']). */
+  :root[data-glass='off'] .glass,
+  :root[data-glass='off'] .float-panel {
+    background: var(--surface);
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
+  }
+  /* Perf: never sample a backdrop while the ring transition runs (it re-samples
+     every frame), and never inside the outgoing snapshot clones. */
+  .ring-root[data-crossing='true'] .glass,
+  .ring-root[data-crossing='true'] .float-panel,
+  .ring-old-layer .glass,
+  .ring-old-layer .float-panel {
+    background: var(--surface);
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
   }
   /* One Apple-clean data table for every list page: calm sentence-case head,
      hairline row dividers, quiet hover, roomy cells. Wrap in a Card p-0. */
@@ -313,10 +346,10 @@
   .float-panel {
     @apply border border-border text-text;
     border-radius: var(--r-md);
-    background: var(--bg-glass);
-    -webkit-backdrop-filter: saturate(1.4) blur(20px);
-    backdrop-filter: saturate(1.4) blur(20px);
-    box-shadow: var(--shadow-lg);
+    background: color-mix(in srgb, var(--surface) 72%, transparent);
+    -webkit-backdrop-filter: blur(18px) saturate(140%);
+    backdrop-filter: blur(18px) saturate(140%);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   }
   .float-in[data-state='open'] {
     animation: floatIn 140ms ease-out;

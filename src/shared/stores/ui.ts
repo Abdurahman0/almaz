@@ -12,15 +12,23 @@ export function applyThemeAttrs(preset: Preset): void {
   delete document.documentElement.dataset.accent;
 }
 
+export type ProductView = 'grid' | 'table';
+
 interface UiState {
   preset: Preset;
   lang: Lang;
   sidebarCollapsed: boolean;
+  /** Products page layout (persisted). */
+  productView: ProductView;
+  /** Liquid-glass chrome on/off (escape hatch, persisted). */
+  glassEnabled: boolean;
   /** Count of ring-eligible navigations this session (NOT persisted). Every
    *  RING_TRANSITION_EVERY-th one plays the ring crossing; the rest fade. */
   ringNav: number;
   setPreset: (p: Preset) => void;
   setLang: (l: Lang) => void;
+  setProductView: (v: ProductView) => void;
+  setGlass: (on: boolean) => void;
   toggleSidebar: () => void;
   /** Increment and return the new ring-nav count. */
   bumpRingNav: () => number;
@@ -34,12 +42,19 @@ export const useUiStore = create<UiState>()(
       preset: 'velvet',
       lang: 'uz',
       sidebarCollapsed: false,
+      productView: 'grid',
+      glassEnabled: true,
       ringNav: 0,
       setPreset: (preset) => {
         applyThemeAttrs(preset);
         set({ preset });
       },
       setLang: (lang) => set({ lang }),
+      setProductView: (productView) => set({ productView }),
+      setGlass: (glassEnabled) => {
+        document.documentElement.dataset.glass = glassEnabled ? 'on' : 'off';
+        set({ glassEnabled });
+      },
       toggleSidebar: () => set((s) => ({ sidebarCollapsed: !s.sidebarCollapsed })),
       bumpRingNav: () => {
         const n = get().ringNav + 1;
@@ -52,7 +67,7 @@ export const useUiStore = create<UiState>()(
       name: 'almaz-ui',
       version: 3,
       // ringNav is session state — keep it out of storage.
-      partialize: (s) => ({ preset: s.preset, lang: s.lang, sidebarCollapsed: s.sidebarCollapsed }),
+      partialize: (s) => ({ preset: s.preset, lang: s.lang, sidebarCollapsed: s.sidebarCollapsed, productView: s.productView, glassEnabled: s.glassEnabled }),
       migrate: (state) => {
         const s = (state ?? {}) as Partial<UiState> & { theme?: string };
         const legacy = s.preset ?? s.theme;

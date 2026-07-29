@@ -16,7 +16,9 @@ import {
 import { formatDate, formatDateTime } from '@/shared/lib/format';
 import { useOrders, useOrdersPage } from '../hooks';
 import { StageIcon, STAGE_ORDER } from '../components/StageIcon';
+import { OrderBoardDnd } from '../components/OrderBoardDnd';
 import { craftStageIndex } from '../stages';
+import { FEATURES } from '@/shared/config/flags';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
 const PAGE_SIZE = 30;
@@ -227,7 +229,7 @@ export default function OrdersPage() {
         }
       />
 
-      {view === 'board' ? <OrderBoard /> : <OrderList />}
+      {view === 'board' ? (FEATURES.ordersKanbanDnd ? <OrderBoardDnd /> : <OrderBoard />) : <OrderList />}
     </div>
   );
 }

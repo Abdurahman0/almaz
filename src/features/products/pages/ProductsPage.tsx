@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, Sparkles } from 'lucide-react';
+import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, Sparkles, LayoutGrid, Rows3, Copy, Eye } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -21,7 +21,7 @@ import {
   toast,
   type SelectOption,
 } from '@/shared/ui';
-import { useCategories, useDeleteProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
+import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
 import { useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
@@ -38,7 +38,14 @@ const statusFilterOptions: SelectOption[] = [
   { value: 'archived', label: 'Arxiv' },
 ];
 
-function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete, onView }: {
+const productMenuItems = (a: { onView: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) => [
+  { label: "Ko'rish", icon: <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onView },
+  { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onEdit },
+  { label: 'Nusxalash', icon: <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onDuplicate },
+  { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onDelete, destructive: true, separatorBefore: true },
+];
+
+function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete, onView, onDuplicate }: {
   product: ProductOut;
   name: string;
   material: string;
@@ -47,6 +54,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
   onEdit: () => void;
   onDelete: () => void;
   onView: () => void;
+  onDuplicate: () => void;
 }) {
   // available comes straight from the API (active stocked variants, stock-reserved)
   const stock = product.available;
@@ -55,10 +63,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
 
   const menu = (
     <DropdownMenu
-      items={[
-        { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onEdit },
-        { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: onDelete, destructive: true, separatorBefore: true },
-      ]}
+      items={productMenuItems({ onView, onEdit, onDuplicate, onDelete })}
       trigger={
         <button
           aria-label="Amallar"
@@ -239,10 +244,102 @@ function useRefMap(kind: 'materials' | 'stones' | 'genders') {
   }, [q.data]);
 }
 
+interface RowActions {
+  onView: (p: ProductOut) => void;
+  onEdit: (p: ProductOut) => void;
+  onDuplicate: (p: ProductOut) => void;
+  onDelete: (p: ProductOut) => void;
+}
+
+/** Dense table view — thumbnail, name, material, stone, price, stock, status. */
+function ProductTable({
+  products, materials, stones, lang, isLow, lowStockOnly, actions,
+}: {
+  products: ProductOut[];
+  materials: Map<string, RefOut>;
+  stones: Map<string, RefOut>;
+  lang: 'uz' | 'ru';
+  isLow: (p: ProductOut) => boolean;
+  lowStockOnly: boolean;
+  actions: RowActions;
+}) {
+  const refName = (map: Map<string, RefOut>, id: string | null) => (id ? pickName(map.get(id), lang) : '');
+  return (
+    <Card className="overflow-x-auto p-0">
+      <table className="data-table min-w-[760px]">
+        <thead>
+          <tr>
+            <th className="w-[56px]"></th>
+            <th>Nomi</th>
+            <th>Material</th>
+            <th>Tosh</th>
+            <th className="!text-right">Narx</th>
+            <th className="!text-right">Zaxira</th>
+            <th>Holat</th>
+            <th className="w-[44px]"></th>
+          </tr>
+        </thead>
+        <tbody>
+          {products.map((p) => {
+            const soldOut = p.available <= 0;
+            const low = lowStockOnly || isLow(p);
+            return (
+              <tr key={p.id} className="cursor-pointer" onClick={() => actions.onView(p)}>
+                <td>
+                  <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
+                    {p.media[0]?.image_url ? (
+                      <img src={p.media[0].image_url} alt="" className="h-full w-full object-cover" />
+                    ) : (
+                      <Gem className="h-4 w-4 text-muted/50" strokeWidth={1.25} />
+                    )}
+                  </span>
+                </td>
+                <td><span className="font-medium text-text">{pickName(p, lang)}</span></td>
+                <td className="text-muted">{refName(materials, p.material_id) || '—'}</td>
+                <td className="text-muted">{refName(stones, p.stone_id) || '—'}</td>
+                <td className="text-right">
+                  <span className="tnum font-semibold text-accent-ink"><Money short value={p.effective_price} /></span>
+                  {p.discount_price != null && (
+                    <span className="ml-1 text-2xs text-muted line-through"><Money short value={p.price} /></span>
+                  )}
+                </td>
+                <td className={`tnum text-right ${soldOut ? 'text-muted' : low ? 'text-danger' : 'text-text'}`}>
+                  {p.available}
+                </td>
+                <td>
+                  <Badge tone={p.status === 'active' ? 'success' : 'muted'}>{productStatusLabels[p.status]}</Badge>
+                </td>
+                <td className="text-right" onClick={(e) => e.stopPropagation()}>
+                  <DropdownMenu
+                    items={productMenuItems({
+                      onView: () => actions.onView(p),
+                      onEdit: () => actions.onEdit(p),
+                      onDuplicate: () => actions.onDuplicate(p),
+                      onDelete: () => actions.onDelete(p),
+                    })}
+                    trigger={
+                      <button aria-label="Amallar" className="rounded p-1.5 text-muted transition-colors hover:text-text">
+                        <span className="text-lg leading-none">⋯</span>
+                      </button>
+                    }
+                  />
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </Card>
+  );
+}
+
 export default function ProductsPage() {
   const navigate = useNavigate();
   const lang = useUiStore((s) => s.lang);
+  const view = useUiStore((s) => s.productView);
+  const setView = useUiStore((s) => s.setProductView);
   const deleteProduct = useDeleteProduct();
+  const duplicate = useDuplicateProduct();
   const materials = useRefMap('materials');
   const stones = useRefMap('stones');
   const categories = useCategories();
@@ -306,6 +403,18 @@ export default function ProductsPage() {
   ];
   const hasFilters = Boolean(debouncedQ || status || categoryId || inStock || lowStockOnly);
 
+  const onDuplicate = (p: ProductOut) =>
+    duplicate.mutate(p, {
+      onSuccess: () => toast.success('Nusxalandi'),
+      onError: () => toast.error('Nusxalashda xatolik'),
+    });
+  const rowActions: RowActions = {
+    onView: (p) => setViewing(p),
+    onEdit: (p) => { setEditing(p); setFormOpen(true); },
+    onDuplicate,
+    onDelete: (p) => setDeleting(p),
+  };
+
   return (
     <div>
       <PageHeader
@@ -359,6 +468,25 @@ export default function ProductsPage() {
         >
           <AlertTriangle className="h-3.5 w-3.5" strokeWidth={2} /> Kam qolganlar
         </button>
+
+        <div className="ml-auto flex rounded-[var(--r-sm)] bg-surface-2 p-0.5">
+          <button
+            onClick={() => setView('grid')}
+            aria-label="Katakcha ko'rinishi"
+            aria-pressed={view === 'grid'}
+            className={`flex h-8 w-8 items-center justify-center rounded-[var(--r-xs)] transition-colors ${view === 'grid' ? 'bg-surface text-text shadow-xs' : 'text-muted hover:text-text'}`}
+          >
+            <LayoutGrid className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+          <button
+            onClick={() => setView('table')}
+            aria-label="Jadval ko'rinishi"
+            aria-pressed={view === 'table'}
+            className={`flex h-8 w-8 items-center justify-center rounded-[var(--r-xs)] transition-colors ${view === 'table' ? 'bg-surface text-text shadow-xs' : 'text-muted hover:text-text'}`}
+          >
+            <Rows3 className="h-4 w-4" strokeWidth={1.75} />
+          </button>
+        </div>
       </div>
 
       {query.isPending && <SkeletonCards count={8} />}
@@ -380,21 +508,34 @@ export default function ProductsPage() {
       )}
       {query.isSuccess && products.length > 0 && (
         <>
-          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
-            {products.map((p) => (
-              <ProductSlot
-                key={p.id}
-                product={p}
-                name={pickName(p, lang)}
-                material={refName(materials, p.material_id)}
-                stone={refName(stones, p.stone_id)}
-                lowStock={lowStockOnly || isLow(p)}
-                onEdit={() => { setEditing(p); setFormOpen(true); }}
-                onDelete={() => setDeleting(p)}
-                onView={() => setViewing(p)}
-              />
-            ))}
-          </div>
+          {view === 'grid' ? (
+            <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+              {products.map((p) => (
+                <ProductSlot
+                  key={p.id}
+                  product={p}
+                  name={pickName(p, lang)}
+                  material={refName(materials, p.material_id)}
+                  stone={refName(stones, p.stone_id)}
+                  lowStock={lowStockOnly || isLow(p)}
+                  onEdit={() => { setEditing(p); setFormOpen(true); }}
+                  onDelete={() => setDeleting(p)}
+                  onView={() => setViewing(p)}
+                  onDuplicate={() => onDuplicate(p)}
+                />
+              ))}
+            </div>
+          ) : (
+            <ProductTable
+              products={products}
+              materials={materials}
+              stones={stones}
+              lang={lang}
+              isLow={isLow}
+              lowStockOnly={lowStockOnly}
+              actions={rowActions}
+            />
+          )}
           <Pager offset={offset} limit={PAGE_SIZE} total={total} onChange={setOffset} />
         </>
       )}

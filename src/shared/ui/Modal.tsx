@@ -17,7 +17,7 @@ export function Modal({ open, onClose, heading, children, wide }: ModalProps) {
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim backdrop-blur-md data-[state=open]:animate-[floatIn_160ms_ease-out]" />
         <Dialog.Content
-          className={`card-velvet fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[24px] p-6 shadow-lg data-[state=open]:animate-[modalIn_180ms_ease-out] ${
+          className={`glass fixed left-1/2 top-1/2 z-50 max-h-[88vh] w-[calc(100vw-2rem)] -translate-x-1/2 -translate-y-1/2 overflow-y-auto rounded-[var(--r-lg)] p-6 shadow-lg data-[state=open]:animate-[modalIn_180ms_ease-out] ${
             wide ? 'max-w-3xl' : 'max-w-lg'
           }`}
         >

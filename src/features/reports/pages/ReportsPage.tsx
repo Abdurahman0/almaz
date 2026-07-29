@@ -1,8 +1,7 @@
 import { useMemo, useState } from 'react';
 import { endOfMonth, format, isWithinInterval, parseISO, startOfMonth } from 'date-fns';
-import { Coins, Download, ShoppingBag } from 'lucide-react';
+import { Coins, ShoppingBag } from 'lucide-react';
 import {
-  Button,
   Card,
   ErrorCard,
   HallmarkBadge,
@@ -10,7 +9,6 @@ import {
   SkeletonCards,
   SkeletonRows,
   Money,
-  Tooltip,
   DateRangePicker,
   type Range,
   tierForTotal,
@@ -70,15 +68,6 @@ export default function ReportsPage() {
       <PageHeader
         heading="Hisobotlar"
         subheading="Davr kesimida do'kon ko'rsatkichlari"
-        actions={
-          <Tooltip content="Tez orada">
-            <span>
-              <Button variant="secondary" disabled>
-                <Download className="h-4 w-4" strokeWidth={1.5} /> Eksport
-              </Button>
-            </span>
-          </Tooltip>
-        }
       />
 
       <div className="mb-6">

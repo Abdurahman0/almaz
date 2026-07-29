@@ -15,9 +15,13 @@ export const queryClient = new QueryClient({
 
 function ThemeSync() {
   const preset = useUiStore((s) => s.preset);
+  const glassEnabled = useUiStore((s) => s.glassEnabled);
   useEffect(() => {
     applyThemeAttrs(preset);
   }, [preset]);
+  useEffect(() => {
+    document.documentElement.dataset.glass = glassEnabled ? 'on' : 'off';
+  }, [glassEnabled]);
   return null;
 }
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, Pencil, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -13,12 +13,14 @@ import {
   Skeleton,
   Textarea,
   Money,
+  toast,
 } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/format';
 import { api } from '@/shared/api/client';
+import { FEATURES } from '@/shared/config/flags';
 import type { PaymentOut } from '@/shared/api/types';
 import { CraftStepper } from '../components/CraftStepper';
-import { useCancelOrder, useDelivery, useOrder } from '../hooks';
+import { useCancelOrder, useDelivery, useDuplicateOrder, useOrder } from '../hooks';
 import { orderStatusLabels } from '@/shared/ui/Badge';
 
 const deliveryLabels: Record<string, string> = {
@@ -35,6 +37,7 @@ export default function OrderDetailPage() {
   const order = useOrder(orderId);
   const delivery = useDelivery(orderId);
   const cancelMutation = useCancelOrder(orderId);
+  const duplicateMutation = useDuplicateOrder();
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
 
@@ -79,11 +82,33 @@ export default function OrderDetailPage() {
           </div>
           <OrderStatusBadge status={o.status} />
         </div>
-        {cancellable && (
-          <Button variant="danger" size="sm" onClick={() => setCancelOpen(true)}>
-            <XCircle className="h-4 w-4" strokeWidth={1.5} /> Bekor qilish
+        <div className="flex flex-wrap items-center gap-2">
+          {/* Order editing needs PATCH /orders/{id} (docs/API-GAPS.md) — shown only
+              when the feature flag is on (i.e. once the endpoint ships). */}
+          {FEATURES.orderEditing && (
+            <Button variant="secondary" size="sm" onClick={() => navigate(`/orders/${orderId}/edit`)}>
+              <Pencil className="h-4 w-4" strokeWidth={1.5} /> Tahrirlash
+            </Button>
+          )}
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={duplicateMutation.isPending}
+            onClick={() =>
+              duplicateMutation.mutate(o, {
+                onSuccess: (dup) => { toast.success('Buyurtma nusxalandi'); navigate(`/orders/${dup.id}`); },
+                onError: () => toast.error('Nusxalashda xatolik'),
+              })
+            }
+          >
+            <Copy className="h-4 w-4" strokeWidth={1.5} /> Nusxalash
           </Button>
-        )}
+          {cancellable && (
+            <Button variant="danger" size="sm" onClick={() => setCancelOpen(true)}>
+              <XCircle className="h-4 w-4" strokeWidth={1.5} /> Bekor qilish
+            </Button>
+          )}
+        </div>
       </div>
 
       <Card>
