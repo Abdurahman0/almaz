@@ -100,16 +100,31 @@ export async function getItems<T>(
 export interface ApiError {
   status: number | null;
   message: string;
+  /** For 422 validation errors: field name -> first message, so forms can map
+   *  FastAPI's error array onto the matching inputs instead of dumping raw JSON. */
+  fields?: Record<string, string>;
 }
 
 function normalizeError(error: AxiosError): ApiError {
   const status = error.response?.status ?? null;
   const data = error.response?.data as
-    | { detail?: string | Array<{ msg?: string }> }
+    | { detail?: string | Array<{ loc?: Array<string | number>; msg?: string }> }
     | undefined;
   let message = "Server bilan bog'lanishda xatolik yuz berdi";
-  if (typeof data?.detail === 'string') message = data.detail;
-  else if (Array.isArray(data?.detail) && data.detail[0]?.msg) message = data.detail[0].msg;
-  else if (error.code === 'ECONNABORTED') message = "So'rov vaqti tugadi";
-  return { status, message };
+  let fields: Record<string, string> | undefined;
+  if (typeof data?.detail === 'string') {
+    message = data.detail;
+  } else if (Array.isArray(data?.detail)) {
+    // FastAPI 422: [{ loc: ["body","price"], msg: "..." }, ...]
+    fields = {};
+    for (const it of data.detail) {
+      const key = it.loc?.filter((x): x is string => typeof x === 'string').pop();
+      if (key && it.msg && !(key in fields)) fields[key] = it.msg;
+    }
+    if (Object.keys(fields).length === 0) fields = undefined;
+    if (data.detail[0]?.msg) message = data.detail[0].msg;
+  } else if (error.code === 'ECONNABORTED') {
+    message = "So'rov vaqti tugadi";
+  }
+  return { status, message, fields };
 }

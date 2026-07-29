@@ -44,7 +44,7 @@ interface UiState {
 export const useUiStore = create<UiState>()(
   persist(
     (set, get) => ({
-      preset: 'velvet',
+      preset: 'noir',
       lang: 'uz',
       sidebarCollapsed: false,
       productView: 'grid',
@@ -79,7 +79,7 @@ export const useUiStore = create<UiState>()(
         const s = (state ?? {}) as Partial<UiState> & { theme?: string };
         const legacy = s.preset ?? s.theme;
         return {
-          preset: PRESET_IDS.includes(legacy as Preset) ? (legacy as Preset) : 'velvet',
+          preset: PRESET_IDS.includes(legacy as Preset) ? (legacy as Preset) : 'noir',
           lang: s.lang ?? 'uz',
           sidebarCollapsed: s.sidebarCollapsed ?? false,
         };

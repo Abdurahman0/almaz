@@ -1,8 +1,8 @@
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Trash2, ImagePlus, Loader2 } from 'lucide-react';
+import { X } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -14,9 +14,9 @@ import {
   type SelectOption,
 } from '@/shared/ui';
 import { pickName } from '@/shared/lib/localize';
-import { uploadFile, uploadFiles, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { useUiStore } from '@/shared/stores/ui';
 import { InstagramSection } from './InstagramSection';
+import { ProductImages } from './ProductImages';
 import {
   useAddProductMedia,
   useAddVariant,
@@ -27,7 +27,7 @@ import {
   useRefs,
   useUpdateProduct,
 } from '../hooks';
-import type { ProductCreate, ProductOut } from '@/shared/api/types';
+import type { MediaOut, ProductCreate, ProductOut } from '@/shared/api/types';
 import type { ApiError } from '@/shared/api/client';
 
 // Numeric fields carry `number | ''` (empty NumberInput) so input === output type.
@@ -50,6 +50,11 @@ const schema = z
     engraving_price: numField,
     status: z.enum(['draft', 'active', 'archived']),
     engraving_available: z.boolean(),
+    ai_keywords: z.array(z.string()),
+    // variant fields (create only)
+    sku: z.string().optional(),
+    barcode: z.string().optional(),
+    fulfillment_type: z.enum(['stocked', 'made_to_order', 'unique']),
   })
   .superRefine((v, ctx) => {
     // price is mandatory (server 422s without it)
@@ -87,10 +92,102 @@ const statusOptions: SelectOption[] = [
   { value: 'archived', label: 'Arxiv' },
 ];
 
+const fulfillmentOptions: SelectOption[] = [
+  { value: 'stocked', label: 'Zaxiradan (stocked)' },
+  { value: 'made_to_order', label: 'Buyurtmaga (made-to-order)' },
+  { value: 'unique', label: 'Yakka (unique)' },
+];
+
 const toOpts = (
   list: Array<{ id: string; name_uz: string; name_ru: string | null }> | undefined,
   lang: 'uz' | 'ru',
 ): SelectOption[] => (list ?? []).map((r) => ({ value: r.id, label: pickName(r, lang) }));
+
+const reorder = <T,>(arr: T[], from: number, to: number): T[] => {
+  const a = [...arr];
+  const [x] = a.splice(from, 1);
+  a.splice(to, 0, x);
+  return a;
+};
+
+/** Optional reference dropdown that shows name_uz, submits the UUID, and can be
+ *  cleared back to "no selection". */
+function RefField({
+  label,
+  options,
+  value,
+  onChange,
+}: {
+  label: string;
+  options: SelectOption[];
+  value: string;
+  onChange: (v: string) => void;
+}) {
+  return (
+    <div>
+      <Select label={label} placeholder="—" options={options} value={value || ''} onChange={onChange} />
+      {value ? (
+        <button
+          type="button"
+          onClick={() => onChange('')}
+          className="mt-1 text-2xs text-muted underline-offset-2 hover:text-danger hover:underline"
+        >
+          Tozalash
+        </button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Free-form keyword tags for AI search (ai_keywords). Enter or comma adds. */
+function TagInput({
+  value,
+  onChange,
+  label,
+  placeholder,
+}: {
+  value: string[];
+  onChange: (v: string[]) => void;
+  label: string;
+  placeholder?: string;
+}) {
+  const [draft, setDraft] = useState('');
+  const add = () => {
+    const t = draft.trim().replace(/,$/, '');
+    if (t && !value.includes(t)) onChange([...value, t]);
+    setDraft('');
+  };
+  return (
+    <div className="space-y-1.5">
+      <span className="text-xs font-medium text-muted">{label}</span>
+      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface-2 p-2">
+        {value.map((t, i) => (
+          <span key={t + i} className="flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-xs text-text">
+            {t}
+            <button type="button" aria-label="O'chirish" onClick={() => onChange(value.filter((_, j) => j !== i))}>
+              <X className="h-3 w-3 text-muted hover:text-danger" strokeWidth={2} />
+            </button>
+          </span>
+        ))}
+        <input
+          value={draft}
+          onChange={(e) => setDraft(e.target.value)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ',') {
+              e.preventDefault();
+              add();
+            } else if (e.key === 'Backspace' && !draft && value.length) {
+              onChange(value.slice(0, -1));
+            }
+          }}
+          onBlur={add}
+          placeholder={value.length ? '' : placeholder}
+          className="min-w-[140px] flex-1 bg-transparent px-1 text-sm text-text outline-none placeholder:text-muted"
+        />
+      </div>
+    </div>
+  );
+}
 
 interface ProductFormProps {
   product?: ProductOut;
@@ -115,12 +212,12 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
     product?.variants.find((vr) => vr.fulfillment_type === 'stocked') ?? product?.variants[0];
   const initialStock = stockedVariant?.stock_qty ?? '';
 
-  // Create-mode image URL collector (submitted inline as image_urls).
+  // Create: staged image URLs → submitted as image_urls. Edit: live media list
+  // (add/remove hit the media endpoints immediately).
   const [newUrls, setNewUrls] = useState<string[]>([]);
-  const [uploading, setUploading] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
+  const [mediaList, setMediaList] = useState<MediaOut[]>(product?.media ?? []);
   const [imgError, setImgError] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const [formError, setFormError] = useState<string | null>(null);
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
@@ -141,6 +238,10 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           engraving_price: product.engraving_price != null ? Number(product.engraving_price) : '',
           status: product.status,
           engraving_available: product.engraving_available ?? false,
+          ai_keywords: product.ai_keywords ?? [],
+          sku: stockedVariant?.sku ?? '',
+          barcode: '',
+          fulfillment_type: stockedVariant?.fulfillment_type ?? 'stocked',
         }
       : {
           name_uz: '',
@@ -156,13 +257,66 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           engraving_price: '',
           status: 'active',
           engraving_available: false,
+          ai_keywords: [],
+          sku: '',
+          barcode: '',
+          fulfillment_type: 'stocked',
         },
   });
 
+  // Reset transient state when the form switches to a different product.
+  useEffect(() => {
+    setMediaList(product?.media ?? []);
+    setNewUrls([]);
+    setImgError(false);
+    setFormError(null);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [product?.id]);
+
   const engravingOn = form.watch('engraving_available');
-  const mutation = product ? updateProduct : createProduct;
+
+  // Map an API error onto the form: 422 field array -> field errors, 403/401 ->
+  // a permission/session message, semantic 400s -> the right field.
+  const handleApiError = (err: ApiError) => {
+    if (err.status === 403) {
+      setFormError("Ruxsat yo'q — mahsulot yaratish uchun 'products:create' huquqi kerak.");
+      return;
+    }
+    if (err.status === 401) {
+      setFormError('Sessiya tugagan — tizimga qaytadan kiring.');
+      return;
+    }
+    const known = new Set([
+      'name_uz', 'name_ru', 'price', 'discount_price', 'description_uz', 'description_ru',
+      'category_id', 'gender_id', 'material_id', 'stone_id', 'engraving_price',
+      'low_stock_threshold', 'status', 'stock_qty',
+    ]);
+    let mapped = false;
+    if (err.fields) {
+      for (const [k, msg] of Object.entries(err.fields)) {
+        if (known.has(k)) {
+          form.setError(k as keyof FormValues, { message: msg });
+          mapped = true;
+        } else if (k === 'image_urls' || k === 'media') {
+          setImgError(true);
+          mapped = true;
+        }
+      }
+    }
+    // Semantic 400s from the doc's error table.
+    if (/rasm/i.test(err.message)) {
+      setImgError(true);
+      mapped = true;
+    }
+    if (/chegirma/i.test(err.message)) {
+      form.setError('discount_price', { message: err.message });
+      mapped = true;
+    }
+    setFormError(mapped ? null : err.message);
+  };
 
   const submit = form.handleSubmit((v) => {
+    setFormError(null);
     const toNum = (x: number | '') => (x === '' ? null : x);
     const body: ProductCreate = {
       name_uz: v.name_uz,
@@ -179,6 +333,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       engraving_available: v.engraving_available || false,
       engraving_price: v.engraving_available ? toNum(v.engraving_price) : null,
       status: v.status,
+      ai_keywords: v.ai_keywords.length ? v.ai_keywords : null,
     };
     const done = () => {
       toast.success(product ? 'Mahsulot yangilandi' : "Mahsulot qo'shildi");
@@ -190,6 +345,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       updateProduct.mutate(
         { id: product.id, body },
         {
+          onError: (e) => handleApiError(e as unknown as ApiError),
           onSuccess: () => {
             const target = v.stock_qty === '' ? null : v.stock_qty;
             if (target == null || target === initialStock) return done();
@@ -219,45 +375,50 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         {
           ...body,
           image_urls: newUrls,
+          // Stock lives on the variant — ALWAYS send one (omitting => 0 stock).
+          // Ring size is NOT a variant; this is the single stocked variant.
           variants: [
-            { fulfillment_type: 'stocked', stock_qty: v.stock_qty === '' ? 0 : v.stock_qty, is_active: true },
+            {
+              fulfillment_type: v.fulfillment_type,
+              stock_qty: v.stock_qty === '' ? 0 : v.stock_qty,
+              is_active: true,
+              ...(v.sku?.trim() ? { sku: v.sku.trim() } : {}),
+              ...(v.barcode?.trim() ? { barcode: v.barcode.trim() } : {}),
+            },
           ],
         },
-        { onSuccess: done },
+        { onSuccess: done, onError: (e) => handleApiError(e as unknown as ApiError) },
       );
     }
   });
 
-  const attachUrl = (url: string) => {
-    if (product) {
-      addMedia.mutate(
-        { productId: product.id, body: { image_url: url } },
-        { onError: () => toast.error("Rasm qo'shishda xatolik") },
-      );
-    } else {
-      setNewUrls((s) => [...s, url]);
-      setImgError(false);
-    }
+  // ---- image handlers (create staged vs edit live) ----
+  const createUploaded = (url: string) => {
+    setNewUrls((s) => [...s, url]);
+    setImgError(false);
   };
-
-  const onUpload = async (files: FileList | null) => {
-    if (!files || files.length === 0) return;
-    setUploading(true);
-    try {
-      const uploaded = files.length === 1 ? [await uploadFile(files[0])] : await uploadFiles(Array.from(files));
-      uploaded.forEach((u) => attachUrl(u.url));
-    } catch {
-      toast.error('Yuklashda xatolik');
-    } finally {
-      setUploading(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
+  const editUploaded = (url: string) => {
+    addMedia.mutate(
+      { productId: product!.id, body: { image_url: url } },
+      {
+        onSuccess: (m) => setMediaList((l) => [...l, m]),
+        onError: () => toast.error("Rasm qo'shishda xatolik"),
+      },
+    );
+  };
+  const editRemove = (index: number) => {
+    const m = mediaList[index];
+    if (!m) return;
+    setMediaList((l) => l.filter((_, j) => j !== index));
+    deleteMedia.mutate(m.id, { onError: () => toast.error("O'chirishda xatolik") });
   };
 
   const genderOpts = useMemo(() => toOpts(genders.data, lang), [genders.data, lang]);
   const materialOpts = useMemo(() => toOpts(materials.data, lang), [materials.data, lang]);
   const stoneOpts = useMemo(() => toOpts(stones.data, lang), [stones.data, lang]);
   const categoryOpts = useMemo(() => toOpts(categories.data, lang), [categories.data, lang]);
+
+  const busy = createProduct.isPending || updateProduct.isPending || adjustStock.isPending || addVariant.isPending;
 
   return (
     <form onSubmit={submit} className="space-y-4" noValidate>
@@ -267,35 +428,20 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         <Input label="Nomi (ru)" placeholder="Название" {...form.register('name_ru')} />
       </div>
 
+      {/* Reference dropdowns — all optional & clearable */}
       <div className="grid grid-cols-2 gap-4">
-        <Controller
-          control={form.control}
-          name="category_id"
-          render={({ field }) => (
-            <Select label="Kategoriya" placeholder="—" options={categoryOpts} value={field.value ?? ''} onChange={field.onChange} />
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="gender_id"
-          render={({ field }) => (
-            <Select label="Kim uchun" placeholder="—" options={genderOpts} value={field.value ?? ''} onChange={field.onChange} />
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="material_id"
-          render={({ field }) => (
-            <Select label="Material" placeholder="—" options={materialOpts} value={field.value ?? ''} onChange={field.onChange} />
-          )}
-        />
-        <Controller
-          control={form.control}
-          name="stone_id"
-          render={({ field }) => (
-            <Select label="Tosh turi" placeholder="—" options={stoneOpts} value={field.value ?? ''} onChange={field.onChange} />
-          )}
-        />
+        <Controller control={form.control} name="category_id" render={({ field }) => (
+          <RefField label="Kategoriya" options={categoryOpts} value={field.value ?? ''} onChange={field.onChange} />
+        )} />
+        <Controller control={form.control} name="gender_id" render={({ field }) => (
+          <RefField label="Kim uchun" options={genderOpts} value={field.value ?? ''} onChange={field.onChange} />
+        )} />
+        <Controller control={form.control} name="material_id" render={({ field }) => (
+          <RefField label="Material" options={materialOpts} value={field.value ?? ''} onChange={field.onChange} />
+        )} />
+        <Controller control={form.control} name="stone_id" render={({ field }) => (
+          <RefField label="Tosh turi" options={stoneOpts} value={field.value ?? ''} onChange={field.onChange} />
+        )} />
       </div>
 
       {/* Prices: base (required) + discount */}
@@ -304,34 +450,14 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="price"
           render={({ field, fieldState }) => (
-            <NumberInput
-              label="Asosiy narx *"
-              value={field.value}
-              onChange={field.onChange}
-              min={0}
-              step={100_000}
-              suffix="so'm"
-              thousands
-              placeholder="400 000"
-              error={fieldState.error?.message}
-            />
+            <NumberInput label="Asosiy narx *" value={field.value} onChange={field.onChange} min={0} step={100_000} suffix="so'm" thousands placeholder="400 000" error={fieldState.error?.message} />
           )}
         />
         <Controller
           control={form.control}
           name="discount_price"
           render={({ field, fieldState }) => (
-            <NumberInput
-              label="Chegirmali narx (mijoz to'laydi)"
-              value={field.value}
-              onChange={field.onChange}
-              min={0}
-              step={100_000}
-              suffix="so'm"
-              thousands
-              placeholder="Chegirma yo'q"
-              error={fieldState.error?.message}
-            />
+            <NumberInput label="Chegirmali narx (mijoz to'laydi)" value={field.value} onChange={field.onChange} min={0} step={100_000} suffix="so'm" thousands placeholder="Chegirma yo'q" error={fieldState.error?.message} />
           )}
         />
       </div>
@@ -342,32 +468,14 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="stock_qty"
           render={({ field, fieldState }) => (
-            <NumberInput
-              label="Ombordagi miqdor (dona)"
-              value={field.value}
-              onChange={field.onChange}
-              min={0}
-              step={1}
-              suffix="dona"
-              placeholder="0"
-              error={fieldState.error?.message}
-            />
+            <NumberInput label="Ombordagi miqdor (dona)" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="0" error={fieldState.error?.message} />
           )}
         />
         <Controller
           control={form.control}
           name="low_stock_threshold"
           render={({ field, fieldState }) => (
-            <NumberInput
-              label="Kam qolgan chegarasi (bo'sh — global)"
-              value={field.value}
-              onChange={field.onChange}
-              min={0}
-              step={1}
-              suffix="dona"
-              placeholder="Global"
-              error={fieldState.error?.message}
-            />
+            <NumberInput label="Kam qolgan chegarasi (bo'sh — global)" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="Global" error={fieldState.error?.message} />
           )}
         />
       </div>
@@ -383,73 +491,55 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         <Textarea label="Tavsif (ru)" {...form.register('description_ru')} />
       </div>
 
-      {/* Images (≥1 required on create) */}
-      <div className="space-y-2">
-        <span className={`text-xs font-medium ${imgError ? 'text-danger' : 'text-muted'}`}>
-          Rasmlar {!product && <span className="text-danger">*</span>}
-        </span>
-        {imgError && <p className="text-2xs text-danger">Kamida bitta rasm yuklang</p>}
-        {/* Single upload zone — drop a file or click to browse the computer */}
-        <button
-          type="button"
-          onClick={() => fileInputRef.current?.click()}
-          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
-          onDragLeave={() => setDragOver(false)}
-          onDrop={(e) => { e.preventDefault(); setDragOver(false); onUpload(e.dataTransfer.files); }}
-          disabled={uploading}
-          className={`flex w-full flex-col items-center gap-2 rounded-[var(--r-md)] border border-dashed p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-wait ${
-            dragOver ? 'border-accent bg-accent-soft' : 'border-strong hover:border-accent'
-          } ${uploading ? 'opacity-60' : ''}`}
-        >
-          {uploading ? (
-            <Loader2 className="h-6 w-6 animate-spin text-muted" strokeWidth={1.5} />
-          ) : (
-            <ImagePlus className="h-6 w-6 text-muted" strokeWidth={1.5} />
-          )}
-          <span className="text-sm text-muted">
-            {uploading ? 'Yuklanmoqda…' : 'Rasm tashlang yoki tanlash uchun bosing'}
-          </span>
-          <span className="text-2xs text-muted">JPG · PNG · WEBP</span>
-        </button>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={UPLOAD_ACCEPT}
-          multiple
-          className="hidden"
-          onChange={(e) => onUpload(e.target.files)}
+      {/* AI search keywords */}
+      <Controller
+        control={form.control}
+        name="ai_keywords"
+        render={({ field }) => (
+          <TagInput label="AI kalit so'zlari (qidiruv uchun)" value={field.value} onChange={field.onChange} placeholder="so'z yozing, Enter bosing" />
+        )}
+      />
+
+      {/* Images — ≥1 required on create; edit adds/removes live via media API */}
+      {product ? (
+        <ProductImages
+          urls={mediaList.map((m) => m.image_url || '')}
+          onUploaded={editUploaded}
+          onRemove={editRemove}
+          error={imgError}
         />
-        {/* create-mode staged URLs */}
-        {!product && newUrls.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {newUrls.map((u, i) => (
-              <span key={u + i} className="flex items-center gap-1 rounded-lg border border-border px-2 py-1 text-xs text-muted">
-                <span className="max-w-[180px] truncate">{u}</span>
-                <button type="button" aria-label="O'chirish" onClick={() => setNewUrls((s) => s.filter((_, j) => j !== i))}>
-                  <X className="h-3.5 w-3.5 hover:text-danger" strokeWidth={1.5} />
-                </button>
-              </span>
-            ))}
+      ) : (
+        <ProductImages
+          urls={newUrls}
+          onUploaded={createUploaded}
+          onRemove={(i) => setNewUrls((s) => s.filter((_, j) => j !== i))}
+          onReorder={(from, to) => setNewUrls((s) => reorder(s, from, to))}
+          error={imgError}
+          required
+        />
+      )}
+
+      {/* Variant details — create only (PATCH can't change variants). */}
+      {!product ? (
+        <details className="rounded-lg border border-border px-4 py-2.5">
+          <summary className="cursor-pointer select-none text-xs font-medium text-muted">
+            Variant tafsilotlari (ixtiyoriy: SKU, shtrix-kod, tur)
+          </summary>
+          <div className="mt-3 grid grid-cols-2 gap-4">
+            <Input label="SKU (bo'sh — avtomatik)" placeholder="MALIKA-001" {...form.register('sku')} />
+            <Input label="Shtrix-kod" placeholder="—" {...form.register('barcode')} />
+            <Controller control={form.control} name="fulfillment_type" render={({ field }) => (
+              <Select label="Ta'minot turi" options={fulfillmentOptions} value={field.value} onChange={field.onChange} />
+            )} />
           </div>
-        )}
-        {/* edit-mode existing media */}
-        {product && product.media.length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {product.media.map((m) => (
-              <span key={m.id} className="flex items-center gap-2 rounded-lg border border-border p-1 pr-2 text-xs">
-                {m.image_url && <img src={m.image_url} alt="" className="h-8 w-8 rounded object-cover" />}
-                <button
-                  type="button"
-                  aria-label="Rasmni o'chirish"
-                  onClick={() => deleteMedia.mutate(m.id, { onError: () => toast.error("O'chirishda xatolik") })}
-                >
-                  <Trash2 className="h-3.5 w-3.5 text-muted hover:text-danger" strokeWidth={1.5} />
-                </button>
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
+        </details>
+      ) : (
+        stockedVariant && (
+          <p className="text-2xs text-muted">
+            SKU: <span className="font-mono text-text">{stockedVariant.sku}</span> — zaxira «Zaxira» oynasidan yoki yuqoridagi maydondan o'zgaradi.
+          </p>
+        )
+      )}
 
       {/* Status + engraving */}
       <div className="grid grid-cols-2 items-end gap-4">
@@ -457,7 +547,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="status"
           render={({ field }) => (
-            <Select label="Holat" options={statusOptions} value={field.value} onChange={field.onChange} />
+            <Select label="Holat (sotuvda ko'rinishi uchun «Faol»)" options={statusOptions} value={field.value} onChange={field.onChange} />
           )}
         />
         <Controller
@@ -465,11 +555,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           name="engraving_available"
           render={({ field }) => (
             <div className="pb-2.5">
-              <Checkbox
-                checked={Boolean(field.value)}
-                onCheckedChange={field.onChange}
-                label="Gravirovka (ism yozish) mavjud"
-              />
+              <Checkbox checked={Boolean(field.value)} onCheckedChange={field.onChange} label="Gravirovka (ism yozish) mavjud" />
             </div>
           )}
         />
@@ -479,17 +565,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="engraving_price"
           render={({ field, fieldState }) => (
-            <NumberInput
-              label="Gravirovka narxi (bo'sh — global sozlama)"
-              value={field.value}
-              onChange={field.onChange}
-              min={0}
-              step={10_000}
-              suffix="so'm"
-              thousands
-              placeholder="Global (50 000)"
-              error={fieldState.error?.message}
-            />
+            <NumberInput label="Gravirovka narxi (bo'sh — global sozlama)" value={field.value} onChange={field.onChange} min={0} step={10_000} suffix="so'm" thousands placeholder="Global (50 000)" error={fieldState.error?.message} />
           )}
         />
       )}
@@ -497,17 +573,15 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       {/* Instagram links attach to an existing product (need its id). */}
       {product && <InstagramSection productId={product.id} />}
 
-      {mutation.isError && (
-        <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">
-          {(mutation.error as unknown as ApiError).message}
-        </p>
+      {formError && (
+        <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">{formError}</p>
       )}
 
       <div className="flex justify-end gap-3 pt-2">
         <Button type="button" variant="ghost" onClick={onDone}>
           Bekor qilish
         </Button>
-        <Button type="submit" loading={mutation.isPending || adjustStock.isPending || addVariant.isPending}>
+        <Button type="submit" loading={busy}>
           Saqlash
         </Button>
       </div>

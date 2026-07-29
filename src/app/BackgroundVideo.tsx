@@ -4,6 +4,15 @@ import { useIntroStore } from '@/shared/stores/intro';
 
 const POSTER = '/video/bg-poster.webp';
 
+// Public customer flows (map / checkout links opened on mobile data) get NO
+// CRM ambiance — no video, no scrim, no heavy fetch. These are full-page routes
+// with no in-app navigation, so a mount-time path check is sufficient.
+function isPublicCustomerPage(): boolean {
+  if (typeof window === 'undefined') return false;
+  const p = window.location.pathname;
+  return p.startsWith('/map/') || p.startsWith('/checkout/');
+}
+
 /**
  * Ambient background behind the whole app: a looping muted video (z -2) veiled
  * by a theme-aware scrim (z -1). Mounted once in the app shell.
@@ -28,6 +37,7 @@ export function BackgroundVideo() {
   const introActive = useIntroStore((s) => s.stage === 'pending' || s.stage === 'playing');
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const [allowed] = useState(environmentAllowsVideo);
+  const [publicPage] = useState(isPublicCustomerPage);
   const [failed, setFailed] = useState(false);
   const [hidden, setHidden] = useState(typeof document !== 'undefined' && document.hidden);
   const [crossing, setCrossing] = useState(false);
@@ -66,7 +76,7 @@ export function BackgroundVideo() {
     else v.pause();
   }, [useVideo, hidden, introActive, crossing]);
 
-  if (mode === 'off') return null;
+  if (mode === 'off' || publicPage) return null;
 
   return (
     <>

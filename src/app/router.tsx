@@ -1,8 +1,22 @@
-import type { ComponentType } from 'react';
+import { lazy, Suspense, type ComponentType, type ReactElement } from 'react';
 import { createBrowserRouter } from 'react-router-dom';
-import { AppLayout } from './layout/AppLayout';
-import { ProtectedRoute } from './ProtectedRoute';
-import { RingTransitionLayout } from './RingTransition';
+
+// The CRM shell (app chrome + framer-motion ring transition + auth guard) is
+// lazy-loaded so it stays OUT of the entry chunk. Public customer routes
+// (/checkout, /map) then download none of it — a phone on mobile data gets only
+// the entry vendor bundle + that page's own chunk. These chunks warm on /login,
+// so authenticated navigation sees no practical delay.
+const AppLayout = lazy(() => import('./layout/AppLayout').then((m) => ({ default: m.AppLayout })));
+const ProtectedRoute = lazy(() =>
+  import('./ProtectedRoute').then((m) => ({ default: m.ProtectedRoute })),
+);
+const RingTransitionLayout = lazy(() =>
+  import('./RingTransition').then((m) => ({ default: m.RingTransitionLayout })),
+);
+
+/** Wrap a lazily-loaded layout element; fallback null (the ring/shell appear as
+ *  soon as their chunk resolves — sub-second, and cached after /login). */
+const shell = (el: ReactElement) => <Suspense fallback={null}>{el}</Suspense>;
 
 // route.lazy (instead of React.lazy + Suspense) keeps the router in a
 // "loading" navigation state while a page chunk downloads, so the ring
@@ -49,16 +63,20 @@ function page(load: () => Promise<{ default: ComponentType }>) {
 export const router = createBrowserRouter([
   // Public customer checkout — no auth, no app shell, no ring transition.
   { path: '/checkout/:token', lazy: page(() => import('@/features/checkout/pages/CheckoutPage')) },
+  // Public customer location page — same isolation: no auth, no shell, no ring,
+  // no background video. Its own lazy chunk so a phone on mobile data downloads
+  // nothing from the CRM app.
+  { path: '/map/:token', lazy: page(() => import('@/features/map/pages/MapPage')) },
   {
     // Ring transition for every navigation below; guard REPLACE redirects stay silent.
-    element: <RingTransitionLayout minMs={1500} />,
+    element: shell(<RingTransitionLayout minMs={1500} />),
     children: [
       { path: '/login', lazy: page(() => import('@/features/auth/pages/LoginPage')) },
       {
-        element: <ProtectedRoute />,
+        element: shell(<ProtectedRoute />),
         children: [
           {
-            element: <AppLayout />,
+            element: shell(<AppLayout />),
             children: [
               { path: '/', lazy: page(() => import('@/features/dashboard/pages/DashboardPage')) },
               { path: '/inbox', lazy: page(() => import('@/features/inbox/pages/InboxPage')) },

@@ -5,13 +5,22 @@ import type { UploadedFile } from './types';
 export const UPLOAD_ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.pdf,.heic';
 export const UPLOAD_MAX_MB = 10;
 
-/** POST /files (multipart) -> uploaded file with a public URL. */
-export async function uploadFile(file: File): Promise<UploadedFile> {
+/** POST /files (multipart) -> uploaded file with a public URL.
+ *  Optional onProgress reports 0..100 for a per-file upload bar. */
+export async function uploadFile(
+  file: File,
+  onProgress?: (pct: number) => void,
+): Promise<UploadedFile> {
   const fd = new FormData();
   fd.append('file', file);
   return (
     await api.post<UploadedFile>('/files', fd, {
       headers: { 'Content-Type': 'multipart/form-data' },
+      onUploadProgress: onProgress
+        ? (e) => {
+            if (e.total) onProgress(Math.round((e.loaded / e.total) * 100));
+          }
+        : undefined,
     })
   ).data;
 }

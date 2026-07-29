@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, LayoutGrid, Rows3, Copy, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, LayoutGrid, Rows3, Copy, Eye, Boxes } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -21,6 +21,7 @@ import {
   type SelectOption,
 } from '@/shared/ui';
 import { CatalogCard } from '../components/CatalogCard';
+import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
 import { useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
@@ -38,9 +39,10 @@ const statusFilterOptions: SelectOption[] = [
   { value: 'archived', label: 'Arxiv' },
 ];
 
-const productMenuItems = (a: { onView: () => void; onEdit: () => void; onDuplicate: () => void; onDelete: () => void }) => [
+const productMenuItems = (a: { onView: () => void; onEdit: () => void; onStock: () => void; onDuplicate: () => void; onDelete: () => void }) => [
   { label: "Ko'rish", icon: <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onView },
   { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onEdit },
+  { label: 'Zaxira', icon: <Boxes className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onStock },
   { label: 'Nusxalash', icon: <Copy className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onDuplicate },
   { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onDelete, destructive: true, separatorBefore: true },
 ];
@@ -51,13 +53,14 @@ function productStatusBadge(status: ProductStatus): { label: string; tone: 'mute
   return { label: productStatusLabels[status], tone: 'muted' };
 }
 
-function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete, onView, onDuplicate }: {
+function ProductSlot({ product, name, material, stone, lowStock, onEdit, onStock, onDelete, onView, onDuplicate }: {
   product: ProductOut;
   name: string;
   material: string;
   stone: string;
   lowStock: boolean;
   onEdit: () => void;
+  onStock: () => void;
   onDelete: () => void;
   onView: () => void;
   onDuplicate: () => void;
@@ -76,7 +79,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
       available={product.available}
       lowStock={lowStock}
       statusBadge={productStatusBadge(product.status)}
-      menuItems={productMenuItems({ onView, onEdit, onDuplicate, onDelete })}
+      menuItems={productMenuItems({ onView, onEdit, onStock, onDuplicate, onDelete })}
       onClick={onView}
     />
   );
@@ -88,11 +91,13 @@ function ProductView({
   name,
   meta,
   onEdit,
+  onStock,
 }: {
   product: ProductOut;
   name: string;
   meta: string;
   onEdit: () => void;
+  onStock: () => void;
 }) {
   const discounted = product.discount_price != null;
   return (
@@ -153,6 +158,9 @@ function ProductView({
       )}
 
       <div className="flex justify-end gap-3">
+        <Button variant="secondary" onClick={onStock}>
+          <Boxes className="h-4 w-4" strokeWidth={1.5} /> Zaxira
+        </Button>
         <Button variant="secondary" onClick={onEdit}>
           <Pencil className="h-4 w-4" strokeWidth={1.5} /> Tahrirlash
         </Button>
@@ -173,6 +181,7 @@ function useRefMap(kind: 'materials' | 'stones' | 'genders') {
 interface RowActions {
   onView: (p: ProductOut) => void;
   onEdit: (p: ProductOut) => void;
+  onStock: (p: ProductOut) => void;
   onDuplicate: (p: ProductOut) => void;
   onDelete: (p: ProductOut) => void;
 }
@@ -240,6 +249,7 @@ function ProductTable({
                     items={productMenuItems({
                       onView: () => actions.onView(p),
                       onEdit: () => actions.onEdit(p),
+                      onStock: () => actions.onStock(p),
                       onDuplicate: () => actions.onDuplicate(p),
                       onDelete: () => actions.onDelete(p),
                     })}
@@ -320,6 +330,7 @@ export default function ProductsPage() {
   const [editing, setEditing] = useState<ProductOut | undefined>();
   const [deleting, setDeleting] = useState<ProductOut | undefined>();
   const [viewing, setViewing] = useState<ProductOut | undefined>();
+  const [stockFor, setStockFor] = useState<ProductOut | undefined>();
 
   const refName = (map: Map<string, RefOut>, id: string | null) =>
     id ? pickName(map.get(id), lang) : '';
@@ -337,6 +348,7 @@ export default function ProductsPage() {
   const rowActions: RowActions = {
     onView: (p) => setViewing(p),
     onEdit: (p) => { setEditing(p); setFormOpen(true); },
+    onStock: (p) => setStockFor(p),
     onDuplicate,
     onDelete: (p) => setDeleting(p),
   };
@@ -445,6 +457,7 @@ export default function ProductsPage() {
                   stone={refName(stones, p.stone_id)}
                   lowStock={lowStockOnly || isLow(p)}
                   onEdit={() => { setEditing(p); setFormOpen(true); }}
+                  onStock={() => setStockFor(p)}
                   onDelete={() => setDeleting(p)}
                   onView={() => setViewing(p)}
                   onDuplicate={() => onDuplicate(p)}
@@ -499,9 +512,15 @@ export default function ProductsPage() {
               setViewing(undefined);
               setFormOpen(true);
             }}
+            onStock={() => {
+              setStockFor(viewing);
+              setViewing(undefined);
+            }}
           />
         )}
       </Modal>
+
+      <StockAdjustDialog product={stockFor} open={Boolean(stockFor)} onClose={() => setStockFor(undefined)} />
 
       <ConfirmDialog
         open={Boolean(deleting)}

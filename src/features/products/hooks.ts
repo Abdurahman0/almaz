@@ -1,4 +1,5 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import type { Paginated } from '@/shared/api/client';
 import * as productsApi from './api';
 import type { ComboListParams, ProductListParams } from './api';
 import type {
@@ -22,7 +23,12 @@ import type {
   RefUpdate,
   StockAdjust,
   VariantCreate,
+  VariantOut,
 } from '@/shared/api/types';
+
+// Reference dictionaries barely change — cache them for the session so the four
+// product-form dropdowns don't refetch on every open.
+const REF_STALE = 10 * 60_000;
 
 export const productKeys = {
   all: ['products'] as const,
@@ -72,6 +78,7 @@ export function useCategories() {
   return useQuery({
     queryKey: productKeys.categories,
     queryFn: () => productsApi.listCategories(),
+    staleTime: REF_STALE,
   });
 }
 
@@ -273,6 +280,7 @@ export function useRefs(kind: RefKind, onlyActive = false) {
   return useQuery({
     queryKey: productKeys.refs(kind, onlyActive),
     queryFn: () => productsApi.listRefs(kind, onlyActive),
+    staleTime: REF_STALE,
   });
 }
 
@@ -338,12 +346,53 @@ export function useDuplicateProduct() {
   });
 }
 
+// A cached products payload is either a paginated envelope or a bare array.
+type ProductsCache = Paginated<ProductOut> | ProductOut[] | undefined;
+
+/** Apply a stock change to one variant everywhere it's cached, recomputing the
+ *  product's summed `available` so the UI stays consistent optimistically. */
+function patchVariantStock(
+  cache: ProductsCache,
+  variantId: string,
+  nextQty: (v: VariantOut) => number,
+): ProductsCache {
+  if (!cache) return cache;
+  const patch = (p: ProductOut): ProductOut => {
+    if (!p.variants.some((v) => v.id === variantId)) return p;
+    const variants = p.variants.map((v) => {
+      if (v.id !== variantId) return v;
+      const stock_qty = Math.max(0, nextQty(v));
+      return { ...v, stock_qty, available: stock_qty - v.reserved_qty };
+    });
+    const available = variants.reduce((s, v) => s + (v.stock_qty - v.reserved_qty), 0);
+    return { ...p, variants, available };
+  };
+  return Array.isArray(cache) ? cache.map(patch) : { ...cache, items: cache.items.map(patch) };
+}
+
+/**
+ * POST /catalog/variants/{id}/stock — set an exact `stock_qty` OR apply a `delta`.
+ * Optimistically patches every cached product list and rolls back on failure.
+ */
 export function useAdjustStock() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ variantId, body }: { variantId: string; body: StockAdjust }) =>
       productsApi.adjustStock(variantId, body),
-    onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
+    onMutate: async ({ variantId, body }) => {
+      await qc.cancelQueries({ queryKey: productKeys.all });
+      const snapshot = qc.getQueriesData<ProductsCache>({ queryKey: productKeys.all });
+      const nextQty = (v: VariantOut) =>
+        body.stock_qty != null ? body.stock_qty : v.stock_qty + (body.delta ?? 0);
+      for (const [key, data] of snapshot) {
+        qc.setQueryData(key, patchVariantStock(data, variantId, nextQty));
+      }
+      return { snapshot };
+    },
+    onError: (_e, _vars, ctx) => {
+      ctx?.snapshot.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
 }
 
