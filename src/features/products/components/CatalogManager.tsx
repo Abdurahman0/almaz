@@ -305,14 +305,14 @@ function CategoryTab() {
                 </div>
                 <div className="flex items-center gap-1">
                   <button
-                    aria-label="Ranglar / qutilar"
+                    aria-label="Qutilar"
                     aria-expanded={boxesId === c.id}
                     onClick={() => setBoxesId((id) => (id === c.id ? null : c.id))}
                     className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
                       boxesId === c.id ? 'bg-accent-soft text-accent-ink' : 'text-muted hover:text-text'
                     }`}
                   >
-                    <Palette className="h-4 w-4" strokeWidth={1.5} /> Ranglar
+                    <Palette className="h-4 w-4" strokeWidth={1.5} /> Qutilar
                     <ChevronDown
                       className={`h-3.5 w-3.5 transition-transform ${boxesId === c.id ? 'rotate-180' : ''}`}
                       strokeWidth={1.5}

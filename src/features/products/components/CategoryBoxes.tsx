@@ -43,13 +43,6 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
           className="h-9 w-9 shrink-0 rounded-lg border border-strong"
           style={{ background: /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : 'transparent' }}
         />
-        <input
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder="#E53935"
-          aria-label="Rang hex kodi"
-          className="tnum w-28 rounded-lg border border-border bg-bg px-3 py-2 text-sm text-text placeholder:text-muted focus:border-accent"
-        />
         <div className="flex flex-wrap gap-1.5">
           {PRESETS.map((c) => (
             <button
@@ -357,8 +350,8 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
         >
           <Minus className="h-3 w-3" strokeWidth={2} />
         </button>
-        <span className="tnum w-12 text-center text-2xs text-text" title="Mavjud / zaxira">
-          {b.available}/{b.stock_qty}
+        <span className="tnum w-10 text-center text-2xs text-text" title="Mavjud">
+          {b.available}
         </span>
         <button
           aria-label="Ko'paytirish"
