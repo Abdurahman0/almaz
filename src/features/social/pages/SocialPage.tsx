@@ -26,7 +26,7 @@ import type { ApiError } from '@/shared/api/client';
 import { useProducts } from '@/features/products/hooks';
 import { useAddSocial, useDeleteSocial, useSocialFeed, useUpdateSocial } from '../hooks';
 import { StoryViewer, type StoryGroup } from '../components/StoryViewer';
-import type { SocialItem } from '../api';
+import { deriveKind, type SocialItem, type SocialKind } from '../api';
 
 type Tab = 'feed' | 'reels';
 
@@ -92,7 +92,7 @@ function Tile({ item, reel, onOpen, menu }: { item: SocialItem; reel: boolean; o
         </div>
       )}
 
-      {item.media_type === 'reel' && (
+      {item.kind === 'reel' && (
         <Clapperboard className="absolute right-2 top-2 h-4 w-4 text-white drop-shadow" strokeWidth={2} />
       )}
       {!item.is_active && (
@@ -133,9 +133,9 @@ export default function SocialPage() {
   const [deleteTarget, setDeleteTarget] = useState<{ ids: string[]; label: string } | null>(null);
 
   const items = feed.data ?? [];
-  const stories = useMemo(() => items.filter((i) => i.media_type === 'story' && !i.is_expired), [items]);
-  const feedItems = useMemo(() => items.filter((i) => i.media_type !== 'story'), [items]);
-  const reels = useMemo(() => items.filter((i) => i.media_type === 'reel'), [items]);
+  const stories = useMemo(() => items.filter((i) => i.kind === 'story' && !i.is_expired), [items]);
+  const feedItems = useMemo(() => items.filter((i) => i.kind !== 'story'), [items]);
+  const reels = useMemo(() => items.filter((i) => i.kind === 'reel'), [items]);
 
   const storyGroups: StoryGroup[] = useMemo(() => {
     const map = new Map<string, StoryGroup>();
@@ -160,12 +160,18 @@ export default function SocialPage() {
     setDraft(emptyDraft);
     setCreateOpen(true);
   };
+  // Type detected live from the link. Reel links crash the backend unless an
+  // image is supplied, so we require one before allowing submit.
+  const detectedKind: SocialKind | null = draft.link.trim() ? deriveKind(draft.link) : null;
+  const reelNeedsImage = detectedKind === 'reel' && !draft.imageUrl.trim();
+  const canSubmit = Boolean(draft.productId && draft.link.trim() && !reelNeedsImage);
+
   const submitCreate = () => {
     add.mutate(
       { productId: draft.productId, body: { link: draft.link.trim(), image_url: draft.imageUrl.trim() || null } },
       {
         onSuccess: () => { setCreateOpen(false); toast.success("Instagram havolasi qo'shildi"); },
-        onError: (e) => toast.error((e as unknown as ApiError).message || "Havola noto'g'ri"),
+        onError: (e) => toast.error((e as unknown as ApiError).message || "Havola qo'shishda xatolik"),
       },
     );
   };
@@ -178,7 +184,7 @@ export default function SocialPage() {
       icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />,
       destructive: true,
       separatorBefore: true,
-      onSelect: () => setDeleteTarget({ ids: [item.id], label: `${kindLabel[item.media_type] ?? ''} — ${pickName(item.product, lang)}` }),
+      onSelect: () => setDeleteTarget({ ids: [item.id], label: `${kindLabel[item.kind] ?? ''} — ${pickName(item.product, lang)}` }),
     },
   ];
   const ringMenu = (g: StoryGroup, i: number): MenuItem[] => [
@@ -281,7 +287,7 @@ export default function SocialPage() {
       <Modal open={Boolean(lightbox)} onClose={() => setLightbox(null)} heading={lightbox ? pickName(lightbox.product, lang) : ''}>
         {lightbox && (
           <div className="space-y-4">
-            <div className={`relative mx-auto overflow-hidden rounded-[var(--r-md)] bg-surface-2 ${lightbox.media_type === 'reel' ? 'aspect-[9/16] max-h-[60vh]' : 'aspect-square'}`}>
+            <div className={`relative mx-auto overflow-hidden rounded-[var(--r-md)] bg-surface-2 ${lightbox.kind === 'reel' ? 'aspect-[9/16] max-h-[60vh]' : 'aspect-square'}`}>
               {lightbox.image_url ? (
                 <img src={lightbox.image_url} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -289,7 +295,7 @@ export default function SocialPage() {
                   <Gem className="h-12 w-12 text-muted/45" strokeWidth={1} />
                 </div>
               )}
-              {lightbox.media_type === 'reel' && (
+              {lightbox.kind === 'reel' && (
                 <span className="absolute inset-0 flex items-center justify-center">
                   <span className="flex h-14 w-14 items-center justify-center rounded-full bg-black/45 backdrop-blur">
                     <Play className="h-6 w-6 fill-white text-white" />
@@ -299,7 +305,7 @@ export default function SocialPage() {
             </div>
             <div className="flex items-center justify-between gap-3 text-xs text-muted">
               <span className="rounded-full bg-surface-2 px-2 py-0.5 font-semibold text-text">
-                {kindLabel[lightbox.media_type] ?? lightbox.media_type}
+                {kindLabel[lightbox.kind] ?? lightbox.kind}
               </span>
               <span className="tnum">{formatDate(lightbox.created_at)}</span>
             </div>
@@ -328,21 +334,37 @@ export default function SocialPage() {
             onChange={(v) => setDraft((d) => ({ ...d, productId: v }))}
             searchable
           />
-          <Input
-            label="Instagram havolasi"
-            placeholder="https://www.instagram.com/p/... , /reel/... yoki /stories/.../"
-            value={draft.link}
-            onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))}
-          />
+          <div>
+            <Input
+              label="Instagram havolasi"
+              placeholder="https://www.instagram.com/p/... , /reel/... yoki /stories/.../"
+              value={draft.link}
+              onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))}
+            />
+            {detectedKind && (
+              <p className="mt-1.5 flex items-center gap-1.5 text-2xs text-muted">
+                Aniqlangan tur:
+                <span className="rounded-full bg-surface-2 px-2 py-0.5 font-semibold text-text">{kindLabel[detectedKind]}</span>
+              </p>
+            )}
+          </div>
           <ImageUpload
-            label="Rasm (ixtiyoriy)"
+            label={detectedKind === 'reel' ? 'Rasm (reel uchun majburiy)' : 'Rasm (tavsiya etiladi)'}
             value={draft.imageUrl || null}
             onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url ?? '' }))}
           />
-          <p className="text-2xs text-muted">Tur (post / reel / story) havoladan avtomatik aniqlanadi.</p>
+          {reelNeedsImage ? (
+            <p className="rounded-[var(--r-sm)] bg-danger-soft px-3 py-2 text-2xs font-medium text-danger">
+              Reel havolasi uchun rasm yuklang — aks holda backend xatolik (500) qaytaradi.
+            </p>
+          ) : (
+            <p className="text-2xs text-muted">
+              Instagram rasmni avtomatik olib kelmaydi — lentada ko'rinishi uchun rasm yuklang. Tur havoladan aniqlanadi.
+            </p>
+          )}
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Bekor qilish</Button>
-            <Button onClick={submitCreate} loading={add.isPending} disabled={!draft.productId || !draft.link.trim()}>
+            <Button onClick={submitCreate} loading={add.isPending} disabled={!canSubmit}>
               Qo'shish
             </Button>
           </div>
@@ -354,7 +376,7 @@ export default function SocialPage() {
         {editing && (
           <div className="space-y-4">
             <p className="text-sm text-muted">
-              {kindLabel[editing.media_type] ?? editing.media_type} · {pickName(editing.product, lang)}
+              {kindLabel[editing.kind] ?? editing.kind} · {pickName(editing.product, lang)}
             </p>
             <ImageUpload label="Rasm" value={editImg || null} onChange={(url) => setEditImg(url ?? '')} />
             <Checkbox checked={editActive} onCheckedChange={setEditActive} label="Faol (lentada ko'rsatiladi)" />

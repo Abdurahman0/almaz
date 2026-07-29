@@ -6,6 +6,22 @@ export type SocialKind = 'post' | 'reel' | 'story';
 export interface SocialItem extends InstagramMediaOut {
   /** The product this Instagram media is attached to (for label + navigation). */
   product: Pick<ProductOut, 'id' | 'name_uz' | 'name_ru'>;
+  /**
+   * Real content type derived from the permalink. The backend mis-labels reels
+   * as `post` (and 500s on reel links without an image), so we don't trust
+   * `media_type` for categorisation — the URL is the source of truth.
+   */
+  kind: SocialKind;
+}
+
+/** Post / reel / story from an Instagram URL (or a bare shortcode/ref). */
+export function deriveKind(link: string | null | undefined, fallback?: string | null): SocialKind {
+  const p = (link ?? '').toLowerCase();
+  if (/\/reels?\//.test(p) || /\/reel/.test(p)) return 'reel';
+  if (/\/stories?\//.test(p) || /\/story/.test(p)) return 'story';
+  if (/\/p\//.test(p)) return 'post';
+  if (fallback === 'reel' || fallback === 'story' || fallback === 'post') return fallback;
+  return 'post';
 }
 
 /**
@@ -31,7 +47,11 @@ export async function fetchSocialFeed(): Promise<SocialItem[]> {
   const perProduct = await Promise.all(
     products.map(async (p) => {
       const media = await listProductInstagram(p.id).catch(() => [] as InstagramMediaOut[]);
-      return media.map((m) => ({ ...m, product: { id: p.id, name_uz: p.name_uz, name_ru: p.name_ru } }));
+      return media.map((m) => ({
+        ...m,
+        product: { id: p.id, name_uz: p.name_uz, name_ru: p.name_ru },
+        kind: deriveKind(m.permalink, m.media_type),
+      }));
     }),
   );
 

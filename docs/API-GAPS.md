@@ -5,6 +5,17 @@
 > provide, plus response-shape mismatches. Verified live on 2026-07-29 with a
 > Super Admin account.
 
+## Instagram media — backend bugs (verified live 2026-07-29, POST /catalog/products/{id}/instagram)
+
+| # | Bug | Repro | Frontend workaround in place |
+|---|-----|-------|------------------------------|
+| 1 | **Reel link → HTTP 500** | `POST {"link":"https://www.instagram.com/reel/XXXX/"}` → `500 "Ichki xatolik yuz berdi"`. Same link **with** `image_url` → 200. | Create form **requires an image** when it detects a `/reel/` link, so the request never hits the crashing path. |
+| 2 | **Reel saved as `media_type:"post"`** | Reel link + image → 200 but the stored `media_type` is `post`, not `reel`. | The feed derives the real type from the **permalink** (`deriveKind`), so reels still land in the Reels tab. `media_type` is not trusted for categorisation. |
+| 3 | **No image fetch** | Post/story links save with `image_url: null` — the backend never pulls the Instagram thumbnail. | Link-only items render an empty placeholder; the form nudges the user to upload an image (and warns it's needed to appear in the feed). |
+| 4 | **No link validation** | `POST {"link":"1234567890"}` (any string) → 200, stored as a `post` with `permalink` = the raw string. | Client detects/labels the type; a global link-format validation on the backend would prevent junk entries. |
+
+Fix requests for the backend: (1) handle `/reel/` links without an image, (2) set `media_type` from the URL path (`/reel/`→reel, `/stories/`→story, `/p/`→post), (3) fetch the IG thumbnail when a token is configured, (4) validate the link format.
+
 ## Blocking gaps (feature is built but flag-gated OFF until these land)
 
 | # | Need | Evidence | Frontend impact |
