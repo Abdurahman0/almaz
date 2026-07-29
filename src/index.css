@@ -451,3 +451,11 @@
     transition-duration: 0.01ms !important;
   }
 }
+
+/* Instagram-style story ring — conic gradient wrapper around a circular avatar */
+.story-ring {
+  background: conic-gradient(from 210deg, #feda75, #fa7e1e, #d62976, #962fbf, #4f5bd5, #feda75);
+}
+.story-ring--seen {
+  background: var(--border-strong);
+}

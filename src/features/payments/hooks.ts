@@ -2,16 +2,22 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as paymentsApi from './api';
 import type { PaymentCardCreate, PaymentCardUpdate, PaymentOut, PaymentStatus } from '@/shared/api/types';
 
+export interface PaymentFilters {
+  status?: PaymentStatus;
+  date_from?: string;
+  date_to?: string;
+}
+
 export const paymentKeys = {
   all: ['payments'] as const,
-  list: (status?: PaymentStatus) => ['payments', 'list', status ?? 'all'] as const,
+  list: (filters?: PaymentFilters) => ['payments', 'list', filters ?? {}] as const,
   cards: ['payments', 'cards'] as const,
 };
 
-export function usePayments(status?: PaymentStatus) {
+export function usePayments(filters: PaymentFilters = {}) {
   return useQuery({
-    queryKey: paymentKeys.list(status),
-    queryFn: () => paymentsApi.listPayments({ status }),
+    queryKey: paymentKeys.list(filters),
+    queryFn: () => paymentsApi.listPayments(filters),
   });
 }
 

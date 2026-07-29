@@ -1,26 +1,60 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { Check, Receipt, X } from 'lucide-react';
+import { Link, useSearchParams } from 'react-router-dom';
+import { format, parseISO } from 'date-fns';
+import { Check, Receipt, RotateCcw, X } from 'lucide-react';
 import {
   Button,
   Card,
+  DateRangePicker,
   EmptyState,
   ErrorCard,
   Input,
   Modal,
   PageHeader,
   PaymentStatusBadge,
+  Select,
   SkeletonRows,
   paymentStatusLabels,
   toast,
+  type Range,
+  type SelectOption,
 } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/format';
 import { useApprovePayment, usePayments, useRejectPayment } from '../hooks';
 import type { PaymentStatus } from '@/shared/api/types';
 
+const statusOptions: SelectOption[] = [
+  { value: '', label: 'Barcha holatlar' },
+  { value: 'pending', label: paymentStatusLabels.pending },
+  { value: 'approved', label: paymentStatusLabels.approved },
+  { value: 'rejected', label: paymentStatusLabels.rejected },
+];
+
 export default function PaymentsPage() {
-  const [status, setStatus] = useState<PaymentStatus | 'all'>('pending');
-  const payments = usePayments(status === 'all' ? undefined : status);
+  // Filters live in the URL → shareable + survive refresh + browser back/forward.
+  const [params, setParams] = useSearchParams();
+  const status = params.get('status') ?? '';
+  const from = params.get('from');
+  const to = params.get('to');
+  const range: Range | null = from && to ? { from: parseISO(from), to: parseISO(to) } : null;
+  const hasFilters = Boolean(status || (from && to));
+
+  const patch = (mut: (p: URLSearchParams) => void) => {
+    const next = new URLSearchParams(params);
+    mut(next);
+    setParams(next, { replace: true });
+  };
+  const setStatus = (v: string) =>
+    patch((p) => { if (v) p.set('status', v); else p.delete('status'); });
+  const setRange = (r: Range) =>
+    patch((p) => { p.set('from', format(r.from, 'yyyy-MM-dd')); p.set('to', format(r.to, 'yyyy-MM-dd')); });
+  const reset = () => setParams({}, { replace: true });
+
+  const payments = usePayments({
+    status: (status as PaymentStatus) || undefined,
+    date_from: from ?? undefined,
+    date_to: to ?? undefined,
+  });
   const approve = useApprovePayment();
   const reject = useRejectPayment();
   const [rejectId, setRejectId] = useState<string | null>(null);
@@ -30,20 +64,19 @@ export default function PaymentsPage() {
     <div>
       <PageHeader heading="To'lovlar" subheading="Cheklar tekshiruvi" />
 
-      <div className="mb-6 flex flex-wrap gap-2">
-        {(['pending', 'approved', 'rejected', 'all'] as const).map((opt) => (
+      <div className="mb-6 flex flex-wrap items-center gap-3">
+        <div className="w-48">
+          <Select placeholder="Barcha holatlar" options={statusOptions} value={status} onChange={setStatus} />
+        </div>
+        <DateRangePicker value={range} onChange={setRange} placeholder="Muddat" />
+        {hasFilters && (
           <button
-            key={opt}
-            onClick={() => setStatus(opt)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors ${
-              status === opt
-                ? 'bg-accent-btn text-on-accent'
-                : 'bg-surface-2 text-muted hover:text-text'
-            }`}
+            onClick={reset}
+            className="flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold text-muted transition-colors hover:bg-surface-2 hover:text-text"
           >
-            {opt === 'all' ? 'Barchasi' : paymentStatusLabels[opt]}
+            <RotateCcw className="h-3.5 w-3.5" strokeWidth={1.75} /> Tozalash
           </button>
-        ))}
+        )}
       </div>
 
       <div className="space-y-4">
@@ -51,10 +84,20 @@ export default function PaymentsPage() {
         {payments.isError && <ErrorCard error={payments.error} onRetry={() => payments.refetch()} />}
         {payments.isSuccess && payments.data.length === 0 && (
           <Card>
-            <EmptyState heading="To'lovlar yo'q" hint="Yangi cheklar shu yerda ko'rinadi" />
+            <EmptyState
+              heading={hasFilters ? "Filtrga mos to'lov topilmadi" : "To'lovlar yo'q"}
+              hint={hasFilters ? "Filtrni o'zgartiring yoki tozalang" : 'Yangi cheklar shu yerda ko\'rinadi'}
+              action={
+                hasFilters ? (
+                  <Button variant="secondary" size="sm" onClick={reset}>
+                    Filtrlarni tozalash
+                  </Button>
+                ) : undefined
+              }
+            />
           </Card>
         )}
-        {payments.data?.map((p) => (
+        {payments.isSuccess && payments.data.map((p) => (
           <Card key={p.id} className="flex flex-wrap items-center justify-between gap-4">
             <div className="min-w-0">
               <div className="flex items-center gap-2">

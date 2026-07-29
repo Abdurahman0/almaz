@@ -1,5 +1,5 @@
-import { NavLink } from 'react-router-dom';
-import { motion } from 'framer-motion';
+import { Link, useLocation, useNavigation } from 'react-router-dom';
+import { motion, LayoutGroup, useReducedMotion } from 'framer-motion';
 import {
   LayoutDashboard,
   MessageCircle,
@@ -13,6 +13,7 @@ import {
   UserCog,
   ScrollText,
   Cable,
+  Instagram,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
@@ -28,6 +29,7 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/inbox', icon: MessageCircle, label: 'nav.inbox' },
   { to: '/orders', icon: Gem, label: 'nav.orders' },
   { to: '/products', icon: Package, label: 'nav.products' },
+  { to: '/social', icon: Instagram, label: 'nav.social' },
   { to: '/clients', icon: Users, label: 'nav.clients' },
   { to: '/payments', icon: CreditCard, label: 'nav.payments' },
   { to: '/reports', icon: BarChart3, label: 'nav.reports' },
@@ -38,12 +40,34 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/settings', icon: Settings, label: 'nav.settings' },
 ];
 
+/**
+ * Active path from the PENDING navigation while one is in flight, else the
+ * committed location. This decouples the nav highlight from the ring page
+ * transition: the pill starts travelling the instant a navigation begins
+ * (link click, navigate(), back/forward, deep link) rather than waiting for
+ * the chunk to load / the route to commit.
+ */
+function useActivePath(): string {
+  const location = useLocation();
+  const navigation = useNavigation();
+  return navigation.location?.pathname ?? location.pathname;
+}
+/** Matches react-router's NavLink semantics: `end` = exact, else prefix. */
+function pathIsActive(activePath: string, to: string, end: boolean): boolean {
+  if (end) return activePath === to;
+  return activePath === to || activePath.startsWith(to.endsWith('/') ? to : `${to}/`);
+}
+
 export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggle = useUiStore((s) => s.toggleSidebar);
   const introPlaying = useIntroStore((s) => s.stage === 'playing');
   const canIntegrations = useHasPermission('settings:manage_integrations');
   const t = useT();
+  const reduce = useReducedMotion();
+  const activePath = useActivePath();
+  // Reduced motion → instant snap; otherwise a gentle spring (~260ms, no overshoot).
+  const spring = reduce ? { duration: 0 } : ({ type: 'spring', stiffness: 380, damping: 32 } as const);
   const items = navItems.filter((it) => !it.perm || (it.perm === 'settings:manage_integrations' && canIntegrations));
 
   return (
@@ -63,52 +87,62 @@ export function Sidebar() {
         {!collapsed && <span className="brand-gradient text-lg font-bold tracking-tight">Almaz Silver</span>}
       </div>
 
-      <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2.5 py-2" aria-label="Asosiy">
-        {items.map(({ to, icon: Icon, label }) => {
-          const link = (
-            <NavLink
-              key={to}
-              to={to}
-              end={to === '/' || to === '/settings'}
-              aria-label={t(label)}
-              className={({ isActive }) =>
-                `group relative flex h-10 items-center rounded-[var(--r-sm)] text-sm font-medium transition-colors duration-150 ${
+      {/* One LayoutGroup so the pill + edge indicator travel between items */}
+      <LayoutGroup id="sidebar-nav">
+        <nav className="flex-1 space-y-0.5 overflow-y-auto overflow-x-hidden px-2.5 py-2" aria-label="Asosiy">
+          {items.map(({ to, icon: Icon, label }) => {
+            const active = pathIsActive(activePath, to, to === '/' || to === '/settings');
+            const link = (
+              <Link
+                key={to}
+                to={to}
+                aria-label={t(label)}
+                aria-current={active ? 'page' : undefined}
+                className={`group relative flex h-10 items-center rounded-[var(--r-sm)] text-sm transition-colors duration-150 ${
                   collapsed ? 'justify-center' : 'gap-3 px-3'
                 } ${
-                  isActive
-                    ? 'bg-accent-soft text-accent-ink'
-                    : 'text-muted hover:bg-surface-2 hover:text-text'
-                }`
-              }
-            >
-              {({ isActive }) => (
-                <>
-                  {/* 3px accent indicator — shared layout transition between items */}
-                  {isActive && (
+                  active
+                    ? 'font-semibold text-accent-ink'
+                    : 'font-medium text-muted hover:bg-surface-2 hover:text-text'
+                }`}
+              >
+                {active && (
+                  <>
+                    {/* travelling pill background (initial={false} = no first-mount flicker) */}
                     <motion.span
-                      layoutId="nav-active-bar"
-                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
-                      transition={{ type: 'spring', stiffness: 500, damping: 38 }}
+                      layoutId="nav-pill"
+                      initial={false}
+                      transition={spring}
+                      className="absolute inset-0 rounded-[var(--r-sm)] bg-accent-soft"
                     />
-                  )}
-                  <Icon
-                    className="h-[20px] w-[20px] shrink-0"
-                    strokeWidth={isActive ? 2.1 : 1.75}
-                  />
-                  <span className={collapsed ? 'sr-only' : 'truncate'}>{t(label)}</span>
-                </>
-              )}
-            </NavLink>
-          );
-          return collapsed ? (
-            <Tooltip key={to} content={t(label)} side="right">
-              {link}
-            </Tooltip>
-          ) : (
-            link
-          );
-        })}
-      </nav>
+                    {/* travelling 3px edge indicator */}
+                    <motion.span
+                      layoutId="nav-indicator"
+                      initial={false}
+                      transition={spring}
+                      className="absolute left-0 top-1/2 h-5 w-[3px] -translate-y-1/2 rounded-r-full bg-accent"
+                    />
+                  </>
+                )}
+                <Icon
+                  className={`relative h-[19px] w-[19px] shrink-0 transition-colors duration-150 ${active ? 'text-accent' : ''}`}
+                  strokeWidth={active ? 2.1 : 1.75}
+                />
+                <span className={`relative transition-colors duration-150 ${collapsed ? 'sr-only' : 'truncate'}`}>
+                  {t(label)}
+                </span>
+              </Link>
+            );
+            return collapsed ? (
+              <Tooltip key={to} content={t(label)} side="right">
+                {link}
+              </Tooltip>
+            ) : (
+              link
+            );
+          })}
+        </nav>
+      </LayoutGroup>
 
       <button
         onClick={toggle}
@@ -129,30 +163,53 @@ export function Sidebar() {
 /** Bottom navigation on mobile (first 5 items). */
 export function MobileNav() {
   const t = useT();
+  const reduce = useReducedMotion();
+  const activePath = useActivePath();
+  const spring = reduce ? { duration: 0 } : ({ type: 'spring', stiffness: 380, damping: 32 } as const);
   return (
-    <nav
-      className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden"
-      aria-label="Asosiy"
-    >
-      {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => (
-        <NavLink
-          key={to}
-          to={to}
-          end={to === '/'}
-          className={({ isActive }) =>
-            `flex flex-1 flex-col items-center gap-1 py-2.5 text-2xs font-medium ${
-              isActive ? 'text-accent-ink' : 'text-muted'
-            }`
-          }
-        >
-          {({ isActive }) => (
-            <>
-              <Icon className="h-5 w-5" strokeWidth={isActive ? 2.1 : 1.5} />
-              {t(label)}
-            </>
-          )}
-        </NavLink>
-      ))}
-    </nav>
+    // Own LayoutGroup — the pill/indicator layoutIds are scoped, so they travel
+    // across the bottom-nav items without colliding with the sidebar's.
+    <LayoutGroup id="mobile-nav">
+      <nav
+        className="fixed inset-x-0 bottom-0 z-40 flex border-t border-border bg-surface md:hidden"
+        aria-label="Asosiy"
+      >
+        {navItems.slice(0, 5).map(({ to, icon: Icon, label }) => {
+          const active = pathIsActive(activePath, to, to === '/');
+          return (
+            <Link
+              key={to}
+              to={to}
+              aria-current={active ? 'page' : undefined}
+              className={`relative flex flex-1 flex-col items-center gap-1 py-2 text-2xs ${
+                active ? 'font-semibold text-accent-ink' : 'font-medium text-muted'
+              }`}
+            >
+              {active && (
+                <>
+                  <motion.span
+                    layoutId="nav-pill"
+                    initial={false}
+                    transition={spring}
+                    className="absolute inset-x-2 inset-y-1 rounded-[var(--r-sm)] bg-accent-soft"
+                  />
+                  <motion.span
+                    layoutId="nav-indicator"
+                    initial={false}
+                    transition={spring}
+                    className="absolute left-1/2 top-0 h-[3px] w-6 -translate-x-1/2 rounded-b-full bg-accent"
+                  />
+                </>
+              )}
+              <Icon
+                className={`relative h-[18px] w-[18px] transition-colors duration-150 ${active ? 'text-accent' : ''}`}
+                strokeWidth={active ? 2.1 : 1.5}
+              />
+              <span className="relative">{t(label)}</span>
+            </Link>
+          );
+        })}
+      </nav>
+    </LayoutGroup>
   );
 }

@@ -9,9 +9,11 @@ import {
   OrderStatusBadge,
   PageHeader,
   Pager,
+  Select,
   SkeletonRows,
   orderStatusLabels,
   Money,
+  type SelectOption,
 } from '@/shared/ui';
 import { formatDate, formatDateTime } from '@/shared/lib/format';
 import { useOrders, useOrdersPage } from '../hooks';
@@ -23,9 +25,13 @@ import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
 const PAGE_SIZE = 30;
 
-const filterOptions: Array<OrderStatus | 'all'> = [
-  'all', 'pending', 'waiting_payment', 'payment_review', 'confirmed',
+const STATUS_FILTERS: OrderStatus[] = [
+  'pending', 'waiting_payment', 'payment_review', 'confirmed',
   'preparing', 'shipping', 'completed', 'cancelled',
+];
+const statusOptions: SelectOption[] = [
+  { value: '', label: 'Barcha holatlar' },
+  ...STATUS_FILTERS.map((s) => ({ value: s, label: orderStatusLabels[s] })),
 ];
 
 /** Board columns — each groups a few statuses into one pipeline stage. */
@@ -113,27 +119,17 @@ function OrderBoard() {
 
 function OrderList() {
   const navigate = useNavigate();
-  const [status, setStatus] = useState<OrderStatus | 'all'>('all');
+  const [status, setStatus] = useState<string>(''); // '' = all
   const [offset, setOffset] = useState(0);
   useEffect(() => setOffset(0), [status]);
-  const query = useOrdersPage({ status: status === 'all' ? undefined : status, limit: PAGE_SIZE, offset });
+  const query = useOrdersPage({ status: (status as OrderStatus) || undefined, limit: PAGE_SIZE, offset });
   const orders = query.data?.items ?? [];
   const total = query.data?.total ?? 0;
 
   return (
     <>
-      <div className="mb-6 flex flex-wrap gap-2">
-        {filterOptions.map((opt) => (
-          <button
-            key={opt}
-            onClick={() => setStatus(opt)}
-            className={`rounded-full px-3.5 py-1.5 text-xs font-semibold transition-colors duration-150 ${
-              status === opt ? 'bg-accent-btn text-on-accent' : 'bg-surface-2 text-muted hover:text-text'
-            }`}
-          >
-            {opt === 'all' ? 'Barchasi' : orderStatusLabels[opt]}
-          </button>
-        ))}
+      <div className="mb-6 w-56">
+        <Select placeholder="Barcha holatlar" options={statusOptions} value={status} onChange={setStatus} />
       </div>
 
       {query.isPending && <SkeletonRows rows={7} />}

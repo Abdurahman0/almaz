@@ -52,6 +52,7 @@ export const router = createBrowserRouter([
                 path: '/combos',
                 lazy: page(() => import('@/features/products/pages/CombosPage')),
               },
+              { path: '/social', lazy: page(() => import('@/features/social/pages/SocialPage')) },
               { path: '/clients', lazy: page(() => import('@/features/clients/pages/ClientsPage')) },
               {
                 path: '/payments',

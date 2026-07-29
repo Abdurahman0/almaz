@@ -17,9 +17,11 @@ export interface Range {
 }
 
 interface DateRangePickerProps {
-  value: Range;
+  /** null = no range chosen; the trigger shows `placeholder` instead. */
+  value: Range | null;
   onChange: (range: Range) => void;
   size?: 'sm' | 'md';
+  placeholder?: string;
 }
 
 const presets: Array<{ label: string; make: () => Range }> = [
@@ -32,11 +34,13 @@ const presets: Array<{ label: string; make: () => Range }> = [
 ];
 
 /** Range picker with Uzbek presets column; two-click selection in the grid. */
-export function DateRangePicker({ value, onChange, size = 'md' }: DateRangePickerProps) {
+export function DateRangePicker({ value, onChange, size = 'md', placeholder = 'Muddat' }: DateRangePickerProps) {
   const [open, setOpen] = useState(false);
   const [draft, setDraft] = useState<DateRange | undefined>();
 
-  const display = `${format(value.from, 'd-MMM', { locale: uz })} — ${format(value.to, 'd-MMM, yyyy', { locale: uz })}`;
+  const display = value
+    ? `${format(value.from, 'd-MMM', { locale: uz })} — ${format(value.to, 'd-MMM, yyyy', { locale: uz })}`
+    : placeholder;
 
   const commit = (r: DateRange | undefined) => {
     setDraft(r);
@@ -51,7 +55,7 @@ export function DateRangePicker({ value, onChange, size = 'md' }: DateRangePicke
     <Popover.Root open={open} onOpenChange={(v) => { setOpen(v); setDraft(undefined); }}>
       <Popover.Trigger asChild>
         <button type="button" className={`${triggerCls(size)} w-auto min-w-56`}>
-          <span className="tnum truncate">{display}</span>
+          <span className={`truncate ${value ? 'tnum' : 'text-muted'}`}>{display}</span>
           <CalendarDays className="h-4 w-4 shrink-0 text-muted" strokeWidth={1.5} />
         </button>
       </Popover.Trigger>
@@ -72,8 +76,8 @@ export function DateRangePicker({ value, onChange, size = 'md' }: DateRangePicke
             </div>
             <Calendar
               mode="range"
-              selected={draft ?? { from: value.from, to: value.to }}
-              defaultMonth={value.from}
+              selected={draft ?? (value ? { from: value.from, to: value.to } : undefined)}
+              defaultMonth={value?.from}
               onSelect={commit}
             />
           </div>
