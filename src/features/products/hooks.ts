@@ -39,7 +39,7 @@ export const productKeys = {
 export function useProducts(status?: ProductStatus) {
   return useQuery({
     queryKey: productKeys.list(status),
-    queryFn: () => productsApi.listProducts({ status, limit: 1000 }).then((r) => r.items),
+    queryFn: () => productsApi.listProducts({ status, limit: 200 }).then((r) => r.items),
   });
 }
 

@@ -34,7 +34,7 @@ export interface CardListParams extends ListParams {
 }
 
 export async function listCards(params: CardListParams = {}): Promise<PaymentCardOut[]> {
-  return getItems<PaymentCardOut>('/payments/cards', { params: { limit: 1000, ...params } });
+  return getItems<PaymentCardOut>('/payments/cards', { params: { limit: 200, ...params } });
 }
 
 export async function getCard(cardId: string): Promise<PaymentCardOut> {

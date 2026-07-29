@@ -138,7 +138,7 @@ export interface CategoryListParams extends ListParams {
 }
 
 export async function listCategories(params: CategoryListParams = {}): Promise<CategoryOut[]> {
-  return getItems<CategoryOut>('/catalog/categories', { params: { limit: 1000, ...params } });
+  return getItems<CategoryOut>('/catalog/categories', { params: { limit: 200, ...params } });
 }
 
 export async function getCategory(id: string): Promise<CategoryOut> {
@@ -235,7 +235,7 @@ export async function addComboImage(comboId: string, imageUrl: string): Promise<
 
 // ---------- Reference dictionaries: genders / materials / stones ----------
 export async function listRefs(kind: RefKind, onlyActive = false): Promise<RefOut[]> {
-  const params = { limit: 1000, ...(onlyActive ? { only_active: true } : {}) };
+  const params = { limit: 200, ...(onlyActive ? { only_active: true } : {}) };
   return getItems<RefOut>(`/catalog/${kind}`, { params });
 }
 
