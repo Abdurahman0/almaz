@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { X, Plus, Trash2, Upload } from 'lucide-react';
+import { X, Trash2, ImagePlus, Loader2 } from 'lucide-react';
 import {
   Button,
   Checkbox,
@@ -99,8 +99,8 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
 
   // Create-mode image URL collector (submitted inline as image_urls).
   const [newUrls, setNewUrls] = useState<string[]>([]);
-  const [urlDraft, setUrlDraft] = useState('');
   const [uploading, setUploading] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
   const [imgError, setImgError] = useState(false);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
 
@@ -194,13 +194,6 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       setNewUrls((s) => [...s, url]);
       setImgError(false);
     }
-  };
-
-  const addUrl = () => {
-    const url = urlDraft.trim();
-    if (!url) return;
-    attachUrl(url);
-    setUrlDraft('');
   };
 
   const onUpload = async (files: FileList | null) => {
@@ -329,35 +322,36 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           Rasmlar {!product && <span className="text-danger">*</span>}
         </span>
         {imgError && <p className="text-2xs text-danger">Kamida bitta rasm yuklang</p>}
-        <div className="flex gap-2">
-          <div className="flex-1">
-            <Input
-              placeholder="https://.../uzuk.jpg"
-              value={urlDraft}
-              onChange={(e) => setUrlDraft(e.target.value)}
-              onKeyDown={(e) => {
-                if (e.key === 'Enter') {
-                  e.preventDefault();
-                  addUrl();
-                }
-              }}
-            />
-          </div>
-          <Button type="button" variant="secondary" onClick={addUrl} loading={addMedia.isPending}>
-            <Plus className="h-4 w-4" strokeWidth={1.5} /> URL
-          </Button>
-          <Button type="button" variant="secondary" onClick={() => fileInputRef.current?.click()} loading={uploading}>
-            <Upload className="h-4 w-4" strokeWidth={1.5} /> Yuklash
-          </Button>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept={UPLOAD_ACCEPT}
-            multiple
-            className="hidden"
-            onChange={(e) => onUpload(e.target.files)}
-          />
-        </div>
+        {/* Single upload zone — drop a file or click to browse the computer */}
+        <button
+          type="button"
+          onClick={() => fileInputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+          onDragLeave={() => setDragOver(false)}
+          onDrop={(e) => { e.preventDefault(); setDragOver(false); onUpload(e.dataTransfer.files); }}
+          disabled={uploading}
+          className={`flex w-full flex-col items-center gap-2 rounded-[var(--r-md)] border border-dashed p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-wait ${
+            dragOver ? 'border-accent bg-accent-soft' : 'border-strong hover:border-accent'
+          } ${uploading ? 'opacity-60' : ''}`}
+        >
+          {uploading ? (
+            <Loader2 className="h-6 w-6 animate-spin text-muted" strokeWidth={1.5} />
+          ) : (
+            <ImagePlus className="h-6 w-6 text-muted" strokeWidth={1.5} />
+          )}
+          <span className="text-sm text-muted">
+            {uploading ? 'Yuklanmoqda…' : 'Rasm tashlang yoki tanlash uchun bosing'}
+          </span>
+          <span className="text-2xs text-muted">JPG · PNG · WEBP</span>
+        </button>
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept={UPLOAD_ACCEPT}
+          multiple
+          className="hidden"
+          onChange={(e) => onUpload(e.target.files)}
+        />
         {/* create-mode staged URLs */}
         {!product && newUrls.length > 0 && (
           <div className="flex flex-wrap gap-2">
