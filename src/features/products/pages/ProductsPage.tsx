@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Plus, PackageOpen, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, Sparkles, LayoutGrid, Rows3, Copy, Eye } from 'lucide-react';
+import { Plus, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, LayoutGrid, Rows3, Copy, Eye } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -17,10 +17,10 @@ import {
   productStatusLabels,
   ConfirmDialog,
   DropdownMenu,
-  Tooltip,
   toast,
   type SelectOption,
 } from '@/shared/ui';
+import { CatalogCard } from '../components/CatalogCard';
 import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
 import { useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
@@ -45,6 +45,12 @@ const productMenuItems = (a: { onView: () => void; onEdit: () => void; onDuplica
   { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: a.onDelete, destructive: true, separatorBefore: true },
 ];
 
+/** Product status → badge, but ONLY for non-normal states (active shows none). */
+function productStatusBadge(status: ProductStatus): { label: string; tone: 'muted' | 'danger' | 'success' } | null {
+  if (status === 'active') return null;
+  return { label: productStatusLabels[status], tone: 'muted' };
+}
+
 function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelete, onView, onDuplicate }: {
   product: ProductOut;
   name: string;
@@ -56,103 +62,23 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onDelet
   onView: () => void;
   onDuplicate: () => void;
 }) {
-  // available comes straight from the API (active stocked variants, stock-reserved)
-  const stock = product.available;
-  const soldOut = stock <= 0;
-  const discounted = product.discount_price != null;
-
-  const menu = (
-    <DropdownMenu
-      items={productMenuItems({ onView, onEdit, onDuplicate, onDelete })}
-      trigger={
-        <button
-          aria-label="Amallar"
-          className="flex h-8 w-8 items-center justify-center rounded-full bg-surface/80 text-muted backdrop-blur transition-colors hover:text-text"
-        >
-          <span className="text-lg leading-none">⋯</span>
-        </button>
-      }
-    />
-  );
-
+  // Only jeweler facts the API actually returns; weight + ring size are not on
+  // ProductOut (docs/API-GAPS.md) so they're omitted rather than shown as "—".
+  const meta = [material, stone, `${product.variants.length} variant`].filter(Boolean);
   return (
-    <div
+    <CatalogCard
+      imageUrl={product.media[0]?.image_url}
+      placeholderIcon={<Gem className="h-8 w-8 text-muted/45" strokeWidth={1.25} />}
+      name={name}
+      price={product.effective_price}
+      oldPrice={product.discount_price != null ? product.price : null}
+      meta={meta}
+      available={product.available}
+      lowStock={lowStock}
+      statusBadge={productStatusBadge(product.status)}
+      menuItems={productMenuItems({ onView, onEdit, onDuplicate, onDelete })}
       onClick={onView}
-      className={`group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 ${
-        soldOut ? 'opacity-70 hover:opacity-100' : 'hover:-translate-y-0.5 hover:shadow-md'
-      }`}
-    >
-      <div className="relative aspect-[16/10] overflow-hidden bg-surface-2">
-        {product.media[0]?.image_url ? (
-          <img
-            src={product.media[0].image_url}
-            alt={name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
-          />
-        ) : (
-          <div className="flex h-full w-full items-center justify-center">
-            <Gem className="h-9 w-9 text-muted/50" strokeWidth={1.25} />
-          </div>
-        )}
-
-        <span
-          className="absolute right-2 top-2 z-10"
-          onClick={(e) => e.stopPropagation()}
-        >
-          {soldOut ? <Tooltip content="Qayta buyurtma berasizmi?"><span>{menu}</span></Tooltip> : menu}
-        </span>
-
-        {soldOut ? (
-          <span className="absolute left-3 top-3 flex items-center gap-1 rounded-full bg-surface/85 px-2.5 py-0.5 text-2xs font-semibold text-muted backdrop-blur">
-            <PackageOpen className="h-3 w-3" strokeWidth={1.75} /> Tugagan
-          </span>
-        ) : (
-          <span
-            className={`absolute left-3 top-3 flex items-center gap-1 rounded-full px-2.5 py-0.5 text-2xs font-semibold backdrop-blur ${
-              lowStock ? 'bg-danger-soft text-danger' : 'bg-surface/85 text-text'
-            }`}
-          >
-            {lowStock && <AlertTriangle className="h-3 w-3" strokeWidth={2} />}
-            {stock} dona
-          </span>
-        )}
-      </div>
-
-      <div className="p-3.5">
-        <div className="mb-1.5 flex items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className={`truncate text-sm font-semibold ${soldOut ? 'text-muted' : 'text-text'}`}>{name}</p>
-            <p className="truncate text-xs text-muted">
-              {[material, stone].filter(Boolean).join(' · ') || '—'}
-            </p>
-          </div>
-          <Badge tone={product.status === 'active' ? 'success' : 'muted'}>
-            {productStatusLabels[product.status]}
-          </Badge>
-        </div>
-
-        {/* main details */}
-        <div className="mb-2.5 flex flex-wrap items-center gap-1.5 text-2xs text-muted">
-          <span className="rounded-md bg-surface-2 px-1.5 py-0.5">
-            {product.variants.length} variant
-          </span>
-          {product.engraving_available && (
-            <span className="flex items-center gap-0.5 rounded-md bg-surface-2 px-1.5 py-0.5">
-              <Sparkles className="h-3 w-3" strokeWidth={1.5} /> Gravirovka
-            </span>
-          )}
-        </div>
-
-        <span className={`flex items-baseline gap-1.5 text-md tnum ${soldOut ? 'text-muted' : 'text-accent-ink'}`}>
-          <Money short value={product.effective_price} />
-          {discounted && (
-            <span className="text-2xs text-muted line-through">
-              <Money short value={product.price} />
-            </span>
-          )}
-        </span>
-      </div>
-    </div>
+    />
   );
 }
 
@@ -580,16 +506,14 @@ export default function ProductsPage() {
       <ConfirmDialog
         open={Boolean(deleting)}
         onClose={() => setDeleting(undefined)}
-        heading="O'chirishni tasdiqlang"
-        description={`«${deleting ? pickName(deleting, lang) : ''}» mahsuloti butunlay o'chiriladi — bu amalni ortga qaytarib bo'lmaydi.`}
-        loading={deleteProduct.isPending}
-        onConfirm={() =>
-          deleting &&
-          deleteProduct.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(undefined); toast.success("Mahsulot o'chirildi"); },
-            onError: () => toast.error("O'chirishda xatolik yuz berdi"),
-          })
-        }
+        heading="Mahsulotni o'chirish"
+        description={`«${deleting ? pickName(deleting, lang) : ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await deleteProduct.mutateAsync(deleting.id);
+          toast.success("Mahsulot o'chirildi");
+          setDeleting(undefined);
+        }}
       />
     </div>
   );

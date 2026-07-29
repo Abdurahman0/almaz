@@ -149,15 +149,13 @@ export function CardsSection() {
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
         heading="Kartani o'chirish"
-        description={`«${deleting?.card_number_masked ?? ''}» kartasi o'chiriladi.`}
-        loading={deleteCard.isPending}
-        onConfirm={() =>
-          deleting &&
-          deleteCard.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(null); toast.success("Karta o'chirildi"); },
-            onError: () => toast.error("O'chirishda xatolik"),
-          })
-        }
+        description={`«${deleting?.card_number_masked ?? ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await deleteCard.mutateAsync(deleting.id);
+          toast.success("Karta o'chirildi");
+          setDeleting(null);
+        }}
       />
     </>
   );

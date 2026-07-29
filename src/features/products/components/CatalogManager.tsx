@@ -174,15 +174,13 @@ function RefTab({ kind }: { kind: RefKind }) {
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
         heading="O'chirishni tasdiqlang"
-        description={`«${deleting ? pickName(deleting, lang) : ''}» o'chiriladi.`}
-        loading={remove.isPending}
-        onConfirm={() =>
-          deleting &&
-          remove.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(null); toast.success("O'chirildi"); },
-            onError: () => toast.error("O'chirishda xatolik"),
-          })
-        }
+        description={`«${deleting ? pickName(deleting, lang) : ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          toast.success("O'chirildi");
+          setDeleting(null);
+        }}
       />
     </div>
   );
@@ -353,16 +351,14 @@ function CategoryTab() {
       <ConfirmDialog
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        heading="O'chirishni tasdiqlang"
-        description={`«${deleting ? pickName(deleting, lang) : ''}» kategoriyasi o'chiriladi.`}
-        loading={remove.isPending}
-        onConfirm={() =>
-          deleting &&
-          remove.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(null); toast.success("O'chirildi"); },
-            onError: () => toast.error("O'chirishda xatolik"),
-          })
-        }
+        heading="Kategoriyani o'chirish"
+        description={`«${deleting ? pickName(deleting, lang) : ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          toast.success("O'chirildi");
+          setDeleting(null);
+        }}
       />
     </div>
   );

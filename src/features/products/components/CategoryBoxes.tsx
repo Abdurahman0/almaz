@@ -1,13 +1,11 @@
-import { useEffect, useRef, useState } from 'react';
-import { Check, ImagePlus, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
+import { useEffect, useRef, useState, type ReactNode } from 'react';
+import { Check, Gift, ImagePlus, Minus, Pencil, Plus, Trash2, X } from 'lucide-react';
 import {
-  Badge,
   Button,
   Checkbox,
   ConfirmDialog,
   EmptyState,
   Input,
-  Money,
   NumberInput,
   Select,
   SkeletonRows,
@@ -26,6 +24,7 @@ import {
   useSetBoxStock,
   useUpdateBox,
 } from '../hooks';
+import { CatalogCard } from './CatalogCard';
 import type { BoxOut } from '@/shared/api/types';
 
 const PRESETS = [
@@ -96,6 +95,7 @@ function BoxEditor({
   onCancel,
   saving,
   withStock,
+  media,
 }: {
   draft: BoxDraft;
   setDraft: (d: BoxDraft) => void;
@@ -104,9 +104,11 @@ function BoxEditor({
   saving: boolean;
   /** stock_qty only editable on create (edit uses the ± stepper). */
   withStock: boolean;
+  /** Photo gallery manager, shown when editing an existing box. */
+  media?: ReactNode;
 }) {
   return (
-    <div className="space-y-3 rounded-lg border border-border bg-surface-2/40 p-3">
+    <div className="space-y-3 rounded-[var(--r-md)] border border-border bg-surface-2/40 p-3">
       <div className="grid grid-cols-2 gap-2">
         <Input
           label="Nomi (uz)"
@@ -148,6 +150,12 @@ function BoxEditor({
           onChange={(v) => setDraft({ ...draft, sort_order: v })}
         />
       </div>
+      {media && (
+        <div>
+          <p className="mb-1.5 text-xs font-semibold text-muted">Rasmlar</p>
+          {media}
+        </div>
+      )}
       <div className="flex items-center justify-between">
         <Checkbox
           checked={draft.is_active}
@@ -329,101 +337,40 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
     );
   };
 
+  const editingBox = boxes.data?.find((b) => b.id === editId) ?? null;
+
+  const stepper = (b: BoxOut) => (
+    <div className="flex items-center justify-between">
+      <span className="text-2xs text-muted">Zaxira</span>
+      <div className="flex items-center gap-1.5">
+        <button
+          aria-label="Kamaytirish"
+          onClick={() => bump(b, -1)}
+          disabled={b.stock_qty <= 0}
+          className="flex h-6 w-6 items-center justify-center rounded-[var(--r-xs)] border border-border text-muted transition-colors hover:text-text disabled:opacity-40"
+        >
+          <Minus className="h-3 w-3" strokeWidth={2} />
+        </button>
+        <span className="tnum w-12 text-center text-2xs text-text" title="Mavjud / zaxira">
+          {b.available}/{b.stock_qty}
+        </span>
+        <button
+          aria-label="Ko'paytirish"
+          onClick={() => bump(b, 1)}
+          className="flex h-6 w-6 items-center justify-center rounded-[var(--r-xs)] border border-border text-muted transition-colors hover:text-text"
+        >
+          <Plus className="h-3 w-3" strokeWidth={2} />
+        </button>
+      </div>
+    </div>
+  );
+
   return (
-    <div className="space-y-3 border-t border-border pt-3">
+    <div className="space-y-4 border-t border-border pt-4">
       {boxes.isPending && <SkeletonRows rows={2} />}
 
-      <div className="space-y-2">
-        {boxes.data?.map((b) =>
-          editId === b.id ? (
-            <BoxEditor
-              key={b.id}
-              draft={editDraft}
-              setDraft={setEditDraft}
-              saving={update.isPending}
-              withStock={false}
-              onCancel={() => setEditId(null)}
-              onSave={() =>
-                update.mutate(
-                  { id: b.id, body: updateBody(editDraft) },
-                  {
-                    onSuccess: () => { setEditId(null); toast.success('Saqlandi'); },
-                    onError: () => toast.error('Xatolik'),
-                  },
-                )
-              }
-            />
-          ) : (
-            <div key={b.id} className="rounded-lg border border-border px-3 py-2">
-              <div className="flex flex-wrap items-center gap-3">
-              <span
-                className="h-6 w-6 shrink-0 rounded-md border border-strong"
-                style={{ background: b.color_hex }}
-                title={b.color_hex}
-              />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-medium text-text">{pickName(b, lang)}</p>
-                <p className="text-2xs text-muted">
-                  {b.is_free ? (
-                    <span className="text-success">Tekin</span>
-                  ) : (
-                    <Money short value={Number(b.price)} />
-                  )}
-                </p>
-              </div>
-
-              {/* stock stepper */}
-              <div className="flex items-center gap-1.5">
-                <button
-                  aria-label="Kamaytirish"
-                  onClick={() => bump(b, -1)}
-                  disabled={b.stock_qty <= 0}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors hover:text-text disabled:opacity-40"
-                >
-                  <Minus className="h-3.5 w-3.5" strokeWidth={2} />
-                </button>
-                <span className="tnum w-14 text-center text-xs text-text" title="Mavjud / zaxira">
-                  {b.available}/{b.stock_qty}
-                </span>
-                <button
-                  aria-label="Ko'paytirish"
-                  onClick={() => bump(b, 1)}
-                  className="flex h-7 w-7 items-center justify-center rounded-md border border-border text-muted transition-colors hover:text-text"
-                >
-                  <Plus className="h-3.5 w-3.5" strokeWidth={2} />
-                </button>
-              </div>
-
-              {!b.is_active && <Badge tone="muted">Nofaol</Badge>}
-              <div className="flex items-center gap-1">
-                <button
-                  aria-label="Tahrirlash"
-                  onClick={() => startEdit(b)}
-                  className="rounded p-1.5 text-muted hover:text-accent-ink"
-                >
-                  <Pencil className="h-4 w-4" strokeWidth={1.5} />
-                </button>
-                <button
-                  aria-label="O'chirish"
-                  onClick={() => setDeleting(b)}
-                  className="rounded p-1.5 text-muted hover:text-danger"
-                >
-                  <Trash2 className="h-4 w-4" strokeWidth={1.5} />
-                </button>
-              </div>
-              </div>
-              <div className="mt-2 border-t border-border/60 pt-2">
-                <BoxMediaStrip box={b} categoryId={categoryId} />
-              </div>
-            </div>
-          ),
-        )}
-        {boxes.isSuccess && boxes.data.length === 0 && !adding && (
-          <p className="text-xs text-muted">Ranglar qo'shilmagan.</p>
-        )}
-      </div>
-
-      {adding ? (
+      {/* add / edit panel */}
+      {adding && (
         <BoxEditor
           draft={addDraft}
           setDraft={setAddDraft}
@@ -432,30 +379,84 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
           onCancel={() => { setAdding(false); setAddDraft(emptyBox); }}
           onSave={() =>
             create.mutate(createBody(addDraft), {
-              onSuccess: () => { setAdding(false); setAddDraft(emptyBox); toast.success("Rang qo'shildi"); },
+              onSuccess: () => { setAdding(false); setAddDraft(emptyBox); toast.success("Sovg'a qutisi qo'shildi"); },
               onError: () => toast.error('Xatolik'),
             })
           }
         />
-      ) : (
+      )}
+      {editingBox && (
+        <BoxEditor
+          draft={editDraft}
+          setDraft={setEditDraft}
+          saving={update.isPending}
+          withStock={false}
+          media={<BoxMediaStrip box={editingBox} categoryId={categoryId} />}
+          onCancel={() => setEditId(null)}
+          onSave={() =>
+            update.mutate(
+              { id: editingBox.id, body: updateBody(editDraft) },
+              {
+                onSuccess: () => { setEditId(null); toast.success('Saqlandi'); },
+                onError: () => toast.error('Xatolik'),
+              },
+            )
+          }
+        />
+      )}
+
+      {/* card grid — same presentation as products */}
+      {boxes.isSuccess && boxes.data.length > 0 && (
+        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          {boxes.data.map((b) => (
+            <CatalogCard
+              key={b.id}
+              imageUrl={b.media[0]?.image_url}
+              placeholderIcon={<Gift className="h-8 w-8 text-muted/45" strokeWidth={1.25} />}
+              tintHex={b.color_hex}
+              leading={
+                <span
+                  className="h-3 w-3 shrink-0 rounded-full border border-strong"
+                  style={{ background: b.color_hex }}
+                  title={b.color_hex}
+                />
+              }
+              name={pickName(b, lang)}
+              price={Number(b.price)}
+              free={b.is_free}
+              available={b.available}
+              statusBadge={!b.is_active ? { label: 'Nofaol', tone: 'muted' } : null}
+              menuItems={[
+                { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => startEdit(b) },
+                { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => setDeleting(b), destructive: true, separatorBefore: true },
+              ]}
+              footer={stepper(b)}
+              onClick={() => startEdit(b)}
+            />
+          ))}
+        </div>
+      )}
+      {boxes.isSuccess && boxes.data.length === 0 && !adding && (
+        <EmptyState heading="Sovg'a qutisi yo'q" hint="Birinchi qutini qo'shing — rang, narx va zaxira bilan" />
+      )}
+
+      {!adding && !editId && (
         <Button size="sm" variant="secondary" onClick={() => { setEditId(null); setAdding(true); }}>
-          <Plus className="h-4 w-4" strokeWidth={1.5} /> Rang qo'shish
+          <Plus className="h-4 w-4" strokeWidth={1.5} /> Sovg'a qutisi qo'shish
         </Button>
       )}
 
       <ConfirmDialog
         open={Boolean(deleting)}
         onClose={() => setDeleting(null)}
-        heading="Rangni o'chirish"
-        description={`«${deleting ? pickName(deleting, lang) : ''}» rangi o'chiriladi.`}
-        loading={remove.isPending}
-        onConfirm={() =>
-          deleting &&
-          remove.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(null); toast.success("O'chirildi"); },
-            onError: () => toast.error("O'chirishda xatolik"),
-          })
-        }
+        heading="Sovg'a qutisini o'chirish"
+        description={`«${deleting ? pickName(deleting, lang) : ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await remove.mutateAsync(deleting.id);
+          toast.success("O'chirildi");
+          setDeleting(null);
+        }}
       />
     </div>
   );

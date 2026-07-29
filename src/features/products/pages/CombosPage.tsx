@@ -282,15 +282,13 @@ export default function CombosPage() {
         open={Boolean(deleting)}
         onClose={() => setDeleting(undefined)}
         heading="To'plamni o'chirish"
-        description={`«${deleting ? pickName(deleting, lang) : ''}» to'plami o'chiriladi.`}
-        loading={deleteCombo.isPending}
-        onConfirm={() =>
-          deleting &&
-          deleteCombo.mutate(deleting.id, {
-            onSuccess: () => { setDeleting(undefined); toast.success("O'chirildi"); },
-            onError: () => toast.error("O'chirishда xatolik"),
-          })
-        }
+        description={`«${deleting ? pickName(deleting, lang) : ''}» butunlay o'chiriladi. Bu amalni qaytarib bo'lmaydi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          await deleteCombo.mutateAsync(deleting.id);
+          toast.success("O'chirildi");
+          setDeleting(undefined);
+        }}
       />
     </div>
   );

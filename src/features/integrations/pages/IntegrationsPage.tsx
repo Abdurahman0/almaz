@@ -4,6 +4,7 @@ import {
   Badge,
   Button,
   Card,
+  ConfirmDialog,
   EmptyState,
   ErrorCard,
   Input,
@@ -84,6 +85,7 @@ function ConfigKeyField({
   const patch = usePatchConfig();
   const del = useDeleteConfig();
   const [val, setVal] = useState<string | null>(null);
+  const [confirming, setConfirming] = useState(false);
   const current = val ?? existing?.value ?? '';
   const Field = spec.secret ? PasswordInput : Input;
 
@@ -125,15 +127,21 @@ function ConfigKeyField({
               size="sm"
               variant="ghost"
               aria-label="O'chirish"
-              onClick={() =>
-                del.mutate(existing.id, {
-                  onSuccess: () => toast.success("O'chirildi"),
-                  onError: () => toast.error("O'chirishda xatolik"),
-                })
-              }
+              onClick={() => setConfirming(true)}
             >
               <Trash2 className="h-4 w-4" strokeWidth={1.5} />
             </Button>
+            <ConfirmDialog
+              open={confirming}
+              onClose={() => setConfirming(false)}
+              heading="Sozlamani o'chirish"
+              description={`«${spec.label}» butunlay o'chiriladi. Integratsiya ishlashdan to'xtashi mumkin.`}
+              onConfirm={async () => {
+                await del.mutateAsync(existing.id);
+                toast.success("O'chirildi");
+                setConfirming(false);
+              }}
+            />
           </>
         )}
       </div>
