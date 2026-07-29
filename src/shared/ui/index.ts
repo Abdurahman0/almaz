@@ -36,3 +36,4 @@ export { Tooltip, TooltipProvider } from './controls/Tooltip';
 export { toast, ToastViewport } from './controls/toast';
 export { DropdownMenu, type MenuItem } from './controls/DropdownMenu';
 export { FileDropzone } from './controls/FileDropzone';
+export { ImageUpload } from './controls/ImageUpload';

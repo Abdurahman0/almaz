@@ -90,6 +90,8 @@ export interface CategoryOut {
   name_ru: string | null;
   slug: string;
   parent_id: string | null;
+  /** Products in this category need a ring size on order (rings, etc.). */
+  requires_ring_size?: boolean;
 }
 
 // ---------- Boxes (colored gift boxes per category, migration 0013 + media 0017) ----------
@@ -253,6 +255,7 @@ export interface CategoryCreate {
   name_ru?: string | null;
   slug?: string | null;
   parent_id?: string | null;
+  requires_ring_size?: boolean;
 }
 export type CategoryUpdate = Partial<CategoryCreate>;
 

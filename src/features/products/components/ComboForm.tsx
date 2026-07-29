@@ -160,6 +160,7 @@ function ComboImages({
   onUpload: (files: FileList | null) => void;
 }) {
   const inputRef = useRef<HTMLInputElement | null>(null);
+  const [over, setOver] = useState(false);
   return (
     <div>
       <p className="mb-1.5 text-xs font-medium text-muted">Combo rasmlari</p>
@@ -171,10 +172,15 @@ function ComboImages({
         ))}
         <button
           type="button"
-          aria-label="Rasm qo'shish"
+          aria-label="Rasm qo'shish yoki tashlang"
           onClick={() => inputRef.current?.click()}
+          onDragOver={(e) => { e.preventDefault(); setOver(true); }}
+          onDragLeave={() => setOver(false)}
+          onDrop={(e) => { e.preventDefault(); setOver(false); onUpload(e.dataTransfer.files); }}
           disabled={uploading}
-          className="flex h-14 w-14 items-center justify-center rounded-lg border border-dashed border-border text-muted transition-colors hover:border-accent hover:text-accent-ink disabled:opacity-50"
+          className={`flex h-14 w-14 items-center justify-center rounded-lg border border-dashed transition-colors disabled:opacity-50 ${
+            over ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-muted hover:border-accent hover:text-accent-ink'
+          }`}
         >
           <ImagePlus className="h-5 w-5" strokeWidth={1.5} />
         </button>

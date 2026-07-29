@@ -192,8 +192,9 @@ interface CatDraft {
   name_ru: string;
   slug: string;
   parent_id: string;
+  requiresRingSize: boolean;
 }
-const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '' };
+const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '', requiresRingSize: false };
 
 function CategoryEditor({
   draft,
@@ -218,6 +219,11 @@ function CategoryEditor({
         <Input label="Slug (ixtiyoriy)" placeholder="nomdan avtomatik" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
         <Select label="Yuqori kategoriya" size="sm" placeholder="—" options={parentOptions} value={draft.parent_id} onChange={(v) => setDraft({ ...draft, parent_id: v })} />
       </div>
+      <Checkbox
+        checked={draft.requiresRingSize}
+        onCheckedChange={(v) => setDraft({ ...draft, requiresRingSize: v })}
+        label="Buyurtmada o'lcham talab qilinadi (uzuklar)"
+      />
       <div className="flex gap-2">
         <Button size="sm" onClick={onSave} loading={saving} disabled={draft.name_uz.trim().length < 1}>
           <Check className="h-4 w-4" strokeWidth={2} /> Saqlash
@@ -256,6 +262,7 @@ function CategoryTab() {
     name_ru: d.name_ru.trim() || null,
     slug: d.slug.trim() || null,
     parent_id: d.parent_id || null,
+    requires_ring_size: d.requiresRingSize,
   });
 
   const startEdit = (c: CategoryOut) => {
@@ -265,6 +272,7 @@ function CategoryTab() {
       name_ru: c.name_ru ?? '',
       slug: c.slug ?? '',
       parent_id: c.parent_id ?? '',
+      requiresRingSize: c.requires_ring_size ?? false,
     });
   };
 

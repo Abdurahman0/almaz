@@ -9,6 +9,7 @@ import {
   DropdownMenu,
   EmptyState,
   ErrorCard,
+  ImageUpload,
   Input,
   Modal,
   PageHeader,
@@ -333,11 +334,10 @@ export default function SocialPage() {
             value={draft.link}
             onChange={(e) => setDraft((d) => ({ ...d, link: e.target.value }))}
           />
-          <Input
-            label="Rasm havolasi (ixtiyoriy)"
-            placeholder="https://.../thumbnail.jpg"
-            value={draft.imageUrl}
-            onChange={(e) => setDraft((d) => ({ ...d, imageUrl: e.target.value }))}
+          <ImageUpload
+            label="Rasm (ixtiyoriy)"
+            value={draft.imageUrl || null}
+            onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url ?? '' }))}
           />
           <p className="text-2xs text-muted">Tur (post / reel / story) havoladan avtomatik aniqlanadi.</p>
           <div className="flex justify-end gap-3">
@@ -356,12 +356,7 @@ export default function SocialPage() {
             <p className="text-sm text-muted">
               {kindLabel[editing.media_type] ?? editing.media_type} · {pickName(editing.product, lang)}
             </p>
-            <Input
-              label="Rasm havolasi"
-              placeholder="https://.../thumbnail.jpg"
-              value={editImg}
-              onChange={(e) => setEditImg(e.target.value)}
-            />
+            <ImageUpload label="Rasm" value={editImg || null} onChange={(url) => setEditImg(url ?? '')} />
             <Checkbox checked={editActive} onCheckedChange={setEditActive} label="Faol (lentada ko'rsatiladi)" />
             <div className="flex justify-end gap-3">
               <Button variant="ghost" onClick={() => setEditing(null)}>Bekor qilish</Button>
