@@ -93,7 +93,7 @@ function Column({
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
   const total = orders.reduce((s, o) => s + Number(o.grand_total), 0);
   return (
-    <div className="flex h-[calc(100dvh-250px)] max-h-[620px] w-[264px] shrink-0 flex-col rounded-[var(--r-md)] border border-border bg-bg/40">
+    <div className="glass-2 flex h-[calc(100dvh-250px)] max-h-[620px] w-[264px] shrink-0 flex-col rounded-[var(--r-md)]">
       <div className="flex items-center justify-between gap-2 px-3 py-2.5">
         <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-text">
           <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.color }} />

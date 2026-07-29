@@ -270,49 +270,109 @@
 }
 
 @layer components {
+  /* ============================================================
+     Liquid-glass surfaces — 3 tiers by text density, all token-built.
+       Tier 1 = chrome (most transparent): sidebar, topbar, drawers, toasts.
+       Tier 2 = cards, modals, kanban columns, popovers/dropdowns.
+       Tier 3 = data-dense: table cards (auto via :has) for readability.
+     Light presets are much more opaque — a dark video under a light theme
+     would otherwise destroy contrast. Perf guards below flatten every tier
+     during the ring transition, when nested, and when disabled globally. */
+  :root {
+    --glass-1-bg: color-mix(in srgb, var(--surface) 66%, transparent);
+    --glass-2-bg: color-mix(in srgb, var(--surface) 76%, transparent);
+    --glass-3-bg: color-mix(in srgb, var(--surface) 88%, transparent);
+    --glass-1-blur: 20px;
+    --glass-2-blur: 16px;
+    --glass-3-blur: 12px;
+    --glass-hi: rgba(255, 255, 255, 0.06);
+  }
+  :root[data-theme='marble'],
+  :root[data-theme='pearl'] {
+    --glass-1-bg: color-mix(in srgb, var(--surface) 76%, transparent);
+    --glass-2-bg: color-mix(in srgb, var(--surface) 86%, transparent);
+    --glass-3-bg: color-mix(in srgb, var(--surface) 93%, transparent);
+    --glass-1-blur: 16px;
+    --glass-2-blur: 13px;
+    --glass-3-blur: 10px;
+    --glass-hi: rgba(255, 255, 255, 0.5);
+  }
+  .glass-1,
+  .glass-2,
+  .glass-3,
+  .glass,
+  .card-velvet,
+  .float-panel {
+    border: 1px solid var(--border);
+    box-shadow: var(--shadow-sm), inset 0 1px 0 var(--glass-hi);
+  }
+  .glass-1 {
+    background: var(--glass-1-bg);
+    -webkit-backdrop-filter: blur(var(--glass-1-blur)) saturate(135%);
+    backdrop-filter: blur(var(--glass-1-blur)) saturate(135%);
+  }
+  .glass-2,
+  .glass,
+  .float-panel,
   .card-velvet {
-    @apply border border-border bg-surface;
+    background: var(--glass-2-bg);
+    -webkit-backdrop-filter: blur(var(--glass-2-blur)) saturate(135%);
+    backdrop-filter: blur(var(--glass-2-blur)) saturate(135%);
+  }
+  .card-velvet {
     border-radius: var(--r-lg);
-    box-shadow: var(--shadow-sm);
     transition: background-color 0.3s, border-color 0.2s var(--ease), box-shadow 0.2s var(--ease),
       transform 0.2s var(--ease);
   }
-  /* Liquid-glass — floating CHROME only (sidebar, topbar, modals, popovers,
-     drawers, toasts). Content cards/tables/forms stay solid var(--surface):
-     glass under dense data hurts readability. Perf guardrails below flatten it
-     during the ring transition and when disabled globally (data-glass=off). */
-  .glass {
-    background: color-mix(in srgb, var(--surface) 72%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-    border: 1px solid var(--border);
-    box-shadow: var(--shadow-sm), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+  .glass-3,
+  .card-velvet:has(.data-table) {
+    background: var(--glass-3-bg);
+    -webkit-backdrop-filter: blur(var(--glass-3-blur)) saturate(135%);
+    backdrop-filter: blur(var(--glass-3-blur)) saturate(135%);
   }
-  /* Light presets: lighter tint + less blur so the card still separates. */
-  :root[data-theme='marble'] .glass,
-  :root[data-theme='pearl'] .glass,
-  :root[data-theme='marble'] .float-panel,
-  :root[data-theme='pearl'] .float-panel {
-    background: color-mix(in srgb, var(--surface) 82%, transparent);
-    -webkit-backdrop-filter: blur(12px) saturate(118%);
-    backdrop-filter: blur(12px) saturate(118%);
+  /* No nested glass-on-glass — a glass surface inside another drops its own
+     backdrop-filter (it would sample the blur twice) and keeps only its tint. */
+  :is(.glass-1, .glass-2, .glass-3, .glass, .card-velvet, .float-panel)
+    :is(.glass-1, .glass-2, .glass-3, .glass, .card-velvet, .float-panel) {
+    -webkit-backdrop-filter: none;
+    backdrop-filter: none;
   }
-  /* Escape hatch — turn all glass off globally (html[data-glass='off']). */
-  :root[data-glass='off'] .glass,
-  :root[data-glass='off'] .float-panel {
+  /* Kill switch — html[data-glass='off'] flattens everything to solid. */
+  :root[data-glass='off'] :is(.glass-1, .glass-2, .glass-3, .glass, .card-velvet, .float-panel) {
     background: var(--surface);
     -webkit-backdrop-filter: none;
     backdrop-filter: none;
   }
-  /* Perf: never sample a backdrop while the ring transition runs (it re-samples
+  /* Perf: never sample a backdrop while the ring transition runs (re-samples
      every frame), and never inside the outgoing snapshot clones. */
-  .ring-root[data-crossing='true'] .glass,
-  .ring-root[data-crossing='true'] .float-panel,
-  .ring-old-layer .glass,
-  .ring-old-layer .float-panel {
+  .ring-root[data-crossing='true'] :is(.glass-1, .glass-2, .glass-3, .glass, .card-velvet, .float-panel),
+  .ring-old-layer :is(.glass-1, .glass-2, .glass-3, .glass, .card-velvet, .float-panel) {
     background: var(--surface);
     -webkit-backdrop-filter: none !important;
     backdrop-filter: none !important;
+  }
+  /* Ambient background: video (z -2) + theme-aware scrim (z -1). */
+  .bg-video {
+    position: fixed;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    z-index: -2;
+    pointer-events: none;
+  }
+  .bg-scrim {
+    position: fixed;
+    inset: 0;
+    z-index: -1;
+    pointer-events: none;
+    background:
+      radial-gradient(70rem 70rem at 14% 8%, color-mix(in srgb, var(--accent) 7%, transparent), transparent 60%),
+      color-mix(in srgb, var(--bg) 72%, transparent);
+  }
+  :root[data-theme='marble'] .bg-scrim,
+  :root[data-theme='pearl'] .bg-scrim {
+    background: color-mix(in srgb, var(--bg) 85%, transparent);
   }
   /* One Apple-clean data table for every list page: calm sentence-case head,
      hairline row dividers, quiet hover, roomy cells. Wrap in a Card p-0. */
@@ -342,14 +402,12 @@
   .tnum {
     font-variant-numeric: tabular-nums lining-nums;
   }
-  /* One floating style for every popover/dropdown/menu/tooltip */
+  /* Popover/dropdown/menu/tooltip — tier-2 glass (background/blur from the tier
+     rules above), just a rounder corner + stronger drop shadow + readable text. */
   .float-panel {
-    @apply border border-border text-text;
+    @apply text-text;
     border-radius: var(--r-md);
-    background: color-mix(in srgb, var(--surface) 72%, transparent);
-    -webkit-backdrop-filter: blur(18px) saturate(140%);
-    backdrop-filter: blur(18px) saturate(140%);
-    box-shadow: var(--shadow-lg), inset 0 1px 0 rgba(255, 255, 255, 0.06);
+    box-shadow: var(--shadow-lg), inset 0 1px 0 var(--glass-hi);
   }
   .float-in[data-state='open'] {
     animation: floatIn 140ms ease-out;
@@ -460,18 +518,21 @@
   background: var(--border-strong);
 }
 
-/* Decorative canvas behind the glass shell — soft accent blobs give the frosted
-   header/content/sidebar panels something to blur (liquid-glass effect). */
-.app-canvas { position: relative; }
-.app-canvas::before {
-  content: '';
-  position: absolute;
-  inset: 0;
-  z-index: -1;
-  pointer-events: none;
-  background:
-    radial-gradient(40rem 40rem at 8% 2%, color-mix(in srgb, var(--accent) 15%, transparent), transparent 58%),
-    radial-gradient(36rem 36rem at 94% 98%, color-mix(in srgb, var(--accent) 12%, transparent), transparent 58%);
+/* Auto-degrade to solid surfaces when the OS asks for reduced transparency,
+   and drop the ambient background entirely. */
+@media (prefers-reduced-transparency: reduce) {
+  .glass-1,
+  .glass-2,
+  .glass-3,
+  .glass,
+  .card-velvet,
+  .float-panel {
+    background: var(--surface) !important;
+    -webkit-backdrop-filter: none !important;
+    backdrop-filter: none !important;
+  }
+  .bg-video,
+  .bg-scrim {
+    display: none !important;
+  }
 }
-/* When glass is disabled, drop the blobs too so panels read as flat surfaces. */
-:root[data-glass='off'] .app-canvas::before { display: none; }

@@ -28,7 +28,7 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
       animate={{ x: 0 }}
       exit={{ x: '100%' }}
       transition={{ duration: 0.3, ease: 'easeOut' }}
-      className="glass fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto p-8"
+      className="glass-1 fixed inset-y-0 right-0 z-50 w-full max-w-md overflow-y-auto p-8"
       role="dialog"
       aria-label={client.name}
     >

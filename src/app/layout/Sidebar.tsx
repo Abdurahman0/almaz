@@ -72,7 +72,7 @@ export function Sidebar() {
 
   return (
     <aside
-      className={`glass hidden h-full shrink-0 flex-col overflow-hidden rounded-[var(--r-lg)] transition-[width] duration-200 ease-out md:flex ${
+      className={`glass-1 hidden h-full shrink-0 flex-col overflow-hidden rounded-[var(--r-lg)] transition-[width] duration-200 ease-out md:flex ${
         collapsed ? 'w-16' : 'w-[248px]'
       }`}
     >

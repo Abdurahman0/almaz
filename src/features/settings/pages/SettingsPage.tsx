@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Check } from 'lucide-react';
 import { Card, Button, NumberInput, PageHeader, SkeletonRows, Switch, toast } from '@/shared/ui';
-import { useUiStore, type Lang } from '@/shared/stores/ui';
+import { useUiStore, type Lang, type BgMode } from '@/shared/stores/ui';
 import { PRESETS } from '@/shared/lib/themes';
 import { switchThemeFromEvent } from '@/shared/hooks/useThemeTransition';
 import { useAuthStore } from '@/shared/stores/auth';
@@ -154,7 +154,7 @@ function AiSettingsEditor() {
 
 export default function SettingsPage() {
   const user = useAuthStore((s) => s.user);
-  const { preset, setPreset, lang, setLang } = useUiStore();
+  const { preset, setPreset, lang, setLang, bgMode, setBgMode, glassEnabled, setGlass } = useUiStore();
 
   return (
     <div>
@@ -264,6 +264,38 @@ export default function SettingsPage() {
                   </button>
                 ))}
               </div>
+            </div>
+
+            <div>
+              <p className="mb-2 text-xs font-semibold text-muted">Fon</p>
+              <div className="flex flex-wrap gap-2">
+                {(
+                  [
+                    ['video', 'Video'],
+                    ['static', 'Statik rasm'],
+                    ['off', "O'chiq"],
+                  ] as Array<[BgMode, string]>
+                ).map(([value, label]) => (
+                  <button
+                    key={value}
+                    onClick={() => setBgMode(value)}
+                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                      bgMode === value ? 'bg-accent-btn text-on-accent' : 'bg-surface-2 text-muted hover:text-text'
+                    }`}
+                  >
+                    {label}
+                  </button>
+                ))}
+              </div>
+              <p className="mt-1.5 text-2xs text-muted">Ambient video fon. Uzoq smenada «O'chiq» qiling.</p>
+            </div>
+
+            <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
+              <div className="min-w-0">
+                <p className="text-sm font-medium text-text">Shaffof yuzalar</p>
+                <p className="text-xs text-muted">Oynadagi «liquid glass» blur. O'chirsa — to'liq yorug'lik.</p>
+              </div>
+              <Switch checked={glassEnabled} onCheckedChange={setGlass} />
             </div>
           </div>
         </Card>
