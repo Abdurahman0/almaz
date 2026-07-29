@@ -19,6 +19,8 @@ import { useUiStore } from '@/shared/stores/ui';
 import { InstagramSection } from './InstagramSection';
 import {
   useAddProductMedia,
+  useAddVariant,
+  useAdjustStock,
   useCategories,
   useCreateProduct,
   useDeleteMedia,
@@ -43,6 +45,7 @@ const schema = z
     stone_id: z.string().optional(),
     price: numField,
     discount_price: numField,
+    stock_qty: numField,
     low_stock_threshold: numField,
     engraving_price: numField,
     status: z.enum(['draft', 'active', 'archived']),
@@ -52,6 +55,14 @@ const schema = z
     // price is mandatory (server 422s without it)
     if (v.price === '' || !(v.price > 0)) {
       ctx.addIssue({ path: ['price'], code: z.ZodIssueCode.custom, message: 'Narx majburiy' });
+    }
+    // stock: 0 allowed (out of stock), but must be a whole, non-negative number
+    if (v.stock_qty !== '' && (!Number.isInteger(v.stock_qty) || v.stock_qty < 0)) {
+      ctx.addIssue({
+        path: ['stock_qty'],
+        code: z.ZodIssueCode.custom,
+        message: "Butun, manfiy bo'lmagan son",
+      });
     }
     for (const key of ['discount_price', 'low_stock_threshold', 'engraving_price'] as const) {
       const x = v[key];
@@ -94,8 +105,15 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
   const stones = useRefs('stones', true);
   const createProduct = useCreateProduct();
   const updateProduct = useUpdateProduct();
+  const adjustStock = useAdjustStock();
+  const addVariant = useAddVariant();
   const addMedia = useAddProductMedia();
   const deleteMedia = useDeleteMedia();
+
+  // The app keeps one stocked variant per product; that's what the qty edits.
+  const stockedVariant =
+    product?.variants.find((vr) => vr.fulfillment_type === 'stocked') ?? product?.variants[0];
+  const initialStock = stockedVariant?.stock_qty ?? '';
 
   // Create-mode image URL collector (submitted inline as image_urls).
   const [newUrls, setNewUrls] = useState<string[]>([]);
@@ -118,6 +136,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           stone_id: product.stone_id ?? '',
           price: product.price != null ? Number(product.price) : '',
           discount_price: product.discount_price != null ? Number(product.discount_price) : '',
+          stock_qty: initialStock,
           low_stock_threshold: product.low_stock_threshold != null ? Number(product.low_stock_threshold) : '',
           engraving_price: product.engraving_price != null ? Number(product.engraving_price) : '',
           status: product.status,
@@ -132,6 +151,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           stone_id: '',
           price: '',
           discount_price: '',
+          stock_qty: 1,
           low_stock_threshold: '',
           engraving_price: '',
           status: 'active',
@@ -165,7 +185,29 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       onDone();
     };
     if (product) {
-      updateProduct.mutate({ id: product.id, body }, { onSuccess: done });
+      // ProductUpdate can't carry variants; sync stock via the dedicated stock
+      // endpoint after the product itself is saved — but only when it changed.
+      updateProduct.mutate(
+        { id: product.id, body },
+        {
+          onSuccess: () => {
+            const target = v.stock_qty === '' ? null : v.stock_qty;
+            if (target == null || target === initialStock) return done();
+            const onErr = () => toast.error('Miqdorni saqlashda xatolik');
+            if (stockedVariant) {
+              adjustStock.mutate(
+                { variantId: stockedVariant.id, body: { stock_qty: target } },
+                { onSuccess: done, onError: onErr },
+              );
+            } else {
+              addVariant.mutate(
+                { productId: product.id, body: { fulfillment_type: 'stocked', stock_qty: target, is_active: true } },
+                { onSuccess: done, onError: onErr },
+              );
+            }
+          },
+        },
+      );
     } else {
       // Server requires ≥1 image on create; block early with a clear message.
       if (newUrls.length === 0) {
@@ -177,7 +219,9 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         {
           ...body,
           image_urls: newUrls,
-          variants: [{ fulfillment_type: 'stocked', stock_qty: 1, is_active: true }],
+          variants: [
+            { fulfillment_type: 'stocked', stock_qty: v.stock_qty === '' ? 0 : v.stock_qty, is_active: true },
+          ],
         },
         { onSuccess: done },
       );
@@ -292,23 +336,46 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         />
       </div>
 
-      {/* Stock threshold */}
-      <Controller
-        control={form.control}
-        name="low_stock_threshold"
-        render={({ field, fieldState }) => (
-          <NumberInput
-            label="Kam qolgan chegarasi (bo'sh — global sozlama)"
-            value={field.value}
-            onChange={field.onChange}
-            min={0}
-            step={1}
-            suffix="dona"
-            placeholder="Global"
-            error={fieldState.error?.message}
-          />
-        )}
-      />
+      {/* Stock on hand + low-stock alert threshold */}
+      <div className="grid grid-cols-2 gap-4">
+        <Controller
+          control={form.control}
+          name="stock_qty"
+          render={({ field, fieldState }) => (
+            <NumberInput
+              label="Ombordagi miqdor (dona)"
+              value={field.value}
+              onChange={field.onChange}
+              min={0}
+              step={1}
+              suffix="dona"
+              placeholder="0"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+        <Controller
+          control={form.control}
+          name="low_stock_threshold"
+          render={({ field, fieldState }) => (
+            <NumberInput
+              label="Kam qolgan chegarasi (bo'sh — global)"
+              value={field.value}
+              onChange={field.onChange}
+              min={0}
+              step={1}
+              suffix="dona"
+              placeholder="Global"
+              error={fieldState.error?.message}
+            />
+          )}
+        />
+      </div>
+      {stockedVariant && stockedVariant.reserved_qty > 0 && (
+        <p className="-mt-2 text-2xs text-muted">
+          {stockedVariant.reserved_qty} dona buyurtmalarda band. Ombordagi miqdor — umumiy son (band bilan birga).
+        </p>
+      )}
 
       {/* Descriptions — uz + ru */}
       <div className="grid grid-cols-2 gap-4">
@@ -440,7 +507,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         <Button type="button" variant="ghost" onClick={onDone}>
           Bekor qilish
         </Button>
-        <Button type="submit" loading={mutation.isPending}>
+        <Button type="submit" loading={mutation.isPending || adjustStock.isPending || addVariant.isPending}>
           Saqlash
         </Button>
       </div>

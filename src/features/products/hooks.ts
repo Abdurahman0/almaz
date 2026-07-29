@@ -21,6 +21,7 @@ import type {
   RefKind,
   RefUpdate,
   StockAdjust,
+  VariantCreate,
 } from '@/shared/api/types';
 
 export const productKeys = {
@@ -342,6 +343,16 @@ export function useAdjustStock() {
   return useMutation({
     mutationFn: ({ variantId, body }: { variantId: string; body: StockAdjust }) =>
       productsApi.adjustStock(variantId, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
+  });
+}
+
+/** Add a variant to an existing product (fallback when a product has none). */
+export function useAddVariant() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ productId, body }: { productId: string; body: VariantCreate }) =>
+      productsApi.addVariant(productId, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: productKeys.all }),
   });
 }
