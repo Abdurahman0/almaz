@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useParams } from 'react-router-dom';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import {
   AlertTriangle,
   CheckCircle2,
+  ChevronDown,
   Clock,
   Crosshair,
   Loader2,
@@ -16,19 +17,13 @@ import type { ApiError } from '@/shared/api/client';
 import { confirmMap, getMapContext, resolveMap } from '../api';
 import type { MapConfirmBody, MapConfirmOut, MapResolveOut } from '../types';
 import { BranchList } from '../components/BranchList';
+import { BottomSheet, SNAP_FRAC, type Snap } from '../components/BottomSheet';
 
 const TASHKENT: [number, number] = [41.311081, 69.279737];
 
-// Space-grouped thousands ("50 000 so'm") — Uzbek convention, matches the doc.
-// (ICU 'uz-UZ' renders a comma, which reads wrong locally.)
 const fmtSom = (n: number): string =>
   `${Math.round(n).toString().replace(/\B(?=(\d{3})+(?!\d))/g, ' ')} so'm`;
 
-/**
- * A dead link is one the customer can't recover from on this page — invalid,
- * already used, or expired. Those get a clean full-screen state (not a toast).
- * lat/lng-missing and branch-selection errors are recoverable and handled inline.
- */
 function deadLinkMessage(err: unknown): string | null {
   const e = err as ApiError;
   const msg = e?.message ?? '';
@@ -42,7 +37,7 @@ function deadLinkMessage(err: unknown): string | null {
 
 function FullScreen({ children }: { children: React.ReactNode }) {
   return (
-    <div className="flex h-dvh items-center justify-center bg-bg px-5 text-center text-text">
+    <div className="flex min-h-[100dvh] items-center justify-center bg-bg px-5 text-center text-text">
       {children}
     </div>
   );
@@ -51,55 +46,10 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 function DeadLink({ message }: { message: string }) {
   return (
     <FullScreen>
-      <div className="max-w-sm rounded-[var(--r-lg)] border border-border bg-surface p-8">
+      <div className="max-w-sm rounded-2xl border border-border bg-surface p-8">
         <AlertTriangle className="mx-auto h-11 w-11 text-danger" strokeWidth={1.5} />
         <p className="mt-4 text-md font-semibold">Havola ochilmadi</p>
         <p className="mt-2 text-sm text-muted">{message}</p>
-      </div>
-    </FullScreen>
-  );
-}
-
-function SuccessScreen({ data }: { data: MapConfirmOut }) {
-  const isBts = data.location_type === 'BTS' && data.bts_branch;
-  return (
-    <FullScreen>
-      <div className="flex max-w-sm flex-col items-center gap-3 rounded-[var(--r-lg)] border border-border bg-surface p-8">
-        <CheckCircle2 className="h-14 w-14 text-success" strokeWidth={1.5} />
-        <p className="text-lg font-semibold">Qabul qilindi!</p>
-        <p className="font-mono text-2xs text-muted">{data.order_no}</p>
-
-        {isBts && data.bts_branch ? (
-          <div className="w-full rounded-[var(--r-md)] bg-surface-2 p-4 text-left text-sm">
-            <p className="text-muted">Buyurtmangiz quyidagi filialga boradi:</p>
-            <p className="mt-1 flex items-center gap-1.5 font-semibold text-text">
-              <Store className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> {data.bts_branch.name}
-            </p>
-            <p className="mt-1 flex items-start gap-1.5 text-2xs text-muted">
-              <MapPin className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={1.75} /> {data.bts_branch.address}
-            </p>
-            {data.bts_branch.work_hours && (
-              <p className="mt-1 flex items-center gap-1.5 text-2xs text-muted">
-                <Clock className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {data.bts_branch.work_hours}
-              </p>
-            )}
-          </div>
-        ) : (
-          <div className="w-full rounded-[var(--r-md)] bg-surface-2 p-4 text-left text-sm">
-            <p className="flex items-center gap-1.5 font-semibold text-text">
-              <Truck className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> Kuryer manzilingizga yetkazadi
-            </p>
-          </div>
-        )}
-
-        <div className="w-full space-y-1 border-t border-border pt-3 text-sm">
-          <Row label="Yetkazish" value={fmtSom(data.delivery_fee)} />
-          <Row label="Jami" value={fmtSom(data.grand_total)} strong />
-        </div>
-
-        <p className="mt-1 text-sm font-medium text-accent-ink">
-          Instagram/Telegram'ga qayting — karta raqamini yuboramiz.
-        </p>
       </div>
     </FullScreen>
   );
@@ -114,12 +64,84 @@ function Row({ label, value, strong }: { label: string; value: string; strong?: 
   );
 }
 
+function SuccessScreen({ data }: { data: MapConfirmOut }) {
+  const isBts = data.location_type === 'BTS' && data.bts_branch;
+  return (
+    <FullScreen>
+      <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-8">
+        <CheckCircle2 className="h-14 w-14 text-success" strokeWidth={1.5} />
+        <p className="text-lg font-semibold">Qabul qilindi!</p>
+        <p className="font-mono text-2xs text-muted">{data.order_no}</p>
+        {isBts && data.bts_branch ? (
+          <div className="w-full rounded-xl bg-surface-2 p-4 text-left text-sm">
+            <p className="text-muted">Buyurtmangiz quyidagi filialga boradi:</p>
+            <p className="mt-1 flex items-center gap-1.5 font-semibold text-text">
+              <Store className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> {data.bts_branch.name}
+            </p>
+            <p className="mt-1 flex items-start gap-1.5 text-2xs text-muted">
+              <MapPin className="mt-0.5 h-3 w-3 shrink-0" strokeWidth={1.75} /> {data.bts_branch.address}
+            </p>
+            {data.bts_branch.work_hours && (
+              <p className="mt-1 flex items-center gap-1.5 text-2xs text-muted">
+                <Clock className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {data.bts_branch.work_hours}
+              </p>
+            )}
+          </div>
+        ) : (
+          <div className="w-full rounded-xl bg-surface-2 p-4 text-left text-sm">
+            <p className="flex items-center gap-1.5 font-semibold text-text">
+              <Truck className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> Kuryer manzilingizga yetkazadi
+            </p>
+          </div>
+        )}
+        <div className="w-full space-y-1 border-t border-border pt-3 text-sm">
+          <Row label="Yetkazish" value={fmtSom(data.delivery_fee)} />
+          <Row label="Jami" value={fmtSom(data.grand_total)} strong />
+        </div>
+        <p className="mt-1 text-sm font-medium text-accent-ink">
+          Instagram/Telegram'ga qayting — karta raqamini yuboramiz.
+        </p>
+      </div>
+    </FullScreen>
+  );
+}
+
+// ---- small controls ---------------------------------------------------------
+
+function Field({
+  value,
+  onChange,
+  placeholder,
+  inputMode,
+  type,
+  onFocus,
+}: {
+  value: string;
+  onChange: (v: string) => void;
+  placeholder: string;
+  inputMode?: 'tel' | 'numeric' | 'text';
+  type?: string;
+  onFocus?: (e: React.FocusEvent<HTMLInputElement>) => void;
+}) {
+  return (
+    <input
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      inputMode={inputMode}
+      type={type}
+      onFocus={onFocus}
+      // 16px avoids iOS focus auto-zoom.
+      className="h-12 w-full rounded-xl border border-border bg-surface-2 px-3.5 text-[16px] text-text outline-none placeholder:text-muted focus:border-accent"
+    />
+  );
+}
+
 // ---- main page --------------------------------------------------------------
 
 export default function MapPage() {
   const { token = '' } = useParams();
 
-  // GET /map/{token}: header context + our "is this link alive?" probe.
   const ctx = useQuery({
     queryKey: ['map-ctx', token],
     queryFn: () => getMapContext(token),
@@ -127,21 +149,26 @@ export default function MapPage() {
     enabled: Boolean(token),
   });
 
+  const rootRef = useRef<HTMLDivElement | null>(null);
   const mapBoxRef = useRef<HTMLDivElement | null>(null);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const mapRef = useRef<any>(null);
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const pinRef = useRef<any>(null);
+  const interactedRef = useRef(false);
 
+  const [vh, setVh] = useState(() => (typeof window !== 'undefined' ? window.innerHeight : 800));
+  const [kbInset, setKbInset] = useState(0);
+  const [snap, setSnap] = useState<Snap>('peek');
   const [coords, setCoords] = useState<[number, number] | null>(null);
   const [mapFailed, setMapFailed] = useState(false);
   const [ready, setReady] = useState(false);
+  const [interacted, setInteracted] = useState(false);
   const [geoDenied, setGeoDenied] = useState(false);
 
   const [resolveData, setResolveData] = useState<MapResolveOut | null>(null);
   const [selectedBranchId, setSelectedBranchId] = useState<string | null>(null);
   const [deadLink, setDeadLink] = useState<string | null>(null);
 
+  const [showExtra, setShowExtra] = useState(false);
   const [phone, setPhone] = useState('');
   const [address, setAddress] = useState('');
   const [landmark, setLandmark] = useState('');
@@ -151,32 +178,59 @@ export default function MapPage() {
     document.title = "Almaz Silver — Yetkazib berish manzili";
   }, []);
 
-  // Place / move the pin. Uses only refs + stable setters, so the closure the
-  // map's click handler captures at init stays correct across re-renders.
-  const placePin = useCallback((pt: [number, number]) => {
-    const ymaps = window.ymaps;
-    const map = mapRef.current;
-    if (!ymaps || !map) return;
-    if (!pinRef.current) {
-      const pm = new ymaps.Placemark(pt, {}, { draggable: true, preset: 'islands#redIcon' });
-      pm.events.add('dragend', () => {
-        const c = pm.geometry.getCoordinates();
-        setCoords([c[0], c[1]]);
-      });
-      map.geoObjects.add(pm);
-      pinRef.current = pm;
-    } else {
-      pinRef.current.geometry.setCoordinates(pt);
-    }
-    setCoords([pt[0], pt[1]]);
+  // Lock body scroll / bounce behind the sheet.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    (document.body.style as CSSStyleDeclaration & { overscrollBehavior?: string }).overscrollBehavior = 'none';
+    return () => {
+      document.body.style.overflow = prev;
+    };
   }, []);
 
-  // ---- resolve (debounced on pin move) — token stays open --------------------
+  // Track viewport height (dvh) + on-screen keyboard via visualViewport.
+  useEffect(() => {
+    const onResize = () => setVh(window.innerHeight);
+    const vv = window.visualViewport;
+    const onVv = () => {
+      if (!vv) return;
+      setKbInset(Math.max(0, window.innerHeight - vv.height - vv.offsetTop));
+    };
+    window.addEventListener('resize', onResize);
+    window.addEventListener('orientationchange', onResize);
+    vv?.addEventListener('resize', onVv);
+    return () => {
+      window.removeEventListener('resize', onResize);
+      window.removeEventListener('orientationchange', onResize);
+      vv?.removeEventListener('resize', onVv);
+    };
+  }, []);
+
+  // Write the sheet's live visible height to a CSS var (no re-render during drag).
+  const onSheetHeight = useCallback((px: number, animate: boolean) => {
+    const r = rootRef.current;
+    if (!r) return;
+    r.style.setProperty('--sheet-h', `${px}px`);
+    r.dataset.animating = animate ? 'true' : 'false';
+  }, []);
+
+  const setDragging = useCallback((on: boolean) => {
+    if (rootRef.current) rootRef.current.dataset.dragging = on ? 'true' : 'false';
+  }, []);
+  const markInteracted = useCallback(() => {
+    if (!interactedRef.current) {
+      interactedRef.current = true;
+      setInteracted(true);
+    }
+  }, []);
+
+  // ---- resolve (debounced on map centre change) — token stays open ----
   const resolve = useMutation({
     mutationFn: (pt: [number, number]) => resolveMap(token, { lat: pt[0], lng: pt[1] }),
     onSuccess: (data) => {
       setResolveData(data);
-      setSelectedBranchId(null); // fresh location → fresh branch list
+      setSelectedBranchId(null);
+      setSnap(data.requires_branch_selection ? 'half' : 'peek');
     },
     onError: (e) => {
       const dl = deadLinkMessage(e);
@@ -187,12 +241,12 @@ export default function MapPage() {
   resolveRef.current = resolve;
 
   useEffect(() => {
-    if (!coords) return;
-    const id = window.setTimeout(() => resolveRef.current.mutate(coords), 500);
+    if (!coords || !interactedRef.current) return;
+    const id = window.setTimeout(() => resolveRef.current.mutate(coords), 400);
     return () => window.clearTimeout(id);
   }, [coords]);
 
-  // ---- confirm — closes the token, one time only -----------------------------
+  // ---- confirm — closes the token, one time only ----
   const confirm = useMutation<MapConfirmOut, unknown, void>({
     mutationFn: () => {
       const [lat, lng] = coords!;
@@ -211,7 +265,6 @@ export default function MapPage() {
         setDeadLink(dl);
         return;
       }
-      // "Tanlangan BTS filiali topilmadi" → list is stale; re-resolve.
       if (/topilmadi/i.test((e as ApiError)?.message ?? '') && coords) {
         setSelectedBranchId(null);
         resolveRef.current.mutate(coords);
@@ -219,7 +272,7 @@ export default function MapPage() {
     },
   });
 
-  // ---- init the map ----------------------------------------------------------
+  // ---- init the map ----
   useEffect(() => {
     if (!ctx.isSuccess || mapFailed) return;
     let disposed = false;
@@ -233,7 +286,15 @@ export default function MapPage() {
           { suppressMapOpenBlock: true, yandexMapDisablePoiInteractivity: true },
         );
         mapRef.current = map;
-        map.events.add('click', (e: { get: (k: string) => [number, number] }) => placePin(e.get('coords')));
+        map.events.add('actionbegin', () => {
+          setDragging(true);
+          markInteracted();
+        });
+        map.events.add('actionend', () => {
+          setDragging(false);
+          const c = map.getCenter() as [number, number];
+          setCoords([c[0], c[1]]);
+        });
         setReady(true);
       })
       .catch(() => {
@@ -244,14 +305,27 @@ export default function MapPage() {
       if (mapRef.current) {
         mapRef.current.destroy();
         mapRef.current = null;
-        pinRef.current = null;
       }
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [ctx.isSuccess, mapFailed]);
 
+  // The visible map area shrinks with the sheet; refit so the centre pin stays
+  // over the same point, above the sheet, once the snap settles.
+  useEffect(() => {
+    const t = window.setTimeout(() => {
+      try {
+        mapRef.current?.container.fitToViewport();
+      } catch {
+        /* noop */
+      }
+    }, 340);
+    return () => window.clearTimeout(t);
+  }, [snap, vh, kbInset]);
+
   const useMyLocation = () => {
     setGeoDenied(false);
+    markInteracted();
     if (!navigator.geolocation) {
       setGeoDenied(true);
       return;
@@ -260,14 +334,22 @@ export default function MapPage() {
       (pos) => {
         const p: [number, number] = [pos.coords.latitude, pos.coords.longitude];
         if (mapRef.current) mapRef.current.setCenter(p, 16, { duration: 400 });
-        placePin(p);
+        else setCoords(p);
       },
-      () => setGeoDenied(true), // denial is graceful — they can still place manually
+      () => setGeoDenied(true),
       { enableHighAccuracy: true, timeout: 10000 },
     );
   };
 
-  // ---- non-map screens -------------------------------------------------------
+  const focusExpand = (e: React.FocusEvent<HTMLInputElement>) => {
+    setSnap('full');
+    const el = e.target;
+    window.setTimeout(() => el.scrollIntoView({ block: 'center', behavior: 'smooth' }), 80);
+  };
+
+  const initialSheetH = useMemo(() => Math.max(Math.round(SNAP_FRAC.peek * vh), 176), [vh]);
+
+  // ---- non-map screens ----
   if (ctx.isPending) {
     return (
       <FullScreen>
@@ -283,25 +365,56 @@ export default function MapPage() {
 
   const isBts = resolveData?.location_type === 'BTS';
   const firstResolvePending = resolve.isPending && !resolveData;
-  const canConfirm = Boolean(
-    coords && resolveData && !confirm.isPending && (!isBts || selectedBranchId),
-  );
+  const canConfirm = Boolean(coords && resolveData && !confirm.isPending && (!isBts || selectedBranchId));
   const confirmErr = confirm.isError && !deadLink ? (confirm.error as ApiError)?.message : null;
+  const confirmLabel = !resolveData
+    ? 'Joyni belgilang'
+    : isBts && !selectedBranchId
+      ? 'Filialni tanlang'
+      : 'Tasdiqlash';
 
   return (
-    <div className="relative h-dvh w-full overflow-hidden bg-bg text-text">
-      {/* full-screen map */}
+    <div
+      ref={rootRef}
+      className="mapx-root fixed inset-0 overflow-hidden bg-bg text-text"
+      style={{ ['--sheet-h' as string]: `${initialSheetH}px`, height: '100dvh' }}
+    >
+      {/* map fills the area above the sheet */}
       {mapFailed ? (
-        <div className="flex h-full items-center justify-center px-6 pb-64 text-center text-sm text-muted">
+        <div className="mapx-map absolute inset-x-0 top-0 flex items-center justify-center px-6 text-center text-sm text-muted" style={{ height: 'calc(100dvh - var(--sheet-h))' }}>
           Xarita yuklanmadi. «Mening joylashuvim» tugmasidan foydalaning.
         </div>
       ) : (
-        <div ref={mapBoxRef} className="absolute inset-0 bg-surface-2" />
+        <div
+          ref={mapBoxRef}
+          className="mapx-map absolute inset-x-0 top-0 bg-surface-2"
+          style={{ height: 'calc(100dvh - var(--sheet-h))' }}
+        />
       )}
 
-      {/* quiet header: order + items total */}
-      <div className="pointer-events-none absolute inset-x-0 top-0 z-20 p-3">
-        <div className="mx-auto flex max-w-lg items-center justify-between rounded-[var(--r-lg)] border border-border bg-surface/95 px-4 py-2 shadow-sm backdrop-blur-sm">
+      {/* fixed centre crosshair — the map pans under it */}
+      {!mapFailed && (
+        <div
+          className="mapx-cross pointer-events-none absolute left-1/2 z-20 -translate-x-1/2 -translate-y-full"
+          style={{ top: 'calc((100dvh - var(--sheet-h)) / 2)' }}
+        >
+          <MapPin className="mapx-pin h-11 w-11 text-danger" strokeWidth={2} fill="currentColor" />
+          <span className="mx-auto -mt-2 block h-1.5 w-1.5 rounded-full bg-black/50" />
+        </div>
+      )}
+
+      {/* first-load hint */}
+      {!interacted && !mapFailed && (
+        <div className="pointer-events-none absolute inset-x-0 z-20 flex justify-center" style={{ top: 'calc((100dvh - var(--sheet-h)) / 2 + 28px)' }}>
+          <span className="rounded-full bg-black/65 px-3 py-1.5 text-xs font-medium text-white">
+            Xaritani suring — joyingizni belgilang
+          </span>
+        </div>
+      )}
+
+      {/* quiet header */}
+      <div className="pointer-events-none absolute inset-x-0 top-0 z-20" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
+        <div className="m-3 flex items-center justify-between rounded-xl border border-border bg-surface/95 px-4 py-2 shadow-sm backdrop-blur-sm">
           <div>
             <p className="brand-gradient text-sm font-bold tracking-tight">Almaz Silver</p>
             <p className="font-mono text-2xs text-muted">{ctx.data.order_no}</p>
@@ -313,93 +426,61 @@ export default function MapPage() {
         </div>
       </div>
 
-      {/* prominent my-location button */}
+      {/* my-location FAB — thumb zone, above the sheet */}
       {!mapFailed && (
         <button
           type="button"
           onClick={useMyLocation}
-          className="absolute right-4 top-20 z-20 flex h-12 items-center gap-2 rounded-full border border-border bg-surface px-4 text-sm font-medium text-accent-ink shadow-md transition-transform active:scale-95"
+          aria-label="Mening joylashuvim"
+          className="mapx-fab absolute right-4 z-20 flex h-14 w-14 items-center justify-center rounded-full border border-border bg-surface text-accent-ink shadow-lg [touch-action:manipulation] active:scale-95"
+          style={{ bottom: 'calc(var(--sheet-h) + 14px)' }}
         >
-          <Crosshair className="h-5 w-5" strokeWidth={1.75} /> Mening joylashuvim
+          <Crosshair className="h-6 w-6" strokeWidth={1.75} />
         </button>
       )}
 
-      {/* bottom action sheet */}
-      <div className="absolute inset-x-0 bottom-0 z-20 p-3">
-        <div className="mx-auto flex max-h-[72dvh] max-w-lg flex-col overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface shadow-xl">
-          {/* header row of the sheet */}
-          <div className="shrink-0 border-b border-border px-4 pt-3">
-            {!coords ? (
-              <p className="flex items-center gap-1.5 pb-3 text-sm text-muted">
-                <MapPin className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.75} />
-                Xaritada joyingizni belgilang yoki «Mening joylashuvim».
-              </p>
-            ) : firstResolvePending ? (
-              <p className="flex items-center gap-2 pb-3 text-sm text-muted">
+      {/* bottom sheet */}
+      <BottomSheet
+        snap={snap}
+        onSnap={setSnap}
+        vh={vh}
+        kbInset={kbInset}
+        onHeight={onSheetHeight}
+        peek={
+          <div className="px-4 pb-2">
+            {firstResolvePending ? (
+              <p className="flex items-center gap-2 py-1 text-sm text-muted">
                 <Loader2 className="h-4 w-4 animate-spin" strokeWidth={1.75} /> Zona aniqlanmoqda…
               </p>
             ) : resolveData ? (
-              <div className="pb-3">
-                <div className="flex items-center justify-between gap-2">
-                  <span
-                    className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ${
-                      isBts ? 'bg-accent-soft text-accent-ink' : 'bg-success-soft text-success'
-                    }`}
-                  >
-                    {isBts ? <Store className="h-3.5 w-3.5" strokeWidth={2} /> : <Truck className="h-3.5 w-3.5" strokeWidth={2} />}
-                    {isBts ? 'Filialdan olib ketish' : 'Kuryer yetkazadi'}
-                  </span>
-                  {resolve.isPending && <Loader2 className="h-3.5 w-3.5 animate-spin text-muted" strokeWidth={1.75} />}
-                </div>
-                <div className="mt-2 space-y-1">
-                  <Row label="Yetkazish" value={fmtSom(resolveData.delivery_fee)} />
-                  <Row label="Jami" value={fmtSom(resolveData.grand_total)} strong />
-                </div>
-                {isBts && (
-                  <p className="mt-2 text-2xs font-medium text-text">
-                    Yaqin filialni tanlang ({resolveData.branches.length} ta):
-                  </p>
-                )}
+              <div className="flex items-center justify-between gap-2 py-0.5">
+                <span
+                  className={`inline-flex items-center gap-1.5 rounded-full px-2.5 py-1 text-2xs font-semibold ${
+                    isBts ? 'bg-accent-soft text-accent-ink' : 'bg-success-soft text-success'
+                  }`}
+                >
+                  {isBts ? <Store className="h-3.5 w-3.5" strokeWidth={2} /> : <Truck className="h-3.5 w-3.5" strokeWidth={2} />}
+                  {isBts ? 'Filialdan olib ketish' : 'Kuryer yetkazadi'}
+                </span>
+                <span className="tnum text-right text-sm">
+                  <span className="font-bold text-accent-ink">{fmtSom(resolveData.grand_total)}</span>
+                  <span className="ml-1 text-2xs text-muted">· yetkazish {fmtSom(resolveData.delivery_fee)}</span>
+                </span>
               </div>
-            ) : null}
-          </div>
-
-          {/* scrollable middle: BTS branch list */}
-          {resolveData && isBts && (
-            <div className="min-h-0 flex-1 overflow-y-auto px-4 py-3">
-              {resolveData.branches.length > 0 ? (
-                <BranchList branches={resolveData.branches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
-              ) : (
-                <p className="py-4 text-center text-2xs text-muted">
-                  Bu hududda filial topilmadi. Boshqa joyni belgilab ko'ring.
-                </p>
-              )}
-            </div>
-          )}
-
-          {/* optional contact fields (compact) */}
-          {resolveData && (
-            <div className="shrink-0 space-y-2 px-4 pt-1">
-              {!isBts && (
-                <Field value={address} onChange={setAddress} placeholder="Manzil (ko'cha, uy)" />
-              )}
-              <div className="flex gap-2">
-                <Field value={phone} onChange={setPhone} placeholder="Telefon" inputMode="tel" />
-                {!isBts && <Field value={apartment} onChange={setApartment} placeholder="Xonadon" />}
-              </div>
-              <Field value={landmark} onChange={setLandmark} placeholder="Mo'ljal (ixtiyoriy)" />
-            </div>
-          )}
-
-          {/* footer: confirm */}
-          <div className="shrink-0 space-y-2 p-4 pt-3">
-            {geoDenied && (
-              <p className="text-2xs text-muted">
-                Joylashuvga ruxsat berilmadi — xaritada qo'lda belgilang.
+            ) : (
+              <p className="flex items-center gap-1.5 py-1 text-sm text-muted">
+                <MapPin className="h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.75} /> Joyingizni belgilang
               </p>
             )}
+          </div>
+        }
+        footer={
+          <>
+            {geoDenied && (
+              <p className="mb-2 text-2xs text-muted">Joylashuvga ruxsat berilmadi — xaritani suring.</p>
+            )}
             {confirmErr && (
-              <p className="flex items-center gap-1.5 text-2xs text-danger">
+              <p className="mb-2 flex items-center gap-1.5 text-2xs text-danger">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} /> {confirmErr}
               </p>
             )}
@@ -407,48 +488,73 @@ export default function MapPage() {
               type="button"
               onClick={() => canConfirm && !confirm.isSuccess && confirm.mutate()}
               disabled={!canConfirm || (!mapFailed && !ready)}
-              className="flex h-12 w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-accent text-sm font-semibold text-white shadow-sm transition-all active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+              className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
             >
               {confirm.isPending ? (
                 <>
                   <Loader2 className="h-5 w-5 animate-spin" strokeWidth={2} /> Yuborilmoqda…
                 </>
-              ) : isBts && !selectedBranchId && resolveData ? (
-                'Filialni tanlang'
               ) : (
-                'Tasdiqlash'
+                confirmLabel
               )}
             </button>
-            {coords && (
-              <p className="text-center text-2xs text-muted tnum">
-                {coords[0].toFixed(5)}, {coords[1].toFixed(5)}
+          </>
+        }
+      >
+        {/* scrollable content */}
+        {firstResolvePending ? (
+          <div className="space-y-2 py-3">
+            {[0, 1, 2].map((i) => (
+              <div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />
+            ))}
+          </div>
+        ) : (
+          <>
+            {isBts && resolveData && (
+              resolveData.branches.length > 0 ? (
+                <BranchList branches={resolveData.branches} selectedId={selectedBranchId} onSelect={setSelectedBranchId} />
+              ) : (
+                <p className="py-6 text-center text-sm text-muted">
+                  Bu hududda filial topilmadi. Xaritada boshqa joyni belgilang.
+                </p>
+              )
+            )}
+
+            {resolveData && !isBts && (
+              <p className="flex items-start gap-2 rounded-xl bg-surface-2 p-3 text-sm text-muted">
+                <Truck className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.75} />
+                Kuryer belgilagan manzilingizga yetkazadi.
               </p>
             )}
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-}
 
-function Field({
-  value,
-  onChange,
-  placeholder,
-  inputMode,
-}: {
-  value: string;
-  onChange: (v: string) => void;
-  placeholder: string;
-  inputMode?: 'tel' | 'text';
-}) {
-  return (
-    <input
-      value={value}
-      onChange={(e) => onChange(e.target.value)}
-      placeholder={placeholder}
-      inputMode={inputMode}
-      className="h-11 w-full rounded-[var(--r-md)] border border-border bg-surface-2 px-3 text-sm text-text outline-none placeholder:text-muted focus:border-accent"
-    />
+            {/* optional details, collapsed by default */}
+            {resolveData && (
+              <div className="mt-2 pb-2">
+                <button
+                  type="button"
+                  onClick={() => setShowExtra((v) => !v)}
+                  className="flex w-full items-center justify-between py-2 text-sm font-medium text-text [touch-action:manipulation]"
+                >
+                  Qo'shimcha ma'lumot (ixtiyoriy)
+                  <ChevronDown className={`h-4 w-4 text-muted transition-transform ${showExtra ? 'rotate-180' : ''}`} strokeWidth={1.75} />
+                </button>
+                {showExtra && (
+                  <div className="space-y-2 pt-1">
+                    <Field value={phone} onChange={setPhone} placeholder="Telefon" type="tel" inputMode="tel" onFocus={focusExpand} />
+                    {!isBts && (
+                      <>
+                        <Field value={address} onChange={setAddress} placeholder="Manzil (ko'cha, uy)" onFocus={focusExpand} />
+                        <Field value={apartment} onChange={setApartment} placeholder="Xonadon" inputMode="numeric" onFocus={focusExpand} />
+                      </>
+                    )}
+                    <Field value={landmark} onChange={setLandmark} placeholder="Mo'ljal" onFocus={focusExpand} />
+                  </div>
+                )}
+              </div>
+            )}
+          </>
+        )}
+      </BottomSheet>
+    </div>
   );
 }

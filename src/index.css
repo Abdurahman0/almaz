@@ -536,3 +536,31 @@
     display: none !important;
   }
 }
+
+/* ---- Public /map page: crosshair + bottom-sheet driven layout ----
+   `--sheet-h` (the sheet's live visible height) is written to .mapx-root during
+   drag; the map area, crosshair and locate button follow it. Transitions are
+   only enabled while snapping (data-animating), so finger-drag tracks 1:1. */
+.mapx-map,
+.mapx-cross,
+.mapx-fab {
+  transition: none;
+}
+.mapx-root[data-animating='true'] .mapx-map {
+  transition: height 0.32s cubic-bezier(0.22, 0.9, 0.2, 1);
+}
+.mapx-root[data-animating='true'] .mapx-cross {
+  transition: top 0.32s cubic-bezier(0.22, 0.9, 0.2, 1);
+}
+.mapx-root[data-animating='true'] .mapx-fab {
+  transition: bottom 0.32s cubic-bezier(0.22, 0.9, 0.2, 1);
+}
+/* Centre pin lifts while the map is being dragged, settles on release. */
+.mapx-pin {
+  transition: transform 0.18s ease, filter 0.18s ease;
+  filter: drop-shadow(0 3px 4px rgba(0, 0, 0, 0.35));
+}
+.mapx-root[data-dragging='true'] .mapx-pin {
+  transform: translateY(-4px);
+  filter: drop-shadow(0 10px 12px rgba(0, 0, 0, 0.45));
+}

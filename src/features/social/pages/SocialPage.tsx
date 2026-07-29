@@ -169,8 +169,7 @@ export default function SocialPage() {
   // Reel links crash the backend unless an image is supplied → require one.
   const linkKind: SocialKind | null = draft.link.trim() ? deriveKind(draft.link) : null;
   const kindMismatch = Boolean(linkKind && linkKind !== draft.kind);
-  const reelNeedsImage = draft.kind === 'reel' && !draft.imageUrl.trim();
-  const canSubmit = Boolean(draft.productId && draft.link.trim() && !reelNeedsImage);
+  const canSubmit = Boolean(draft.productId && draft.link.trim());
 
   const submitCreate = () => {
     add.mutate(
@@ -384,19 +383,13 @@ export default function SocialPage() {
           </div>
 
           <ImageUpload
-            label={draft.kind === 'reel' ? 'Rasm (reel uchun majburiy)' : 'Rasm (tavsiya etiladi)'}
+            label="Rasm (tavsiya etiladi)"
             value={draft.imageUrl || null}
             onChange={(url) => setDraft((d) => ({ ...d, imageUrl: url ?? '' }))}
           />
-          {reelNeedsImage ? (
-            <p className="rounded-[var(--r-sm)] bg-danger-soft px-3 py-2 text-2xs font-medium text-danger">
-              Reel havolasi uchun rasm yuklang — aks holda backend xatolik (500) qaytaradi.
-            </p>
-          ) : (
-            <p className="text-2xs text-muted">
-              Instagram rasmni avtomatik olib kelmaydi — lentada ko'rinishi uchun rasm yuklang.
-            </p>
-          )}
+          <p className="text-2xs text-muted">
+            Instagram rasmni avtomatik olib kelmaydi — lentada ko'rinishi uchun rasm yuklang.
+          </p>
           <div className="flex justify-end gap-3">
             <Button variant="ghost" onClick={() => setCreateOpen(false)}>Bekor qilish</Button>
             <Button onClick={submitCreate} loading={add.isPending} disabled={!canSubmit}>

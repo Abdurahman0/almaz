@@ -8,8 +8,9 @@ export interface SocialItem extends InstagramMediaOut {
   product: Pick<ProductOut, 'id' | 'name_uz' | 'name_ru'>;
   /**
    * Real content type derived from the permalink. The backend mis-labels reels
-   * as `post` (and 500s on reel links without an image), so we don't trust
-   * `media_type` for categorisation — the URL is the source of truth.
+   * as `post`, so we don't trust `media_type` for categorisation — the URL is
+   * the source of truth. (Reel links without an image are now accepted; the old
+   * 500 is fixed — verified 2026-07-29.)
    */
   kind: SocialKind;
 }
