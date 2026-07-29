@@ -10,6 +10,10 @@
     {
       "source": "/(ring_spin_512.webm|ring_spin_384.webp)",
       "headers": [{ "key": "Cache-Control", "value": "public, max-age=86400" }]
+    },
+    {
+      "source": "/((?!assets/|video/|ring/).*)",
+      "headers": [{ "key": "Cache-Control", "value": "public, max-age=0, must-revalidate" }]
     }
   ]
 }

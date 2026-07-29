@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import {
   DndContext,
@@ -126,8 +126,15 @@ export function OrderBoardDnd() {
   const clientOf = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? null;
   const [local, setLocal] = useState<OrderOut[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Session-local status moves (no backend endpoint yet). Kept in a ref so a
+  // background refetch of the orders query can't snap a dragged card back — the
+  // overrides are re-applied on top of every fresh server payload.
+  const overrides = useRef<Map<string, OrderStatus>>(new Map());
 
-  useEffect(() => setLocal(query.data ?? []), [query.data]);
+  useEffect(() => {
+    const data = query.data ?? [];
+    setLocal(data.map((o) => (overrides.current.has(o.id) ? { ...o, status: overrides.current.get(o.id)! } : o)));
+  }, [query.data]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -156,6 +163,8 @@ export function OrderBoardDnd() {
     if (!col || !order) return;
     if (colKeyOf(order.status) === col.key) return; // dropped in the same column
     // Local move only — no manual stage-transition endpoint yet (docs/API-GAPS.md).
+    // Record the override so refetches don't revert it, then update the view.
+    overrides.current.set(order.id, col.primary);
     setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: col.primary } : o)));
   };
 

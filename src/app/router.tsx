@@ -7,8 +7,43 @@ import { RingTransitionLayout } from './RingTransition';
 // route.lazy (instead of React.lazy + Suspense) keeps the router in a
 // "loading" navigation state while a page chunk downloads, so the ring
 // overlay stays up until the new page is ready to render.
+//
+// A new deploy replaces the hashed chunk files; a tab opened against the OLD
+// deploy still references the old names, so a lazy import 404s with "Failed to
+// fetch dynamically imported module". We retry once (transient blip), then do a
+// one-time full reload to pick up the fresh index.html + chunk map. A
+// sessionStorage flag prevents a reload loop if the failure is genuine; it is
+// cleared the moment any chunk loads successfully, so a later deploy can reload
+// again.
+const RELOAD_FLAG = 'almaz-chunk-reload';
+
+async function loadPage(
+  load: () => Promise<{ default: ComponentType }>,
+): Promise<{ Component: ComponentType }> {
+  try {
+    const mod = await load();
+    sessionStorage.removeItem(RELOAD_FLAG);
+    return { Component: mod.default };
+  } catch {
+    try {
+      await new Promise((r) => setTimeout(r, 350));
+      const mod = await load();
+      sessionStorage.removeItem(RELOAD_FLAG);
+      return { Component: mod.default };
+    } catch (err) {
+      if (!sessionStorage.getItem(RELOAD_FLAG)) {
+        sessionStorage.setItem(RELOAD_FLAG, '1');
+        window.location.reload();
+        // hang until the reload happens so the router doesn't flash its error UI
+        return new Promise<{ Component: ComponentType }>(() => {});
+      }
+      throw err;
+    }
+  }
+}
+
 function page(load: () => Promise<{ default: ComponentType }>) {
-  return async () => ({ Component: (await load()).default });
+  return () => loadPage(load);
 }
 
 export const router = createBrowserRouter([
