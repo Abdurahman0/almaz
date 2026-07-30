@@ -379,7 +379,8 @@ export default function MapPage() {
       setDragging(true);
       if (programmatic.current) return;
       fns.current.markInteracted();
-      if (phaseRef.current === 'result') fns.current.goStale();
+      // In 'result' phase, panning is for inspecting branches — it must NOT clear
+      // the chosen point. Re-positioning is explicit (the "Joyni o'zgartirish" button).
     });
     map.on('moveend', () => setDragging(false));
     // keyboard select on branch chips (delegated so it survives cluster reveal)
@@ -578,6 +579,15 @@ export default function MapPage() {
               <p className="mb-2 flex items-center gap-1.5 text-2xs text-danger">
                 <AlertTriangle className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} /> {confirmErr}
               </p>
+            )}
+            {inResult && !noBranches && (
+              <button
+                type="button"
+                onClick={goStale}
+                className="mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-text [touch-action:manipulation] active:scale-[0.99]"
+              >
+                <MapPin className="h-4 w-4" strokeWidth={1.75} /> Joyni o'zgartirish
+              </button>
             )}
             {footerButton}
           </>
