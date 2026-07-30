@@ -12,10 +12,13 @@ const fmtKm = (km?: number): string | null =>
 export function BranchList({
   branches,
   selectedId,
+  nearestId,
   onSelect,
 }: {
   branches: MapBranch[];
   selectedId: string | null;
+  /** Nearest branch — subtly highlighted before any selection. */
+  nearestId?: string | null;
   onSelect: (id: string) => void;
 }) {
   return (
@@ -26,14 +29,20 @@ export function BranchList({
       <ul className="space-y-2">
         {branches.map((b) => {
           const selected = b.id === selectedId;
+          const nearest = !selected && b.id === nearestId;
           return (
             <li key={b.id}>
               <button
                 type="button"
+                data-branch-id={b.id}
                 onClick={() => onSelect(b.id)}
                 aria-pressed={selected}
                 className={`flex min-h-16 w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors [touch-action:manipulation] ${
-                  selected ? 'border-accent bg-accent-soft' : 'border-border bg-surface active:bg-surface-2'
+                  selected
+                    ? 'border-accent bg-accent-soft'
+                    : nearest
+                      ? 'border-accent/50 bg-surface ring-1 ring-accent/30'
+                      : 'border-border bg-surface active:bg-surface-2'
                 }`}
               >
                 <span
