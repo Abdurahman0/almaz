@@ -63,9 +63,9 @@ export function useDuplicateOrder() {
 }
 
 /*
- * Flag-gated (FEATURES.orderEditing / .ordersKanbanDnd) — the endpoints don't
- * exist yet (docs/API-GAPS.md). Optimistic update + rollback + toast, so they
- * behave correctly the moment the backend ships. Never invoked while off.
+ * Order editing (PATCH /orders/{id}) still returns 405 — flag-gated behind
+ * FEATURES.orderEditing until it ships. Stage change (POST /orders/{id}/status)
+ * is now LIVE and used by the kanban (useSetOrderStatus below).
  */
 export function useUpdateOrder(orderId: string) {
   const qc = useQueryClient();
@@ -86,7 +86,8 @@ export function useUpdateOrder(orderId: string) {
   });
 }
 
-/** Optimistic stage change (kanban DnD / inline). Flag-gated. */
+/** Stage change via POST /orders/{id}/status (kanban DnD). Live. The board holds
+ *  the optimistic move + rollback; this invalidates so the server payload wins. */
 export function useSetOrderStatus() {
   const qc = useQueryClient();
   return useMutation({

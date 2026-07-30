@@ -12,10 +12,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { ErrorCard, Money, SkeletonRows } from '@/shared/ui';
+import { ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
-import { useOrders } from '../hooks';
+import { useOrders, useSetOrderStatus } from '../hooks';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
 /*
@@ -124,11 +124,12 @@ export function OrderBoardDnd() {
   const query = useOrders(undefined, 200);
   const clients = useClients();
   const clientOf = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? null;
+  const setStatus = useSetOrderStatus();
   const [local, setLocal] = useState<OrderOut[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
-  // Session-local status moves (no backend endpoint yet). Kept in a ref so a
-  // background refetch of the orders query can't snap a dragged card back — the
-  // overrides are re-applied on top of every fresh server payload.
+  // Optimistic status moves are held in a ref so a background refetch can't snap a
+  // dragged card back before the server round-trip settles — the override is
+  // re-applied on top of every fresh payload, and dropped only on failure.
   const overrides = useRef<Map<string, OrderStatus>>(new Map());
 
   useEffect(() => {
@@ -162,10 +163,22 @@ export function OrderBoardDnd() {
     const order = local.find((o) => o.id === String(e.active.id));
     if (!col || !order) return;
     if (colKeyOf(order.status) === col.key) return; // dropped in the same column
-    // Local move only — no manual stage-transition endpoint yet (docs/API-GAPS.md).
-    // Record the override so refetches don't revert it, then update the view.
-    overrides.current.set(order.id, col.primary);
-    setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: col.primary } : o)));
+    const from = order.status;
+    const to = col.primary;
+    // Optimistically move the card, then persist via POST /orders/{id}/status.
+    // On failure, roll the card back to its original column.
+    overrides.current.set(order.id, to);
+    setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: to } : o)));
+    setStatus.mutate(
+      { id: order.id, status: to },
+      {
+        onSuccess: () => toast.success('Bosqich saqlandi'),
+        onError: () => {
+          overrides.current.delete(order.id);
+          setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: from } : o)));
+        },
+      },
+    );
   };
 
   if (query.isPending) return <SkeletonRows rows={6} />;
@@ -174,7 +187,7 @@ export function OrderBoardDnd() {
   return (
     <DndContext sensors={sensors} onDragStart={onDragStart} onDragEnd={onDragEnd}>
       <p className="mb-2 text-2xs text-muted">
-        Kartani ustundan ustunga sudrab holatini o'zgartiring — o'zgarishlar hozircha faqat shu sessiyada saqlanadi (backend endpointi kutilmoqda).
+        Kartani ustundan ustunga sudrab holatini o'zgartiring — o'zgarishlar saqlanadi.
       </p>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
         {COLUMNS.map((col) => (
