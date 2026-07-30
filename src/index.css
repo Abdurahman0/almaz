@@ -616,3 +616,6 @@
   font-size: 11px; font-weight: 700; font-variant-numeric: tabular-nums;
   box-shadow: 0 2px 6px rgba(0,0,0,0.3);
 }
+
+/* branch chip text never overflows the pill (long name fallbacks ellipsize) */
+.mapx-branch > span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }

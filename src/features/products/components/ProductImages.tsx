@@ -2,6 +2,7 @@ import { useRef, useState } from 'react';
 import { ChevronLeft, ChevronRight, ImagePlus, Loader2, X } from 'lucide-react';
 import { uploadFile } from '@/shared/api/files';
 import { toast } from '@/shared/ui';
+import { ImageCropDialog } from './ImageCropDialog';
 
 // Product images are pictures only (no pdf) — jpg/jpeg/png/webp/gif/heic.
 const IMAGE_ACCEPT = '.jpg,.jpeg,.png,.webp,.gif,.heic';
@@ -39,19 +40,25 @@ export function ProductImages({
   const inputRef = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [uploading, setUploading] = useState<Uploading[]>([]);
+  const [cropQueue, setCropQueue] = useState<File[]>([]);
   const nextId = useRef(0);
 
-  const uploadAll = (files: FileList | null) => {
+  // Selecting files opens the crop dialog (one at a time) so the user frames the
+  // square shown in the CRM before the file is uploaded.
+  const enqueue = (files: FileList | null) => {
     if (!files || files.length === 0) return;
-    Array.from(files).forEach((file) => {
-      const id = nextId.current++;
-      setUploading((u) => [...u, { id, name: file.name, pct: 0 }]);
-      uploadFile(file, (pct) => setUploading((u) => u.map((x) => (x.id === id ? { ...x, pct } : x))))
-        .then((res) => onUploaded(res.url))
-        .catch(() => toast.error(`«${file.name}» yuklanmadi`))
-        .finally(() => setUploading((u) => u.filter((x) => x.id !== id)));
-    });
+    setCropQueue((q) => [...q, ...Array.from(files)]);
     if (inputRef.current) inputRef.current.value = '';
+  };
+  const dequeue = () => setCropQueue((q) => q.slice(1));
+
+  const uploadOne = (file: File) => {
+    const id = nextId.current++;
+    setUploading((u) => [...u, { id, name: file.name, pct: 0 }]);
+    uploadFile(file, (pct) => setUploading((u) => u.map((x) => (x.id === id ? { ...x, pct } : x))))
+      .then((res) => onUploaded(res.url))
+      .catch(() => toast.error(`«${file.name}» yuklanmadi`))
+      .finally(() => setUploading((u) => u.filter((x) => x.id !== id)));
   };
 
   return (
@@ -137,7 +144,7 @@ export function ProductImages({
           onDrop={(e) => {
             e.preventDefault();
             setOver(false);
-            uploadAll(e.dataTransfer.files);
+            enqueue(e.dataTransfer.files);
           }}
           className={`flex h-24 w-24 flex-col items-center justify-center gap-1 rounded-[var(--r-md)] border border-dashed text-muted transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
             over ? 'border-accent bg-accent-soft' : error ? 'border-danger' : 'border-strong hover:border-accent'
@@ -154,8 +161,16 @@ export function ProductImages({
         accept={IMAGE_ACCEPT}
         multiple
         className="hidden"
-        onChange={(e) => uploadAll(e.target.files)}
+        onChange={(e) => enqueue(e.target.files)}
       />
+
+      {cropQueue.length > 0 && (
+        <ImageCropDialog
+          file={cropQueue[0]}
+          onCancel={dequeue}
+          onDone={(f) => { uploadOne(f); dequeue(); }}
+        />
+      )}
     </div>
   );
 }

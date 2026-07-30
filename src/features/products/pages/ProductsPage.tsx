@@ -113,7 +113,7 @@ function ProductView({
       <div className="grid gap-5 sm:grid-cols-[220px_1fr]">
         <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-surface-2">
           {product.media[0]?.image_url ? (
-            <img src={product.media[0].image_url} alt={name} className="h-full w-full object-contain p-2" />
+            <img src={product.media[0].image_url} alt={name} className="h-full w-full object-cover" />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <Gem className="h-12 w-12 text-muted/50" strokeWidth={1.25} />
@@ -233,7 +233,7 @@ function ProductTable({
                 <td>
                   <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
                     {p.media[0]?.image_url ? (
-                      <img src={p.media[0].image_url} alt="" className="h-full w-full object-contain p-0.5" />
+                      <img src={p.media[0].image_url} alt="" className="h-full w-full object-cover" />
                     ) : (
                       <Gem className="h-4 w-4 text-muted/50" strokeWidth={1.25} />
                     )}

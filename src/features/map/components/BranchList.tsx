@@ -37,7 +37,7 @@ export function BranchList({
                 data-branch-id={b.id}
                 onClick={() => onSelect(b.id)}
                 aria-pressed={selected}
-                className={`flex min-h-16 w-full items-start gap-3 rounded-xl border p-3.5 text-left transition-colors [touch-action:manipulation] ${
+                className={`flex min-h-16 w-full items-start gap-3 overflow-hidden rounded-xl border p-3.5 text-left transition-colors [touch-action:manipulation] ${
                   selected
                     ? 'border-accent bg-accent-soft'
                     : nearest
@@ -55,21 +55,21 @@ export function BranchList({
                 </span>
                 <span className="min-w-0 flex-1">
                   <span className="flex items-center justify-between gap-2">
-                    <span className="truncate text-[15px] font-semibold leading-tight text-text">{b.name}</span>
+                    <span className="min-w-0 flex-1 truncate text-[15px] font-semibold leading-tight text-text">{b.name}</span>
                     {fmtKm(b.distance_km) && (
                       <span className="tnum shrink-0 text-[15px] font-bold text-accent-ink">{fmtKm(b.distance_km)}</span>
                     )}
                   </span>
                   <span className="mt-1 flex items-start gap-1.5 text-[13px] leading-snug text-muted">
                     <MapPin className="mt-0.5 h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
-                    <span className="line-clamp-2">
+                    <span className="min-w-0 line-clamp-2 break-words">
                       {b.address}
                       {b.landmark ? ` — ${b.landmark}` : ''}
                     </span>
                   </span>
-                  <span className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-2xs text-muted">
+                  <span className="mt-1.5 flex items-center gap-3 text-2xs text-muted">
                     {b.work_hours && (
-                      <span className="inline-flex items-center gap-1">
+                      <span className="flex min-w-0 flex-1 items-center gap-1">
                         <Clock className="h-3.5 w-3.5 shrink-0" strokeWidth={1.75} />
                         <span className="truncate">{b.work_hours}</span>
                       </span>
@@ -78,7 +78,7 @@ export function BranchList({
                       <a
                         href={`tel:${b.phone}`}
                         onClick={(e) => e.stopPropagation()}
-                        className="inline-flex min-h-[28px] items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 font-medium text-accent-ink [touch-action:manipulation]"
+                        className="inline-flex min-h-[28px] shrink-0 items-center gap-1 rounded-full bg-surface-2 px-2.5 py-1 font-medium text-accent-ink [touch-action:manipulation]"
                       >
                         <Phone className="h-3.5 w-3.5" strokeWidth={1.75} /> {b.phone}
                       </a>

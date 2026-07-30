@@ -63,16 +63,11 @@ export function CatalogCard({
         soldOut ? 'opacity-70 hover:opacity-100' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
-      {/* image — inside the padding, capped height, rounded to --r-sm */}
-      <div className="relative h-[120px] w-full shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
+      {/* image — square box, filled (cover). Uploads are pre-cropped to a square
+          in the crop dialog, so this fills cleanly with no letterbox. */}
+      <div className="relative aspect-square w-full shrink-0 overflow-hidden rounded-[var(--r-sm)] bg-surface-2">
         {imageUrl ? (
-          <img
-            src={imageUrl}
-            alt={name}
-            // contain (not cover) so the whole ring is visible — a cropped ring
-            // is worse than a little empty space on the neutral backdrop.
-            className="h-full w-full object-contain p-2"
-          />
+          <img src={imageUrl} alt={name} className="h-full w-full object-cover" />
         ) : (
           <div
             className="flex h-full w-full items-center justify-center"

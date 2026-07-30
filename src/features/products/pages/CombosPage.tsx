@@ -67,7 +67,7 @@ function ComboCard({ combo, name, onEdit, onDelete, onView }: {
     >
       <div className="relative aspect-[4/3] overflow-hidden bg-surface-2">
         {cover ? (
-          <img src={cover} alt={name} className="h-full w-full object-contain p-2" />
+          <img src={cover} alt={name} className="h-full w-full object-cover" />
         ) : (
           <div className="flex h-full w-full items-center justify-center">
             <Layers className="h-10 w-10 text-muted/50" strokeWidth={1.25} />
