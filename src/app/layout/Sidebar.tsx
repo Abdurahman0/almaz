@@ -12,14 +12,12 @@ import {
   Settings,
   UserCog,
   ScrollText,
-  Cable,
   Instagram,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
 import { useUiStore } from '@/shared/stores/ui';
 import { useIntroStore } from '@/shared/stores/intro';
-import { useHasPermission } from '@/shared/stores/auth';
 import { useT, type TranslationKey } from '@/shared/lib/i18n';
 import { RingCanvas } from '@/shared/ui/RingCanvas';
 import { Tooltip } from '@/shared/ui';
@@ -36,7 +34,9 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/knowledge', icon: BookOpen, label: 'nav.knowledge' },
   { to: '/settings/staff', icon: UserCog, label: 'nav.staff' },
   { to: '/settings/audit', icon: ScrollText, label: 'nav.audit' },
-  { to: '/settings/integrations', icon: Cable, label: 'nav.integrations', perm: 'settings:manage_integrations' },
+  // Integrations page hidden for now (no one may view it or its data). To
+  // restore, re-add this item + re-enable its route in src/app/router.tsx:
+  // { to: '/settings/integrations', icon: Cable, label: 'nav.integrations', perm: 'settings:manage_integrations' },
   { to: '/settings', icon: Settings, label: 'nav.settings' },
 ];
 
@@ -62,13 +62,12 @@ export function Sidebar() {
   const collapsed = useUiStore((s) => s.sidebarCollapsed);
   const toggle = useUiStore((s) => s.toggleSidebar);
   const introPlaying = useIntroStore((s) => s.stage === 'playing');
-  const canIntegrations = useHasPermission('settings:manage_integrations');
   const t = useT();
   const reduce = useReducedMotion();
   const activePath = useActivePath();
   // Reduced motion → instant snap; otherwise a gentle spring (~260ms, no overshoot).
   const spring = reduce ? { duration: 0 } : ({ type: 'spring', stiffness: 380, damping: 32 } as const);
-  const items = navItems.filter((it) => !it.perm || (it.perm === 'settings:manage_integrations' && canIntegrations));
+  const items = navItems.filter((it) => !it.perm);
 
   return (
     <aside
