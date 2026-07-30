@@ -21,9 +21,10 @@ import {
   type SelectOption,
 } from '@/shared/ui';
 import { CatalogCard } from '../components/CatalogCard';
+import { EngravingChip } from '../components/EngravingChip';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
-import { useLowStockThreshold } from '@/features/settings/hooks';
+import { useEngravingMaxChars, useEngravingPrice, useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
 import { BoxManager } from '../components/CategoryBoxes';
@@ -53,12 +54,14 @@ function productStatusBadge(status: ProductStatus): { label: string; tone: 'mute
   return { label: productStatusLabels[status], tone: 'muted' };
 }
 
-function ProductSlot({ product, name, material, stone, lowStock, onEdit, onStock, onDelete, onView, onDuplicate }: {
+function ProductSlot({ product, name, material, stone, lowStock, globalEngravingMax, globalEngravingPrice, onEdit, onStock, onDelete, onView, onDuplicate }: {
   product: ProductOut;
   name: string;
   material: string;
   stone: string;
   lowStock: boolean;
+  globalEngravingMax: number;
+  globalEngravingPrice: number;
   onEdit: () => void;
   onStock: () => void;
   onDelete: () => void;
@@ -76,6 +79,7 @@ function ProductSlot({ product, name, material, stone, lowStock, onEdit, onStock
       price={product.effective_price}
       oldPrice={product.discount_price != null ? product.price : null}
       meta={meta}
+      chip={<EngravingChip product={product} globalMax={globalEngravingMax} globalPrice={globalEngravingPrice} />}
       available={product.available}
       lowStock={lowStock}
       statusBadge={productStatusBadge(product.status)}
@@ -90,12 +94,16 @@ function ProductView({
   product,
   name,
   meta,
+  globalEngravingMax,
+  globalEngravingPrice,
   onEdit,
   onStock,
 }: {
   product: ProductOut;
   name: string;
   meta: string;
+  globalEngravingMax: number;
+  globalEngravingPrice: number;
   onEdit: () => void;
   onStock: () => void;
 }) {
@@ -105,7 +113,7 @@ function ProductView({
       <div className="grid gap-5 sm:grid-cols-[220px_1fr]">
         <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-surface-2">
           {product.media[0]?.image_url ? (
-            <img src={product.media[0].image_url} alt={name} className="h-full w-full object-cover" />
+            <img src={product.media[0].image_url} alt={name} className="h-full w-full object-contain p-2" />
           ) : (
             <div className="flex h-full w-full items-center justify-center">
               <Gem className="h-12 w-12 text-muted/50" strokeWidth={1.25} />
@@ -130,7 +138,9 @@ function ProductView({
             )}
           </p>
           {product.engraving_available && (
-            <p className="mt-2 text-xs text-muted">Gravirovka mavjud</p>
+            <div className="mt-2">
+              <EngravingChip product={product} globalMax={globalEngravingMax} globalPrice={globalEngravingPrice} />
+            </div>
           )}
           {(product.description_uz || product.description_ru) && (
             <p className="mt-3 whitespace-pre-wrap text-sm text-muted">
@@ -223,7 +233,7 @@ function ProductTable({
                 <td>
                   <span className="flex h-11 w-11 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
                     {p.media[0]?.image_url ? (
-                      <img src={p.media[0].image_url} alt="" className="h-full w-full object-cover" />
+                      <img src={p.media[0].image_url} alt="" className="h-full w-full object-contain p-0.5" />
                     ) : (
                       <Gem className="h-4 w-4 text-muted/50" strokeWidth={1.25} />
                     )}
@@ -281,6 +291,8 @@ export default function ProductsPage() {
   const categories = useCategories();
 
   const globalThreshold = useLowStockThreshold();
+  const globalEngravingMax = useEngravingMaxChars();
+  const globalEngravingPrice = useEngravingPrice();
 
   // filters
   const [search, setSearch] = useState('');
@@ -456,6 +468,8 @@ export default function ProductsPage() {
                   material={refName(materials, p.material_id)}
                   stone={refName(stones, p.stone_id)}
                   lowStock={lowStockOnly || isLow(p)}
+                  globalEngravingMax={globalEngravingMax}
+                  globalEngravingPrice={globalEngravingPrice}
                   onEdit={() => { setEditing(p); setFormOpen(true); }}
                   onStock={() => setStockFor(p)}
                   onDelete={() => setDeleting(p)}
@@ -507,6 +521,8 @@ export default function ProductsPage() {
             product={viewing}
             name={pickName(viewing, lang)}
             meta={[refName(materials, viewing.material_id), refName(stones, viewing.stone_id)].filter(Boolean).join(' · ')}
+            globalEngravingMax={globalEngravingMax}
+            globalEngravingPrice={globalEngravingPrice}
             onEdit={() => {
               setEditing(viewing);
               setViewing(undefined);

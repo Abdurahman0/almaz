@@ -4,6 +4,8 @@ import type { SettingOut, SettingValue } from '@/shared/api/types';
 /** Global setting keys (migration 0011 defaults). /settings is not paginated. */
 export const SETTING_KEYS = {
   engravingPrice: 'engraving_price',
+  engravingMaxChars: 'engraving_max_chars',
+  engravingEnabled: 'engraving_enabled',
   lowStockThreshold: 'low_stock_threshold',
   aiEnabled: 'ai_enabled',
   aiPauseMinutes: 'ai_pause_minutes',

@@ -1,28 +1,30 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { z } from 'zod';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { ArrowLeft } from 'lucide-react';
-import { Button, Card, Combobox, ErrorCard, Money, NumberInput, PageHeader, Select, SkeletonRows } from '@/shared/ui';
+import { Button, Card, Combobox, ErrorCard, Input, Money, NumberInput, PageHeader, Select, SkeletonRows } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib/format';
 import { useCreateOrder } from '../hooks';
 import { RingSizeCone, RING_SIZES } from '../components/RingSizeCone';
 import { useCustomers } from '@/features/inbox/hooks';
 import { useBoxes, useCombos, useProducts } from '@/features/products/hooks';
-import { useBoxesEnabled } from '@/features/settings/hooks';
+import { useBoxesEnabled, useEngravingMaxChars, useEngravingPrice } from '@/features/settings/hooks';
+import { resolveEngravingMax, resolveEngravingPrice } from '@/features/products/lib/engraving';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import type { ApiError } from '@/shared/api/client';
 
-const schema = z.object({
+const baseSchema = z.object({
   customer_id: z.string().uuid('Mijozni tanlang'),
   variant_id: z.string().uuid('Mahsulot variantini tanlang'),
   quantity: z.number({ invalid_type_error: 'Miqdor kiritilishi shart' }).int().min(1, 'Kamida 1 dona'),
   ring_size: z.number().min(15).max(22),
   box_id: z.string().optional(),
+  engraving_text: z.string().optional(),
 });
-type FormValues = z.infer<typeof schema>;
+type FormValues = z.infer<typeof baseSchema>;
 
 const steps = ['Mijoz', 'Mahsulot', "O'lcham", 'Tasdiqlash'] as const;
 
@@ -34,10 +36,30 @@ export default function NewOrderPage() {
   const products = useProducts();
   const combos = useCombos({ status: 'active', limit: 100 });
   const createOrder = useCreateOrder();
+  const globalEngravingMax = useEngravingMaxChars();
+  const globalEngravingPrice = useEngravingPrice();
+
+  // The engraving limit depends on the chosen product, so validate against a live
+  // ref (product value → global → 20); read at validation time. 0 = unlimited.
+  const limitRef = useRef(20);
+  const schema = useMemo(
+    () =>
+      baseSchema.superRefine((v, ctx) => {
+        const lim = limitRef.current;
+        if (v.engraving_text && lim > 0 && v.engraving_text.length > lim) {
+          ctx.addIssue({
+            path: ['engraving_text'],
+            code: z.ZodIssueCode.custom,
+            message: `Eng ko'pi ${lim} ta belgi (${v.engraving_text.length} ta kiritildi)`,
+          });
+        }
+      }),
+    [],
+  );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { quantity: 1, ring_size: 17, box_id: '' },
+    defaultValues: { quantity: 1, ring_size: 17, box_id: '', engraving_text: '' },
     mode: 'onChange',
   });
   const values = form.watch();
@@ -48,13 +70,22 @@ export default function NewOrderPage() {
   // A combo is ordered by its own variant_id (no ring size, no gift box).
   const selectedCombo = (combos.data?.items ?? []).find((c) => c.variant_id === values.variant_id) ?? null;
   const isCombo = Boolean(selectedCombo);
+  // Engraving is per-product; combos never engrave. Resolve the limit live so the
+  // input/counter/validation all use product → global → 20 (0 = unlimited).
+  const engravingSupported = !isCombo && Boolean(selectedProductEarly?.engraving_available);
+  const resolvedMax =
+    engravingSupported && selectedProductEarly
+      ? resolveEngravingMax(selectedProductEarly, globalEngravingMax)
+      : 20;
+  limitRef.current = resolvedMax;
   const categoryId = selectedProductEarly?.category_id ?? null;
   const boxesEnabled = useBoxesEnabled();
   const boxes = useBoxes(boxesEnabled ? categoryId : null, true);
   const availableBoxes = (boxes.data ?? []).filter((b) => b.is_active && b.available > 0);
-  // Reset the chosen box whenever the product (hence category) changes.
+  // Reset the box + engraving text whenever the product (hence category) changes.
   useEffect(() => {
     form.setValue('box_id', '');
+    form.setValue('engraving_text', '');
   }, [values.variant_id, form]);
 
   const fieldsPerStep: Array<Array<keyof FormValues>> = [
@@ -70,6 +101,8 @@ export default function NewOrderPage() {
   };
 
   const submit = form.handleSubmit((v) => {
+    // Send the text verbatim (spaces + & count) — only null when truly empty.
+    const et = v.engraving_text ?? '';
     createOrder.mutate(
       {
         customer_id: v.customer_id,
@@ -81,10 +114,21 @@ export default function NewOrderPage() {
                 quantity: v.quantity,
                 ring_size: v.ring_size.toFixed(1),
                 box_id: boxesEnabled && v.box_id ? v.box_id : null,
+                engraving_text: engravingSupported && et.trim() ? et : null,
               },
         ],
       },
-      { onSuccess: (order) => navigate(`/orders/${order.id}`) },
+      {
+        onSuccess: (order) => navigate(`/orders/${order.id}`),
+        onError: (e) => {
+          // Backend validates the limit at creation — surface it on the field.
+          const msg = (e as unknown as ApiError).message ?? '';
+          if (engravingSupported && /belgi|sig'?adi/i.test(msg)) {
+            form.setError('engraving_text', { message: msg });
+            setStep(1);
+          }
+        },
+      },
     );
   });
 
@@ -92,6 +136,11 @@ export default function NewOrderPage() {
   const selectedCustomer = customers.data?.find((c) => c.id === values.customer_id);
   const selectedBox = availableBoxes.find((b) => b.id === values.box_id) ?? null;
   const boxPrice = selectedBox ? Number(selectedBox.price) : 0;
+  const engravingText = (values.engraving_text ?? '').trim();
+  const engravingUnit =
+    engravingSupported && engravingText && selectedProductEarly
+      ? resolveEngravingPrice(selectedProductEarly, globalEngravingPrice)
+      : 0;
 
   return (
     <div>
@@ -206,6 +255,33 @@ export default function NewOrderPage() {
                   />
                 )}
               />
+              {engravingSupported && (
+                <Controller
+                  control={form.control}
+                  name="engraving_text"
+                  render={({ field, fieldState }) => {
+                    const len = (field.value ?? '').length;
+                    const hot = resolvedMax > 0 && len >= resolvedMax - 2;
+                    return (
+                      <div>
+                        <Input
+                          label={`Gravyurka matni — eng ko'pi ${resolvedMax === 0 ? 'cheksiz' : `${resolvedMax} belgi`}`}
+                          placeholder="Masalan: Ali & Vali"
+                          value={field.value ?? ''}
+                          onChange={field.onChange}
+                          maxLength={resolvedMax > 0 ? resolvedMax : undefined}
+                          error={fieldState.error?.message}
+                        />
+                        <div className="mt-1 flex justify-end">
+                          <span className={`tnum text-2xs ${hot ? 'text-danger' : 'text-muted'}`}>
+                            {resolvedMax > 0 ? `${len} / ${resolvedMax}` : `${len} · cheksiz`}
+                          </span>
+                        </div>
+                      </div>
+                    );
+                  }}
+                />
+              )}
               {boxesEnabled && values.variant_id && availableBoxes.length > 0 && (
                 <Controller
                   control={form.control}
@@ -315,13 +391,21 @@ export default function NewOrderPage() {
               </dd>
             </div>
           )}
+          {engravingUnit > 0 && (
+            <div className="flex items-center justify-between border-b border-border pb-2">
+              <dt className="text-muted">Gravyurka</dt>
+              <dd className="text-right text-text">
+                «{values.engraving_text}» · <Money short value={engravingUnit} />
+              </dd>
+            </div>
+          )}
           <div className="flex items-baseline justify-between pt-1">
             <dt className="text-muted">Taxminiy summa</dt>
             <dd className="text-md tnum text-accent-ink">
               {isCombo ? (
                 <Money value={Number(selectedCombo!.price) * (values.quantity || 1)} />
               ) : selectedProduct ? (
-                <Money value={(Number(selectedProduct.effective_price) + boxPrice) * (values.quantity || 1)} />
+                <Money value={(Number(selectedProduct.effective_price) + boxPrice + engravingUnit) * (values.quantity || 1)} />
               ) : (
                 '—'
               )}

@@ -90,6 +90,7 @@ export async function duplicateProduct(p: ProductOut): Promise<ProductOut> {
     discount_price: p.discount_price != null ? Number(p.discount_price) : null,
     engraving_available: p.engraving_available,
     engraving_price: p.engraving_price != null ? Number(p.engraving_price) : null,
+    engraving_max_chars: p.engraving_max_chars,
     low_stock_threshold: p.low_stock_threshold,
     status: 'draft',
     image_urls: p.media.map((m) => m.image_url).filter((u): u is string => Boolean(u)),

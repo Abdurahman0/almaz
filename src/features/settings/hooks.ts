@@ -41,6 +41,16 @@ export function useEngravingPrice(): number {
   return useNumberSetting(SETTING_KEYS.engravingPrice, 50_000);
 }
 
+/** Global engraving character limit (default 20). 0 = unlimited — kept as 0. */
+export function useEngravingMaxChars(): number {
+  return useNumberSetting(SETTING_KEYS.engravingMaxChars, 20);
+}
+
+/** Whether the engraving service is offered at all (default on). */
+export function useEngravingEnabled(): boolean {
+  return useBoolSetting(SETTING_KEYS.engravingEnabled, true);
+}
+
 /** Auto-pause minutes applied when an operator types (default 15). */
 export function useAiPauseMinutes(): number {
   return useNumberSetting(SETTING_KEYS.aiPauseMinutes, 15);

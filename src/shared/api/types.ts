@@ -358,6 +358,8 @@ export interface ProductOut {
   engraving_available?: boolean;
   /** Extra charge for engraving; null -> falls back to the global setting. */
   engraving_price: string | null;
+  /** Max engraving characters; null -> global setting (default 20). 0 = unlimited. */
+  engraving_max_chars: number | null;
   /** Per-product low-stock threshold; null -> global setting used. */
   low_stock_threshold: number | null;
   /** Total available stock across active stocked variants (stock - reserved). */
@@ -380,6 +382,8 @@ export interface ProductCreate {
   discount_price?: number | string | null;
   engraving_available?: boolean;
   engraving_price?: number | string | null;
+  /** Max engraving characters; null -> global (20). 0 = unlimited. */
+  engraving_max_chars?: number | null;
   low_stock_threshold?: number | null;
   status?: ProductStatus;
   ai_keywords?: string[] | null;

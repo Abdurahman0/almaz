@@ -9,6 +9,8 @@ import {
   useAiEnabled,
   useAiPauseMinutes,
   useBoxesEnabled,
+  useEngravingEnabled,
+  useEngravingMaxChars,
   useEngravingPrice,
   useLowStockThreshold,
   useSettings,
@@ -17,33 +19,39 @@ import {
 import { SETTING_KEYS } from '../api';
 import { CardsSection } from '../components/CardsSection';
 
-/** Global commerce settings: engraving price + low-stock threshold. */
+/** Global commerce settings: engraving (on/off, price, char limit) + low stock. */
 function CommerceSettingsEditor() {
   const engravingPrice = useEngravingPrice();
+  const engravingMax = useEngravingMaxChars();
+  const engravingEnabled = useEngravingEnabled();
   const lowStock = useLowStockThreshold();
   const boxesEnabled = useBoxesEnabled();
   const settings = useSettings();
   const update = useUpdateSetting();
   const [eng, setEng] = useState<number | '' | null>(null);
+  const [maxc, setMaxc] = useState<number | '' | null>(null);
   const [low, setLow] = useState<number | '' | null>(null);
 
   if (settings.isPending) return <SkeletonRows rows={2} />;
 
-  const toggleBoxes = (checked: boolean) =>
+  const toggle = (key: string, checked: boolean, on: string, off: string) =>
     update.mutate(
-      { key: SETTING_KEYS.boxesEnabled, value: checked },
+      { key, value: checked },
       {
-        onSuccess: () => toast.success(checked ? 'Qutilar yoqildi' : "Qutilar o'chirildi"),
+        onSuccess: () => toast.success(checked ? on : off),
         onError: () => toast.error('Saqlashda xatolik yuz berdi'),
       },
     );
 
   const save = () => {
     const nEng = eng === null ? engravingPrice : eng;
+    const nMax = maxc === null ? engravingMax : maxc;
     const nLow = low === null ? lowStock : low;
     const jobs: Array<Promise<unknown>> = [];
     if (typeof nEng === 'number' && nEng >= 0)
       jobs.push(update.mutateAsync({ key: SETTING_KEYS.engravingPrice, value: nEng }));
+    if (typeof nMax === 'number' && nMax >= 0) // 0 allowed = unlimited
+      jobs.push(update.mutateAsync({ key: SETTING_KEYS.engravingMaxChars, value: nMax }));
     if (typeof nLow === 'number' && nLow >= 0)
       jobs.push(update.mutateAsync({ key: SETTING_KEYS.lowStockThreshold, value: nLow }));
     Promise.all(jobs)
@@ -53,37 +61,38 @@ function CommerceSettingsEditor() {
 
   return (
     <div className="space-y-4">
-      <div className="grid grid-cols-2 gap-4">
-        <NumberInput
-          label="Gravirovka narxi"
-          suffix="so'm"
-          thousands
-          step={10_000}
-          min={0}
-          value={eng ?? engravingPrice}
-          onChange={setEng}
-        />
-        <NumberInput
-          label="Kam qolgan chegarasi"
-          suffix="dona"
-          step={1}
-          min={0}
-          value={low ?? lowStock}
-          onChange={setLow}
+      <div className="flex items-center justify-between gap-4">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">Gravyurka xizmati</p>
+          <p className="text-xs text-muted">O'chirilsa hech bir mahsulotга ism yozilmaydi</p>
+        </div>
+        <Switch
+          checked={engravingEnabled}
+          onCheckedChange={(c) => toggle(SETTING_KEYS.engravingEnabled, c, 'Gravyurka yoqildi', "Gravyurka o'chirildi")}
         />
       </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        <NumberInput label="Gravyurka narxi" suffix="so'm" thousands step={10_000} min={0} value={eng ?? engravingPrice} onChange={setEng} />
+        <NumberInput label="Maks. belgi soni" suffix="belgi" step={1} min={0} value={maxc ?? engravingMax} onChange={setMaxc} />
+        <NumberInput label="Kam qolgan chegarasi" suffix="dona" step={1} min={0} value={low ?? lowStock} onChange={setLow} />
+      </div>
       <p className="text-xs text-muted">
-        Gravirovka narxi mahsulotда ko'rsatilmasa shu ishlatiladi. Chegara — mahsulotда o'z qiymati bo'lmasa.
+        Bular global qiymatlar — mahsulotда o'z qiymati ko'rsatilsa, o'sha ustun turadi. Belgi soni: 0 — cheksiz.
       </p>
       <Button size="sm" loading={update.isPending} onClick={save}>
         Saqlash
       </Button>
+
       <div className="flex items-center justify-between gap-4 border-t border-border pt-4">
         <div className="min-w-0">
           <p className="text-sm font-medium text-text">Rangli qutilar (sovg'a quti)</p>
           <p className="text-xs text-muted">O'chirilsa buyurtma va AI quti qabul qilmaydi</p>
         </div>
-        <Switch checked={boxesEnabled} onCheckedChange={toggleBoxes} />
+        <Switch
+          checked={boxesEnabled}
+          onCheckedChange={(c) => toggle(SETTING_KEYS.boxesEnabled, c, 'Qutilar yoqildi', "Qutilar o'chirildi")}
+        />
       </div>
     </div>
   );

@@ -15,6 +15,7 @@ import {
 } from '@/shared/ui';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
+import { useEngravingMaxChars, useEngravingPrice } from '@/features/settings/hooks';
 import { InstagramSection } from './InstagramSection';
 import { ProductImages } from './ProductImages';
 import {
@@ -48,6 +49,7 @@ const schema = z
     stock_qty: numField,
     low_stock_threshold: numField,
     engraving_price: numField,
+    engraving_max_chars: numField,
     status: z.enum(['draft', 'active', 'archived']),
     engraving_available: z.boolean(),
     ai_keywords: z.array(z.string()),
@@ -67,6 +69,15 @@ const schema = z
         path: ['stock_qty'],
         code: z.ZodIssueCode.custom,
         message: "Butun, manfiy bo'lmagan son",
+      });
+    }
+    // engraving limit: product level requires ≥1 (backend rejects 0). "Unlimited"
+    // is a GLOBAL concept — leave blank and set the global to 0 in Settings.
+    if (v.engraving_max_chars !== '' && (!Number.isInteger(v.engraving_max_chars) || v.engraving_max_chars < 1)) {
+      ctx.addIssue({
+        path: ['engraving_max_chars'],
+        code: z.ZodIssueCode.custom,
+        message: 'Kamida 1 (cheksiz — Sozlamalarда global 0)',
       });
     }
     for (const key of ['discount_price', 'low_stock_threshold', 'engraving_price'] as const) {
@@ -196,6 +207,8 @@ interface ProductFormProps {
 
 export function ProductForm({ product, onDone }: ProductFormProps) {
   const lang = useUiStore((s) => s.lang);
+  const globalEngravingMax = useEngravingMaxChars();
+  const globalEngravingPrice = useEngravingPrice();
   const categories = useCategories();
   const genders = useRefs('genders', true);
   const materials = useRefs('materials', true);
@@ -236,6 +249,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           stock_qty: initialStock,
           low_stock_threshold: product.low_stock_threshold != null ? Number(product.low_stock_threshold) : '',
           engraving_price: product.engraving_price != null ? Number(product.engraving_price) : '',
+          engraving_max_chars: product.engraving_max_chars != null ? product.engraving_max_chars : '',
           status: product.status,
           engraving_available: product.engraving_available ?? false,
           ai_keywords: product.ai_keywords ?? [],
@@ -255,6 +269,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           stock_qty: 1,
           low_stock_threshold: '',
           engraving_price: '',
+          engraving_max_chars: '',
           status: 'active',
           engraving_available: false,
           ai_keywords: [],
@@ -332,6 +347,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       low_stock_threshold: toNum(v.low_stock_threshold),
       engraving_available: v.engraving_available || false,
       engraving_price: v.engraving_available ? toNum(v.engraving_price) : null,
+      engraving_max_chars: v.engraving_available ? toNum(v.engraving_max_chars) : null,
       status: v.status,
       ai_keywords: v.ai_keywords.length ? v.ai_keywords : null,
     };
@@ -561,13 +577,27 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         />
       </div>
       {engravingOn && (
-        <Controller
-          control={form.control}
-          name="engraving_price"
-          render={({ field, fieldState }) => (
-            <NumberInput label="Gravirovka narxi (bo'sh — global sozlama)" value={field.value} onChange={field.onChange} min={0} step={10_000} suffix="so'm" thousands placeholder="Global (50 000)" error={fieldState.error?.message} />
-          )}
-        />
+        <div className="space-y-2 rounded-lg border border-border bg-surface-2/40 p-3">
+          <div className="grid grid-cols-2 gap-4">
+            <Controller
+              control={form.control}
+              name="engraving_price"
+              render={({ field, fieldState }) => (
+                <NumberInput label="Gravirovka narxi (bo'sh — global)" value={field.value} onChange={field.onChange} min={0} step={10_000} suffix="so'm" thousands placeholder={`Global (${globalEngravingPrice.toLocaleString('ru-RU')})`} error={fieldState.error?.message} />
+              )}
+            />
+            <Controller
+              control={form.control}
+              name="engraving_max_chars"
+              render={({ field, fieldState }) => (
+                <NumberInput label="Maks. belgi soni" value={field.value} onChange={field.onChange} min={1} step={1} suffix="belgi" placeholder={`Global (${globalEngravingMax})`} error={fieldState.error?.message} />
+              )}
+            />
+          </div>
+          <p className="text-2xs text-muted">
+            Bu uzukka sig'adigan maksimal belgi soni (kamida 1). Bo'sh qoldirilsa global qiymat ({globalEngravingMax}) ishlatiladi. Cheksiz — Sozlamalarда global qiymatni 0 qiling.
+          </p>
+        </div>
       )}
 
       {/* Instagram links attach to an existing product (need its id). */}

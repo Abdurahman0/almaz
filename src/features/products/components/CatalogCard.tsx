@@ -19,6 +19,8 @@ export interface CatalogCardProps {
   free?: boolean;
   /** Muted dot-separated facts. Callers pass only fields the API actually returns. */
   meta?: string[];
+  /** Optional capability chip (e.g. engraving), rendered under the facts line. */
+  chip?: ReactNode;
   available: number;
   lowStock?: boolean;
   /** Shown only for non-normal states (draft/archived/inactive); null = nothing. */
@@ -35,7 +37,7 @@ export interface CatalogCardProps {
  */
 export function CatalogCard({
   imageUrl, placeholderIcon, tintHex, leading, name, price, oldPrice, free,
-  meta = [], available, lowStock, statusBadge, menuItems, footer, onClick,
+  meta = [], chip, available, lowStock, statusBadge, menuItems, footer, onClick,
 }: CatalogCardProps) {
   const soldOut = available <= 0;
   const facts = meta.filter(Boolean);
@@ -67,7 +69,9 @@ export function CatalogCard({
           <img
             src={imageUrl}
             alt={name}
-            className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-[1.04]"
+            // contain (not cover) so the whole ring is visible — a cropped ring
+            // is worse than a little empty space on the neutral backdrop.
+            className="h-full w-full object-contain p-2"
           />
         ) : (
           <div
@@ -120,6 +124,8 @@ export function CatalogCard({
         {facts.length > 0 && (
           <p className="mt-1 truncate text-2xs text-muted">{facts.join(' · ')}</p>
         )}
+
+        {chip && <div className="mt-1.5">{chip}</div>}
 
         {statusBadge && (
           <div className="mt-2">
