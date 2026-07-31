@@ -8,7 +8,7 @@ import {
 import type { Paginated } from '@/shared/api/client';
 import * as ordersApi from './api';
 import type { OrdersListParams } from './api';
-import type { OrderCreate, OrderOut, OrderStatus, OrderUpdate } from '@/shared/api/types';
+import type { OrderCreate, OrderItemsReplace, OrderOut, OrderStatus, OrderUpdate } from '@/shared/api/types';
 import { toast } from '@/shared/ui';
 
 export const orderKeys = {
@@ -97,9 +97,9 @@ export function useDuplicateOrder() {
 }
 
 /*
- * Order editing (PATCH /orders/{id}) still returns 405 — flag-gated behind
- * FEATURES.orderEditing until it ships. Stage change (POST /orders/{id}/status)
- * is now LIVE and used by the kanban (useSetOrderStatus below).
+ * Order metadata edit (PATCH /orders/{id}) — LIVE. Only notes / customer_id /
+ * assigned_operator_id apply (strict allowlist). notes is a safe field to patch
+ * optimistically; item + status changes are NOT done here (see below).
  */
 export function useUpdateOrder(orderId: string) {
   const qc = useQueryClient();
@@ -115,7 +115,22 @@ export function useUpdateOrder(orderId: string) {
       if (ctx?.prev) qc.setQueryData(orderKeys.detail(orderId), ctx.prev);
       toast.error("Buyurtmani yangilashda xatolik");
     },
-    onSuccess: () => toast.success('Saqlandi'),
+    onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/*
+ * Line-item editing via PATCH /orders/{id}/items (full-replacement array) — LIVE.
+ * Totals + stock reservations ripple server-side, so NO optimistic guess: write the
+ * returned OrderOut (authoritative totals, regenerated item ids) straight into cache.
+ * Field-level errors (ring size 400 / insufficient stock 400 / status restriction)
+ * are mapped by the caller, so this stays silent on error.
+ */
+export function useReplaceOrderItems(orderId: string) {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (body: OrderItemsReplace) => ordersApi.replaceOrderItems(orderId, body),
+    onSuccess: (order) => writeOrder(qc, order),
     onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
   });
 }

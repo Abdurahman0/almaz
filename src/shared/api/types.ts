@@ -523,16 +523,23 @@ export interface OrderOut {
 export interface OrderCancel {
   reason?: string | null;
 }
-/** PATCH /orders/{id}. Live: only `notes` (and customer_id) actually apply —
- *  `status` and `items` are ignored by the server, so status goes via
- *  POST /orders/{id}/status (history-preserving) instead. */
+/** PATCH /orders/{id}. Live allowlist is strict — any other field (including the
+ *  former `status`, `items`, `due_date`) is rejected with 422 `extra_forbidden`.
+ *  Status goes via POST /orders/{id}/status (history-preserving); line items via
+ *  PATCH /orders/{id}/items (see OrderItemsReplace). */
 export interface OrderUpdate {
   customer_id?: string;
-  items?: OrderItemCreate[];
-  status?: OrderStatus;
   notes?: string | null;
-  due_date?: string | null;
   assigned_operator_id?: string | null;
+}
+/** PATCH /orders/{id}/items — FULL-REPLACEMENT array (not per-item ops). The server
+ *  recalculates items_total/grand_total and stock reservations, then returns the
+ *  full OrderOut. Item ids are regenerated on every call, so never key UI off them.
+ *  Only allowed while the order is pending / waiting_payment / payment_review;
+ *  other statuses reject with 400. Omitted fields (engraving_text, box_id) are
+ *  dropped, so existing rows must round-trip them. */
+export interface OrderItemsReplace {
+  items: OrderItemCreate[];
 }
 
 // ---------- Delivery ----------

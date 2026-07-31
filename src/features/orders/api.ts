@@ -6,6 +6,7 @@ import type {
   ListParams,
   OrderCancel,
   OrderCreate,
+  OrderItemsReplace,
   OrderOut,
   OrderStatus,
   OrderUpdate,
@@ -57,15 +58,16 @@ export async function duplicateOrder(order: OrderOut): Promise<OrderOut> {
   });
 }
 
-/*
- * Endpoints below DO NOT EXIST on the API yet (see docs/API-GAPS.md). They are
- * wired to the expected shapes and gated by feature flags (FEATURES.orderEditing
- * / FEATURES.ordersKanbanDnd) so the UI can be switched on the moment the backend
- * ships them — without further frontend work. Do not call them while the flag is
- * off (they will 405 today).
- */
+/** PATCH /orders/{id} — strict allowlist: only customer_id / notes /
+ *  assigned_operator_id apply (see OrderUpdate). Anything else → 422. */
 export async function updateOrder(orderId: string, body: OrderUpdate): Promise<OrderOut> {
   return (await api.patch<OrderOut>(`/orders/${orderId}`, body)).data;
+}
+
+/** PATCH /orders/{id}/items — full-replacement item array; server recalculates
+ *  totals + stock reservations and returns the full OrderOut (see OrderItemsReplace). */
+export async function replaceOrderItems(orderId: string, body: OrderItemsReplace): Promise<OrderOut> {
+  return (await api.patch<OrderOut>(`/orders/${orderId}/items`, body)).data;
 }
 
 export async function setOrderStatus(orderId: string, status: OrderStatus): Promise<OrderOut> {

@@ -19,7 +19,11 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 ## ✅ Recently closed (verified live 2026-07-31)
 
 - **Manual order stage transition** — `POST /orders/{order_id}/status {status}` → full `OrderOut` with a new `history[]` entry. Kanban DnD now persists (`VITE_FEATURE_ORDERS_DND=true`). Note: `/status` **rejects** `cancelled`/`refunded`/`returned` (400 → use `/orders/{id}/cancel`), so the cancelled column routes to `/cancel`.
-- **Edit an order** — `PATCH /orders/{order_id}` is live and returns full `OrderOut`. **Applies `notes` only** — `status` and `items` sent to PATCH are silently ignored (200, no change, no history). So the edit form sends `notes` via PATCH and routes status through `/status`; item/ring-size editing is not offered. `VITE_FEATURE_ORDER_EDITING=true`.
+- **Edit an order — full line-item editing, status, notes (all live, re-verified 2026-07-31).**
+  - `PATCH /orders/{order_id}` is now **strict** — only `notes`, `customer_id`, `assigned_operator_id` apply. Any other field (including the former `status`, `items`, `due_date`) → **422 `extra_forbidden`**. The earlier silent-ignore bug is **gone** (nonsense/`status`/`items` all 422; `notes` 200). Notes go via PATCH; status still routes through `POST /orders/{id}/status` (history-preserving; `cancelled`/`refunded`/`returned` → `/cancel`).
+  - **Line items → `PATCH /orders/{id}/items` `{ "items": [...] }`** — **full-replacement** array (no per-item routes; `/items/{item_id}` → 404). Server recalculates `items_total`/`grand_total` **and** stock reservations, returns the full `OrderOut`. ⚠️ **Item ids regenerate on every call** — the editor keys rows off client ids, never server item ids. ⚠️ Omitted `engraving_text`/`box_id` are **dropped**, so existing rows round-trip them.
+  - **Ring size** is validated against the category's `available_sizes`: invalid → **400** `"Bu kategoriyada mavjud o'lchamlar: 16, 17, 18. '20' o'lchami mavjud emas."`. Free input when the category has no `available_sizes`. Not required server-side even when `requires_ring_size`.
+  - **Editable statuses:** `pending`, `waiting_payment`, `payment_review` **only**. Otherwise → **400** `"Bu holatda buyurtma tarkibini tahrirlab bo'lmaydi (holat=…)"`. Insufficient stock → **400** `"Zaxira yetarli emas (SKU …): mavjud N, kerak M"`. The editor maps ring-size 400 → that row's size field, stock 400 → that row's quantity field, status 400 → a page-level notice. `VITE_FEATURE_ORDER_EDITING=true` (unchanged).
 - **Category ring sizes on `ProductOut`** — `ProductOut` now returns `requires_ring_size` **and** `available_sizes` (inherited from the category). The order form reads both straight from the product — the separate category lookup was removed.
 
 ## Blocking gaps (feature is built but flag-gated OFF until these land)
@@ -41,6 +45,15 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 | **Report export** — `GET /analytics/report/export` (CSV/PDF) | No export endpoint exists. The dead "Eksport" button (was permanently disabled behind a "Tez orada" tooltip) was **removed** rather than faked; re-add it the moment an export endpoint lands. |
 | **Global Instagram feed** — `GET /catalog/instagram-media` (all media, filter by `media_type`) | Instagram media exists only per product (`GET /catalog/products/{id}/instagram`); there is no global list, `/social-posts`, or feed endpoint (all 404, verified 2026-07-29). The new **Instagram** page (`/social`) therefore aggregates real data client-side — page products, then fetch each product's media in parallel (N+1). A global list (optionally `?media_type=reel|story|post`) would collapse it to one call. |
 | **Date-ranged revenue/count summary** on `/analytics/*` | The Reports page's period "Tushum/Buyurtmalar" tiles still aggregate a 200-capped `useOrders(undefined, 200)` client-side — same class of silent under-count the dashboard had, but scoped to the Reports summary only (the top-products list already uses the server `/analytics/top-products` with `date_from/date_to`). A `GET /analytics/dashboard?date_from&date_to` (or a dedicated summary endpoint) would make it exact at any volume. |
+
+## Flag to backend team (from the 2026-07-31 order-editing probe)
+
+| Item | Detail |
+|------|--------|
+| **`available_sizes` propagation is gated on `requires_ring_size`** | Setting a category's `available_sizes` alone does **not** propagate to `ProductOut` (`available_sizes` stays `null`); it only appears once the category's `requires_ring_size=true`. Confirm this is intended — a category with fixed sizes but `requires_ring_size=false` currently exposes no size list to the client. |
+| **No `DELETE /orders/{id}`** | `Allow: GET` only (DELETE → 405). Orders can't be purged; a test order pushed to `completed` (**`ORD-260731-2E2E59`**, ~100 000, references a since-deleted test variant) can't be cancelled or deleted. Please purge it, and consider a soft-delete/admin-purge for orders. |
+| **`/openapi.json` not reachable with API credentials** | The spec sits behind a separate HTTP-basic gate that the Super-Admin bearer token and login/password do **not** open (`401 "Hujjatlarga kirish uchun login/parol kerak"`). Couldn't diff generated types against the spec — had to derive the whole order-editing contract from live probes. Please expose the spec to authenticated API users (or share the docs basic-auth creds). |
+| **Instagram reel-without-image 500 may be resolved** | The "Instagram media bug #1" above (reel link without `image_url` → 500) returned **200** on a 2026-07-31 probe (stored as `post`). Needs a clean re-verify; if fixed, bug #1's workaround (forcing an image on `/reel/` links) can be relaxed. |
 
 ## Verified working live (2026-07-29)
 
