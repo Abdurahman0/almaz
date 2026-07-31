@@ -39,8 +39,9 @@ interface BoardColumn {
 const COLUMNS: BoardColumn[] = [
   { key: 'new', label: 'Yangi', color: '#8b929e', primary: 'pending', statuses: ['draft', 'pending'] },
   { key: 'payment', label: "To'lov kutilmoqda", color: '#c69a4a', primary: 'waiting_payment', statuses: ['waiting_payment', 'payment_review'] },
-  { key: 'confirmed', label: 'Tasdiqlangan', color: '#5b86c4', primary: 'confirmed', statuses: ['confirmed'] },
-  { key: 'preparing', label: 'Tayyorlanmoqda', color: '#9575cd', primary: 'preparing', statuses: ['preparing', 'packed'] },
+  // "Tayyorlanmoqda" column removed from the board; preparing/packed orders fold
+  // into "Tasdiqlangan" so none disappear (they're confirmed, not yet shipped).
+  { key: 'confirmed', label: 'Tasdiqlangan', color: '#5b86c4', primary: 'confirmed', statuses: ['confirmed', 'preparing', 'packed'] },
   { key: 'shipping', label: "Yo'lda", color: '#4aa3c8', primary: 'shipping', statuses: ['shipping'] },
   { key: 'done', label: 'Yakunlangan', color: '#4caf7d', primary: 'delivered', statuses: ['delivered', 'completed'] },
   { key: 'cancelled', label: 'Bekor / qaytarilgan', color: '#d06868', primary: 'cancelled', statuses: ['cancelled', 'refunded', 'returned'] },
