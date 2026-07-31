@@ -1,5 +1,6 @@
-import { useEffect, useMemo, useState } from 'react';
-import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { useBlocker, useNavigate, useSearchParams } from 'react-router-dom';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import { Plus, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, LayoutGrid, Rows3, Copy, Eye, Boxes } from 'lucide-react';
 import {
   Badge,
@@ -25,6 +26,7 @@ import { EngravingChip } from '../components/EngravingChip';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
 import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProduct, useProductsPage, useRefs } from '../hooks';
 import { ProductContent } from '@/features/social/components/ProductContent';
+import { ContentForm } from '@/features/social/components/ContentForm';
 import { useEngravingMaxChars, useEngravingPrice, useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
@@ -99,6 +101,7 @@ function ProductView({
   globalEngravingPrice,
   onEdit,
   onStock,
+  onAddContent,
 }: {
   product: ProductOut;
   name: string;
@@ -107,6 +110,7 @@ function ProductView({
   globalEngravingPrice: number;
   onEdit: () => void;
   onStock: () => void;
+  onAddContent: () => void;
 }) {
   const discounted = product.discount_price != null;
   return (
@@ -169,7 +173,7 @@ function ProductView({
       )}
 
       <div className="border-t border-border pt-5">
-        <ProductContent product={product} />
+        <ProductContent product={product} onAddContent={onAddContent} />
       </div>
 
       <div className="flex justify-end gap-3">
@@ -350,16 +354,37 @@ export default function ProductsPage() {
 
   // Product detail is URL-addressable (?product=<id>) so the social page's product
   // chip can deep-link straight into it. Prefer a product already on the page;
-  // fall back to fetching it by id.
+  // fall back to fetching it by id. ?compose=1 swaps the SAME modal to the content
+  // create form (no nested modal).
   const [searchParams, setSearchParams] = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const viewId = searchParams.get('product');
+  const compose = searchParams.get('compose') === '1';
   const inPageProduct = products.find((p) => p.id === viewId);
   const viewFetch = useProduct(viewId && !inPageProduct ? viewId : null);
   const viewing = viewId ? inPageProduct ?? viewFetch.data : undefined;
   const openView = (p: ProductOut) =>
-    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('product', p.id); return n; }, { replace: false });
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('product', p.id); n.delete('compose'); return n; });
   const closeView = () =>
-    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('product'); return n; }, { replace: false });
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('product'); n.delete('compose'); return n; });
+  const openCompose = () => {
+    composeDirty.current = false;
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('compose', '1'); return n; });
+  };
+  const backToDetail = () =>
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('compose'); return n; });
+
+  // Unsaved-changes guard for the content form. A ref (not state) so the post-save
+  // return isn't blocked by a stale dirty value. Covers the in-modal back arrow /
+  // Esc / ✕ (all navigate) AND browser-back — every route change out of ?compose.
+  const composeDirty = useRef(false);
+  const leaveBlocker = useBlocker(
+    ({ currentLocation, nextLocation }) =>
+      composeDirty.current &&
+      new URLSearchParams(currentLocation.search).get('compose') === '1' &&
+      new URLSearchParams(nextLocation.search).get('compose') !== '1',
+  );
+  const savedReturn = () => { composeDirty.current = false; backToDetail(); };
 
   const refName = (map: Map<string, RefOut>, id: string | null) =>
     id ? pickName(map.get(id), lang) : '';
@@ -530,26 +555,65 @@ export default function ProductsPage() {
       <Modal
         open={Boolean(viewId)}
         onClose={closeView}
-        heading={viewing ? pickName(viewing, lang) : ''}
+        onBack={compose ? backToDetail : undefined}
+        heading={compose ? "Kontent qo'shish" : viewing ? pickName(viewing, lang) : ''}
+        subheading={compose && viewing ? pickName(viewing, lang) : undefined}
         wide
       >
         {viewing ? (
-          <ProductView
-            product={viewing}
-            name={pickName(viewing, lang)}
-            meta={[refName(materials, viewing.material_id), refName(stones, viewing.stone_id)].filter(Boolean).join(' · ')}
-            globalEngravingMax={globalEngravingMax}
-            globalEngravingPrice={globalEngravingPrice}
-            onEdit={() => {
-              setEditing(viewing);
-              closeView();
-              setFormOpen(true);
-            }}
-            onStock={() => {
-              setStockFor(viewing);
-              closeView();
-            }}
-          />
+          <div className="relative overflow-hidden">
+            <AnimatePresence mode="wait" initial={false}>
+              {compose ? (
+                <motion.div
+                  key="compose"
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 28 }}
+                  animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: 28 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <ContentForm
+                    product={viewing}
+                    onSaved={savedReturn}
+                    onCancel={backToDetail}
+                    onDirtyChange={(d) => { composeDirty.current = d; }}
+                  />
+                </motion.div>
+              ) : (
+                <motion.div
+                  key="detail"
+                  initial={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -28 }}
+                  animate={reduceMotion ? { opacity: 1 } : { opacity: 1, x: 0 }}
+                  exit={reduceMotion ? { opacity: 0 } : { opacity: 0, x: -28 }}
+                  transition={{ duration: 0.2, ease: 'easeOut' }}
+                >
+                  <ProductView
+                    product={viewing}
+                    name={pickName(viewing, lang)}
+                    meta={[refName(materials, viewing.material_id), refName(stones, viewing.stone_id)].filter(Boolean).join(' · ')}
+                    globalEngravingMax={globalEngravingMax}
+                    globalEngravingPrice={globalEngravingPrice}
+                    onEdit={() => { setEditing(viewing); closeView(); setFormOpen(true); }}
+                    onStock={() => { setStockFor(viewing); closeView(); }}
+                    onAddContent={openCompose}
+                  />
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            {/* Unsaved-changes guard — inline (never a second modal layer). */}
+            {leaveBlocker.state === 'blocked' && (
+              <div className="mt-4 flex flex-wrap items-center justify-between gap-3 rounded-[var(--r-md)] border border-danger-soft bg-danger-soft/50 p-3.5">
+                <span className="flex items-center gap-2 text-sm text-text">
+                  <AlertTriangle className="h-4 w-4 shrink-0 text-danger" strokeWidth={1.75} />
+                  Saqlanmagan o'zgarishlar bor. Chiqasizmi?
+                </span>
+                <span className="flex gap-2">
+                  <Button variant="ghost" size="sm" onClick={() => leaveBlocker.reset?.()}>Qolish</Button>
+                  <Button variant="secondary" size="sm" onClick={() => leaveBlocker.proceed?.()}>Chiqish</Button>
+                </span>
+              </div>
+            )}
+          </div>
         ) : viewFetch.isError ? (
           <ErrorCard error={viewFetch.error} onRetry={() => viewFetch.refetch()} />
         ) : (

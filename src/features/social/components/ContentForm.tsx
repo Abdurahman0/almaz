@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
@@ -34,8 +34,22 @@ type FormValues = z.infer<typeof schema>;
  *   - social page → `product` is undefined → a searchable product picker.
  * The backend derives the type/ref from the link; the image is a plain URL, so a
  * product photo is reused directly (no re-upload).
+ *
+ * `onSaved` fires after a successful save (parent returns to the product detail);
+ * `onCancel` is the explicit "Bekor qilish" (parent decides whether to confirm a
+ * dirty form); `onDirtyChange` lets the parent drive an unsaved-changes guard.
  */
-export function ContentForm({ product, onDone }: { product?: ProductOut; onDone: () => void }) {
+export function ContentForm({
+  product,
+  onSaved,
+  onCancel,
+  onDirtyChange,
+}: {
+  product?: ProductOut;
+  onSaved: () => void;
+  onCancel: () => void;
+  onDirtyChange?: (dirty: boolean) => void;
+}) {
   const lang = useUiStore((s) => s.lang);
   const products = useProducts();
   const add = useAddSocial();
@@ -59,6 +73,10 @@ export function ContentForm({ product, onDone }: { product?: ProductOut; onDone:
   const kind = form.watch('kind');
   const link = form.watch('link');
   const imageUrl = form.watch('imageUrl');
+
+  // Report dirtiness so the parent can guard an in-place back with a confirm.
+  const isDirty = form.formState.isDirty;
+  useEffect(() => { onDirtyChange?.(isDirty); }, [isDirty, onDirtyChange]);
   const linkKind: SocialKind | null = link.trim() ? deriveKind(link) : null;
   const kindMismatch = Boolean(linkKind && linkKind !== kind);
 
@@ -68,7 +86,7 @@ export function ContentForm({ product, onDone }: { product?: ProductOut; onDone:
     add.mutate(
       { productId: v.productId, body: { link: v.link.trim(), image_url: v.imageUrl.trim() || null } },
       {
-        onSuccess: () => { toast.success("Kontent qo'shildi"); onDone(); },
+        onSuccess: () => { onDirtyChange?.(false); toast.success("Kontent qo'shildi"); onSaved(); },
         onError: (e) => toast.error((e as unknown as ApiError).message || "Havola qo'shishda xatolik"),
       },
     );
@@ -177,7 +195,7 @@ export function ContentForm({ product, onDone }: { product?: ProductOut; onDone:
       </div>
 
       <div className="flex justify-end gap-3">
-        <Button type="button" variant="ghost" onClick={onDone}>Bekor qilish</Button>
+        <Button type="button" variant="ghost" onClick={onCancel}>Bekor qilish</Button>
         <Button type="submit" loading={add.isPending}>Qo'shish</Button>
       </div>
     </form>

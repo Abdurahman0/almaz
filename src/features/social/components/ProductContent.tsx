@@ -1,12 +1,10 @@
-import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { Clapperboard, Gem, Instagram, Plus } from 'lucide-react';
-import { Badge, Button, Modal, Skeleton } from '@/shared/ui';
+import { Badge, Button, Skeleton } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
 import type { InstagramMediaOut, ProductOut } from '@/shared/api/types';
 import { useProductInstagram } from '@/features/products/hooks';
 import { contentStatus, deriveKind, kindLabel } from '../api';
-import { ContentForm } from './ContentForm';
 
 /** One content card in the product-detail Kontentlar grid → deep-links to the feed. */
 function ContentCard({ item, onOpen }: { item: InstagramMediaOut; onOpen: () => void }) {
@@ -44,11 +42,11 @@ function ContentCard({ item, onOpen }: { item: InstagramMediaOut; onOpen: () => 
 }
 
 /** "Kontentlar" section on the product detail — the product's attached social
- *  content, plus an "add content" flow prefilled with this product + its photo. */
-export function ProductContent({ product }: { product: ProductOut }) {
+ *  content. "Kontent qo'shish" delegates up to the parent (`onAddContent`), which
+ *  swaps the create form INTO the same modal (no nested modals). */
+export function ProductContent({ product, onAddContent }: { product: ProductOut; onAddContent: () => void }) {
   const navigate = useNavigate();
   const media = useProductInstagram(product.id);
-  const [createOpen, setCreateOpen] = useState(false);
   const items = media.data ?? [];
 
   return (
@@ -58,7 +56,7 @@ export function ProductContent({ product }: { product: ProductOut }) {
           Kontentlar{media.isSuccess && items.length > 0 && <span className="text-text"> · {items.length}</span>}
         </p>
         {media.isSuccess && items.length > 0 && (
-          <Button variant="ghost" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button variant="ghost" size="sm" onClick={onAddContent}>
             <Plus className="h-3.5 w-3.5" strokeWidth={1.75} /> Kontent qo'shish
           </Button>
         )}
@@ -83,7 +81,7 @@ export function ProductContent({ product }: { product: ProductOut }) {
         <div className="rounded-[var(--r-md)] border border-dashed border-border bg-surface-2/40 px-5 py-8 text-center">
           <Instagram className="mx-auto mb-2 h-7 w-7 text-muted/50" strokeWidth={1.25} />
           <p className="text-sm text-muted">Bu mahsulot uchun kontent qo'shilmagan</p>
-          <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+          <Button className="mt-4" size="sm" onClick={onAddContent}>
             <Plus className="h-4 w-4" strokeWidth={2} /> Kontent qo'shish
           </Button>
         </div>
@@ -96,11 +94,6 @@ export function ProductContent({ product }: { product: ProductOut }) {
           ))}
         </div>
       )}
-
-      <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Kontent qo'shish">
-        {/* ContentForm toasts on success; here we just close and let the query refetch. */}
-        <ContentForm product={product} onDone={() => setCreateOpen(false)} />
-      </Modal>
     </div>
   );
 }

@@ -382,7 +382,7 @@ export default function SocialPage() {
 
       {/* Create */}
       <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Instagram kontent qo'shish">
-        <ContentForm onDone={() => setCreateOpen(false)} />
+        <ContentForm onSaved={() => setCreateOpen(false)} onCancel={() => setCreateOpen(false)} />
       </Modal>
 
       {/* Edit */}

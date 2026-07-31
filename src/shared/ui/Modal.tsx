@@ -1,23 +1,32 @@
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react';
 import * as Dialog from '@radix-ui/react-dialog';
-import { Loader2, X } from 'lucide-react';
+import { ArrowLeft, Loader2, X } from 'lucide-react';
 
 interface ModalProps {
   open: boolean;
   onClose: () => void;
   heading?: string;
+  /** Small muted line under the heading (e.g. the product name in a sub-view). */
+  subheading?: string;
   children: ReactNode;
   wide?: boolean;
   /** md caps the panel narrower (confirm dialogs); default lg. */
   size?: 'md' | 'lg';
   /** Element to focus when the dialog opens (overrides Radix default). */
   initialFocus?: RefObject<HTMLElement | null>;
+  /**
+   * When set, the modal is showing a sub-view: a back arrow appears left of the
+   * title and EVERY dismiss (arrow, Esc, overlay, ✕) peels back one layer via this
+   * handler instead of closing — so we swap views in place rather than stacking modals.
+   */
+  onBack?: () => void;
 }
 
 /** Themed dialog on Radix — focus-trapped, Esc/overlay close, scale-in 160ms. */
-export function Modal({ open, onClose, heading, children, wide, size = 'lg', initialFocus }: ModalProps) {
+export function Modal({ open, onClose, heading, subheading, children, wide, size = 'lg', initialFocus, onBack }: ModalProps) {
+  const dismiss = onBack ?? onClose;
   return (
-    <Dialog.Root open={open} onOpenChange={(v) => !v && onClose()}>
+    <Dialog.Root open={open} onOpenChange={(v) => !v && dismiss()}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-scrim backdrop-blur-md data-[state=open]:animate-[floatIn_160ms_ease-out]" />
         <Dialog.Content
@@ -33,16 +42,31 @@ export function Modal({ open, onClose, heading, children, wide, size = 'lg', ini
             wide ? 'max-w-3xl' : size === 'md' ? 'max-w-md' : 'max-w-lg'
           }`}
         >
-          <div className="mb-4 flex items-center justify-between">
-            {heading ? (
-              <Dialog.Title className="text-md font-semibold text-text">{heading}</Dialog.Title>
-            ) : (
-              <span />
-            )}
+          <div className="mb-4 flex items-center justify-between gap-3">
+            <div className="flex min-w-0 items-center gap-2">
+              {onBack && (
+                <button
+                  type="button"
+                  aria-label="Orqaga"
+                  onClick={onBack}
+                  className="-ml-1.5 shrink-0 rounded-[var(--r-sm)] p-1.5 text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                >
+                  <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
+                </button>
+              )}
+              <div className="min-w-0">
+                {heading ? (
+                  <Dialog.Title className="truncate text-md font-semibold text-text">{heading}</Dialog.Title>
+                ) : (
+                  <Dialog.Title className="sr-only">Dialog</Dialog.Title>
+                )}
+                {subheading && <p className="truncate text-2xs text-muted">{subheading}</p>}
+              </div>
+            </div>
             <Dialog.Close asChild>
               <button
                 aria-label="Yopish"
-                className="rounded-[var(--r-sm)] p-1.5 text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                className="shrink-0 rounded-[var(--r-sm)] p-1.5 text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               >
                 <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
