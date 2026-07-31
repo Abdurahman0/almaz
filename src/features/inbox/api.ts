@@ -6,6 +6,8 @@ import type {
   Channel,
   ConversationOut,
   ConversationStatus,
+  CustomerOut,
+  CustomerUpdate,
   ListParams,
   MessageDirection,
   MessageOut,
@@ -51,6 +53,22 @@ export async function sendMessage(conversationId: string, text: string): Promise
 
 export async function markRead(conversationId: string): Promise<void> {
   await api.post(`/inbox/conversations/${conversationId}/read`);
+}
+
+/** Edit a customer's name/phone (partial; only given fields apply). Perm: conversations:update. */
+export async function updateCustomer(customerId: string, body: CustomerUpdate): Promise<CustomerOut> {
+  return (await api.patch<CustomerOut>(`/inbox/customers/${customerId}`, body)).data;
+}
+
+/** Delete a conversation + its messages; the customer is kept. → 204. */
+export async function deleteConversation(conversationId: string): Promise<void> {
+  await api.delete(`/inbox/conversations/${conversationId}`);
+}
+
+/** Delete a customer entirely (conversation + messages + location). → 204,
+ *  or 400 if the customer has orders. */
+export async function deleteCustomer(customerId: string): Promise<void> {
+  await api.delete(`/inbox/customers/${customerId}`);
 }
 
 export async function assignConversation(conversationId: string, operatorId: string): Promise<void> {

@@ -1,7 +1,7 @@
 import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import * as inboxApi from './api';
 import type { ConversationListParams } from './api';
-import type { AiControlRequest, CustomerOut, MessageOut } from '@/shared/api/types';
+import type { AiControlRequest, ConversationOut, CustomerOut, CustomerUpdate, MessageOut } from '@/shared/api/types';
 
 export const inboxKeys = {
   all: ['inbox'] as const,
@@ -67,6 +67,57 @@ export function useMarkRead() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (conversationId: string) => inboxApi.markRead(conversationId),
+    onSuccess: () => qc.invalidateQueries({ queryKey: inboxKeys.conversations }),
+  });
+}
+
+/**
+ * Edit a customer (name/phone). The customer is embedded in every conversation
+ * row, so we optimistically patch it across ALL cached conversation queries
+ * (base + filtered), roll back on error, and invalidate so the list reflects the
+ * server truth everywhere.
+ */
+export function useUpdateCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ customerId, body }: { customerId: string; body: CustomerUpdate }) =>
+      inboxApi.updateCustomer(customerId, body),
+    onMutate: async ({ customerId, body }) => {
+      await qc.cancelQueries({ queryKey: inboxKeys.conversations });
+      const snapshots = qc.getQueriesData<ConversationOut[]>({ queryKey: inboxKeys.conversations });
+      qc.setQueriesData<ConversationOut[]>({ queryKey: inboxKeys.conversations }, (old) =>
+        old?.map((c) =>
+          c.customer && c.customer.id === customerId ? { ...c, customer: { ...c.customer, ...body } } : c,
+        ),
+      );
+      return { snapshots };
+    },
+    onError: (_e, _v, ctx) => {
+      ctx?.snapshots?.forEach(([key, data]) => qc.setQueryData(key, data));
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: inboxKeys.conversations }),
+  });
+}
+
+/** Delete a conversation + its messages (customer kept). Drops the messages cache
+ *  and refreshes the list. */
+export function useDeleteConversation() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (conversationId: string) => inboxApi.deleteConversation(conversationId),
+    onSuccess: (_d, conversationId) => {
+      qc.removeQueries({ queryKey: inboxKeys.messages(conversationId) });
+      qc.invalidateQueries({ queryKey: inboxKeys.conversations });
+    },
+  });
+}
+
+/** Delete a customer entirely. Throws on 400 (customer has orders) — the caller
+ *  maps it to a helpful message. */
+export function useDeleteCustomer() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (customerId: string) => inboxApi.deleteCustomer(customerId),
     onSuccess: () => qc.invalidateQueries({ queryKey: inboxKeys.conversations }),
   });
 }

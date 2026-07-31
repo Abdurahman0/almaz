@@ -21,6 +21,7 @@ import { FEATURES } from '@/shared/config/flags';
 import type { PaymentOut } from '@/shared/api/types';
 import { useCancelOrder, useDelivery, useDuplicateOrder, useOrder } from '../hooks';
 import { useProducts } from '@/features/products/hooks';
+import { useStaff } from '@/features/settings/rbac';
 import { useClients } from '@/features/clients/hooks';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
@@ -60,6 +61,7 @@ export default function OrderDetailPage() {
     select: (all) => all.filter((p) => p.order_id === orderId),
     enabled: Boolean(orderId),
   });
+  const staff = useStaff();
 
   if (order.isPending) {
     return (
@@ -74,6 +76,9 @@ export default function OrderDetailPage() {
 
   const o = order.data;
   const clientName = clients.data?.find((c) => c.id === o.customer_id)?.name ?? null;
+  const operatorName = o.assigned_operator_id
+    ? staff.data?.find((u) => u.id === o.assigned_operator_id)?.full_name ?? '—'
+    : 'Tayinlanmagan';
   const paid = payments.data?.filter((p) => p.status === 'approved').length ?? 0;
   const totalPayments = payments.data?.length ?? 0;
   const paidPercent = totalPayments === 0 ? 0 : Math.round((paid / totalPayments) * 100);
@@ -150,6 +155,10 @@ export default function OrderDetailPage() {
             ))}
           </div>
           <dl className="mt-5 space-y-2 border-t border-border pt-4 text-sm">
+            <div className="flex justify-between text-muted">
+              <dt>Operator</dt>
+              <dd className="text-text">{operatorName}</dd>
+            </div>
             <div className="flex justify-between text-muted">
               <dt>Mahsulotlar</dt>
               <dd><Money value={o.items_total} /></dd>

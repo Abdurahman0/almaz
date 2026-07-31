@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Bot, ExternalLink, Instagram, Paperclip, Search, Send } from 'lucide-react';
-import { Badge, Card, Checkbox, EmptyState, ErrorCard, Select, SkeletonRows, type SelectOption } from '@/shared/ui';
+import { Bot, ExternalLink, Instagram, MoreVertical, Paperclip, Phone, Search, Send, Trash2 } from 'lucide-react';
+import { Badge, Card, Checkbox, ConfirmDialog, DropdownMenu, EmptyState, ErrorCard, Select, SkeletonRows, toast, type SelectOption } from '@/shared/ui';
 import { formatTime } from '@/shared/lib/format';
-import { useConversations, useMarkRead, useMessages, useSendMessage } from '../hooks';
-import { AiControl } from '../components/AiControl';
+import { useConversations, useDeleteConversation, useMarkRead, useMessages, useSendMessage } from '../hooks';
+import { ConversationHeader } from '../components/ConversationHeader';
+import { formatPhone } from '../phone';
 import type { AiState, Channel, ConversationOut, ConversationStatus } from '@/shared/api/types';
 
 const channelOptions: SelectOption[] = [
@@ -136,44 +137,60 @@ function MessageBody({ content, attachments, out }: { content: string | null; at
   );
 }
 
-function ConversationRow({ conv, active, onClick }: {
+function ConversationRow({ conv, active, onClick, onDelete }: {
   conv: ConversationOut;
   active: boolean;
   onClick: () => void;
+  onDelete: () => void;
 }) {
   const name = conv.customer?.full_name ?? conv.customer?.username ?? 'Mijoz';
+  const phone = conv.customer?.phone;
   return (
-    <button
-      onClick={onClick}
-      className={`w-full border-b border-border px-4 py-3 text-left transition-colors last:border-0 ${
-        active ? 'bg-accent-soft' : 'hover:bg-surface-2'
-      }`}
-    >
-      <div className="flex items-center justify-between gap-2">
-        <span className="truncate text-sm font-semibold text-text">{name}</span>
-        <span className="shrink-0 text-2xs text-muted">{formatTime(conv.last_activity_at)}</span>
-      </div>
-      <div className="mt-1 flex items-center justify-between gap-2">
-        <span className="truncate text-xs text-muted">{conv.last_message ?? '—'}</span>
-        {conv.unread_count > 0 && (
-          <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-2xs font-bold text-on-accent">
-            {conv.unread_count}
-          </span>
+    <div className={`group relative flex items-stretch border-b border-border transition-colors last:border-0 ${
+      active ? 'bg-accent-soft' : 'hover:bg-surface-2'
+    }`}>
+      <button onClick={onClick} className="min-w-0 flex-1 px-4 py-3 text-left">
+        <div className="flex items-center justify-between gap-2">
+          <span className="truncate text-sm font-semibold text-text">{name}</span>
+          <span className="shrink-0 text-2xs text-muted">{formatTime(conv.last_activity_at)}</span>
+        </div>
+        <div className="mt-1 flex items-center justify-between gap-2">
+          <span className="truncate text-xs text-muted">{conv.last_message ?? '—'}</span>
+          {conv.unread_count > 0 && (
+            <span className="flex h-5 min-w-5 shrink-0 items-center justify-center rounded-full bg-accent px-1.5 text-2xs font-bold text-on-accent">
+              {conv.unread_count}
+            </span>
+          )}
+        </div>
+        {phone && (
+          <p className="mt-1 flex items-center gap-1 text-2xs text-muted">
+            <Phone className="h-3 w-3" strokeWidth={1.75} /> {formatPhone(phone)}
+          </p>
         )}
-      </div>
-      <div className="mt-1.5 flex flex-wrap gap-1.5">
-        <Badge tone="muted">{conv.channel === 'telegram' ? 'Telegram' : 'Instagram'}</Badge>
-        <Badge tone={conv.ai_state === 'handed_off' ? 'rose' : 'gold'}>
-          {aiStateLabels[conv.ai_state]}
-        </Badge>
-        {!conv.ai_enabled ? (
-          <Badge tone="rose">AI o'chiq</Badge>
-        ) : (
-          conv.ai_paused_until &&
-          new Date(conv.ai_paused_until).getTime() > Date.now() && <Badge tone="gold">AI pauza</Badge>
-        )}
-      </div>
-    </button>
+        <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <Badge tone="muted">{conv.channel === 'telegram' ? 'Telegram' : 'Instagram'}</Badge>
+          <Badge tone={conv.ai_state === 'handed_off' ? 'rose' : 'gold'}>
+            {aiStateLabels[conv.ai_state]}
+          </Badge>
+          {!conv.ai_enabled ? (
+            <Badge tone="rose">AI o'chiq</Badge>
+          ) : (
+            conv.ai_paused_until &&
+            new Date(conv.ai_paused_until).getTime() > Date.now() && <Badge tone="gold">AI pauza</Badge>
+          )}
+        </div>
+      </button>
+      <span className="flex items-center pr-1.5">
+        <DropdownMenu
+          items={[{ label: "Suhbatni o'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, destructive: true, onSelect: onDelete }]}
+          trigger={
+            <button aria-label="Amallar" className="rounded-[var(--r-sm)] p-1.5 text-muted opacity-100 transition-colors hover:bg-surface hover:text-text md:opacity-0 md:group-hover:opacity-100">
+              <MoreVertical className="h-4 w-4" strokeWidth={1.75} />
+            </button>
+          }
+        />
+      </span>
+    </div>
   );
 }
 
@@ -205,6 +222,8 @@ export default function InboxPage() {
   const messages = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId);
   const markRead = useMarkRead();
+  const deleteConversation = useDeleteConversation();
+  const [rowDelete, setRowDelete] = useState<ConversationOut | null>(null);
   const [text, setText] = useState('');
   const bottomRef = useRef<HTMLDivElement>(null);
 
@@ -269,6 +288,7 @@ export default function InboxPage() {
               conv={c}
               active={c.id === conversationId}
               onClick={() => navigate(`/inbox/${c.id}`)}
+              onDelete={() => setRowDelete(c)}
             />
           ))}
           </div>
@@ -282,21 +302,13 @@ export default function InboxPage() {
           )}
           {conversationId && (
             <>
-              <div className="flex items-center justify-between border-b border-border px-4 py-3">
-                <div>
-                  <p className="text-sm font-semibold text-text">
-                    {selected?.customer?.full_name ?? selected?.customer?.username ?? 'Mijoz'}
-                  </p>
-                  {selected && (
-                    <p className="flex items-center gap-1 text-xs text-muted">
-                      <Bot className="h-3.5 w-3.5" strokeWidth={1.5} /> {aiStateLabels[selected.ai_state]}
-                    </p>
-                  )}
-                </div>
-                <div className="flex items-center gap-2">
-                  {selected && <AiControl conv={selected} />}
-                </div>
-              </div>
+              {selected && (
+                <ConversationHeader
+                  conv={selected}
+                  aiStateLabel={aiStateLabels[selected.ai_state]}
+                  onDeleted={() => navigate('/inbox')}
+                />
+              )}
 
               <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-bg p-4">
                 {messages.isPending && <SkeletonRows rows={5} />}
@@ -349,6 +361,22 @@ export default function InboxPage() {
           )}
         </div>
       </Card>
+
+      <ConfirmDialog
+        open={Boolean(rowDelete)}
+        onClose={() => setRowDelete(null)}
+        heading="Suhbatni o'chirish"
+        description="Suhbat va xabarlar o'chiriladi. Mijoz saqlanadi."
+        confirmLabel="O'chirish"
+        onConfirm={async () => {
+          if (!rowDelete) return;
+          const wasOpen = rowDelete.id === conversationId;
+          await deleteConversation.mutateAsync(rowDelete.id);
+          toast.success("Suhbat o'chirildi");
+          setRowDelete(null);
+          if (wasOpen) navigate('/inbox');
+        }}
+      />
     </div>
   );
 }

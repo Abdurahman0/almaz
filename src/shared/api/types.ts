@@ -421,7 +421,16 @@ export interface CustomerOut {
   external_id: string;
   username: string | null;
   full_name: string | null;
+  /** Phone (E.164-ish digits, nullable). Returned everywhere incl. the customer
+   *  object inside GET /inbox/conversations. */
+  phone: string | null;
   language: string;
+}
+/** PATCH /inbox/customers/{id} — partial; only the given fields apply. Unknown
+ *  fields → 422. Sending null clears the field. */
+export interface CustomerUpdate {
+  full_name?: string | null;
+  phone?: string | null;
 }
 export interface ConversationOut {
   id: string;

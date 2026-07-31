@@ -24,13 +24,15 @@ import { FEATURES } from '@/shared/config/flags';
 import type { ApiError } from '@/shared/api/client';
 import type { OrderItemCreate, OrderOut, OrderStatus } from '@/shared/api/types';
 import { useCombos, useProducts } from '@/features/products/hooks';
+import { useStaff } from '@/features/settings/rbac';
 import { useOrder, useReplaceOrderItems, useSetOrderStatus, useUpdateOrder } from '../hooks';
 
 const STATUS_OPTIONS = (Object.keys(orderStatusLabels) as OrderStatus[]).map((s) => ({ value: s, label: orderStatusLabels[s] }));
 // Cancellation/return releases stock — handled by /orders/{id}/cancel, never here.
 const CANCEL_LIKE = new Set<OrderStatus>(['cancelled', 'refunded', 'returned']);
-// Line-item editing is only accepted by the server in these statuses (probed live).
-const EDITABLE_STATUSES = new Set<OrderStatus>(['pending', 'waiting_payment', 'payment_review']);
+// Line-item editing is only accepted by the server in these statuses (probed live;
+// draft added per §6 — verified editable 2026-07-31).
+const EDITABLE_STATUSES = new Set<OrderStatus>(['draft', 'pending', 'waiting_payment', 'payment_review']);
 
 /** One editable line-item row. Keyed by a stable client id, NOT the server item id
  *  (which the API regenerates on every /items replace). engraving_text + box_id are
@@ -137,9 +139,19 @@ export default function OrderEditPage() {
     [products.data, combos.data, lang],
   );
 
+  const staff = useStaff();
+  const operatorOptions = useMemo(
+    () => [
+      { value: '', label: 'Tayinlanmagan' },
+      ...(staff.data ?? []).filter((u) => u.is_active).map((u) => ({ value: u.id, label: u.full_name || u.email })),
+    ],
+    [staff.data],
+  );
+
   const [rows, setRows] = useState<EditRow[]>([]);
   const [status, setLocalStatus] = useState<OrderStatus | ''>('');
   const [notes, setNotes] = useState('');
+  const [operatorId, setOperatorId] = useState('');
   const [statusError, setStatusError] = useState<string | null>(null);
   const [pageError, setPageError] = useState<string | null>(null);
   const [addValue, setAddValue] = useState('');
@@ -161,6 +173,7 @@ export default function OrderEditPage() {
     );
     setLocalStatus(o.status);
     setNotes(o.notes ?? '');
+    setOperatorId(o.assigned_operator_id ?? '');
     setStatusError(null);
     setPageError(null);
   };
@@ -197,7 +210,9 @@ export default function OrderEditPage() {
   const itemsChanged = editable && sig(rows) !== originalSig;
   const statusChanged = Boolean(orig) && status !== orig!.status;
   const notesChanged = Boolean(orig) && notes.trim() !== (orig!.notes ?? '');
-  const dirty = itemsChanged || statusChanged || notesChanged;
+  const operatorChanged = Boolean(orig) && (operatorId || null) !== (orig!.assigned_operator_id ?? null);
+  const noItems = editable && rows.length === 0; // empty list → server 422; block the save
+  const dirty = itemsChanged || statusChanged || notesChanged || operatorChanged;
   const saving = replaceItems.isPending || update.isPending || setStatus.isPending;
 
   const blocker = useBlocker(
@@ -286,6 +301,9 @@ export default function OrderEditPage() {
       else setPageError(msg);
       return;
     }
+    // Box/gift-box requirement 400 (e.g. "…quti majburiy…"). The API exposes no
+    // per-category requires_box flag, so this can't be pre-validated — surface it.
+    if (/quti|box/i.test(msg)) return setPageError(msg);
     // Insufficient stock 400: "Zaxira yetarli emas (SKU XXX): …" → that row's quantity.
     const sku = msg.match(/SKU\s+([^)\s:]+)/)?.[1] ?? null;
     if (sku) {
@@ -306,16 +324,22 @@ export default function OrderEditPage() {
       setStatusError("Bekor/qaytarish — buyurtma sahifasidagi «Bekor qilish» orqali");
       return;
     }
-    if (itemsChanged && rows.length === 0) {
+    if (noItems) {
       setPageError("Buyurtmada kamida bitta mahsulot bo'lishi kerak");
       return;
     }
     if (itemsChanged && !validateRows()) return;
     try {
-      // Order matters: items first (while still in an editable status), then status.
+      // Order matters: items first (while still editable), then the PATCH fields
+      // (notes/operator — one request), then status.
       let latest: OrderOut | null = null;
       if (itemsChanged) latest = await replaceItems.mutateAsync({ items: buildItems() });
-      if (notesChanged) latest = await update.mutateAsync({ notes: notes.trim() || null });
+      if (notesChanged || operatorChanged) {
+        latest = await update.mutateAsync({
+          ...(notesChanged ? { notes: notes.trim() || null } : {}),
+          ...(operatorChanged ? { assigned_operator_id: operatorId || null } : {}),
+        });
+      }
       if (statusChanged) latest = await setStatus.mutateAsync({ id: orderId, status: status as OrderStatus });
       if (latest) applyOrder(latest); // re-seed from the authoritative returned OrderOut
       toast.success('Saqlandi');
@@ -464,7 +488,7 @@ export default function OrderEditPage() {
             )}
           </Card>
 
-          {/* Status + notes */}
+          {/* Status + operator + notes */}
           <Card className="space-y-5">
             <Select
               label="Holat"
@@ -473,12 +497,21 @@ export default function OrderEditPage() {
               onChange={(v) => { setLocalStatus(v as OrderStatus); setStatusError(null); }}
               error={statusError ?? undefined}
             />
+            <Select
+              label="Operator"
+              options={operatorOptions}
+              value={operatorId}
+              onChange={setOperatorId}
+              searchable
+              disabled={staff.isPending}
+            />
             <Textarea label="Izoh" placeholder="Ichki izoh" value={notes} onChange={(e) => setNotes(e.target.value)} />
           </Card>
 
-          <div className="flex justify-end gap-3">
+          <div className="flex items-center justify-end gap-3">
+            {noItems && <span className="mr-auto text-2xs text-danger">Kamida bitta mahsulot kerak</span>}
             <Button variant="ghost" onClick={() => navigate(`/orders/${orderId}`)}>Bekor qilish</Button>
-            <Button onClick={save} loading={saving} disabled={!dirty}>Saqlash</Button>
+            <Button onClick={save} loading={saving} disabled={!dirty || noItems}>Saqlash</Button>
           </div>
         </div>
 

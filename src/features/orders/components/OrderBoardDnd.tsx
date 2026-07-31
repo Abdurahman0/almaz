@@ -12,9 +12,11 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
+import { User } from 'lucide-react';
 import { ConfirmDialog, ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
+import { useStaff } from '@/features/settings/rbac';
 import { useCancelOrderAny, useOrders, useSetOrderStatus } from '../hooks';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
@@ -47,7 +49,7 @@ const COLUMNS: BoardColumn[] = [
 const colKeyOf = (status: OrderStatus): string | undefined =>
   COLUMNS.find((c) => c.statuses.includes(status))?.key;
 
-function OrderCardBody({ order, client }: { order: OrderOut; client: string | null }) {
+function OrderCardBody({ order, client, operator }: { order: OrderOut; client: string | null; operator?: string | null }) {
   // A jeweler needs the ring size at a glance.
   const size = order.items.find((it) => it.ring_size)?.ring_size ?? null;
   return (
@@ -57,6 +59,11 @@ function OrderCardBody({ order, client }: { order: OrderOut; client: string | nu
         <span className="tnum text-sm font-semibold text-accent-ink"><Money short value={order.grand_total} /></span>
       </div>
       {client && <p className="mt-1 truncate text-2xs text-text">{client}</p>}
+      {operator && (
+        <p className="mt-0.5 flex items-center gap-1 truncate text-2xs text-muted">
+          <User className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {operator}
+        </p>
+      )}
       <div className="mt-1 flex items-center justify-between gap-2 text-2xs text-muted">
         <span className="flex items-center gap-1.5">
           {order.items.length} ta mahsulot
@@ -68,7 +75,7 @@ function OrderCardBody({ order, client }: { order: OrderOut; client: string | nu
   );
 }
 
-function DraggableCard({ order, color, client, onOpen }: { order: OrderOut; color: string; client: string | null; onOpen: () => void }) {
+function DraggableCard({ order, color, client, operator, onOpen }: { order: OrderOut; color: string; client: string | null; operator: string | null; onOpen: () => void }) {
   const { attributes, listeners, setNodeRef, isDragging } = useDraggable({ id: order.id });
   return (
     <button
@@ -79,7 +86,7 @@ function DraggableCard({ order, color, client, onOpen }: { order: OrderOut; colo
       style={{ borderLeftColor: color }}
       className={`w-full cursor-grab rounded-[var(--r-sm)] border border-l-[3px] border-border bg-surface p-3 text-left shadow-xs transition-all duration-150 hover:-translate-y-0.5 hover:shadow-sm active:cursor-grabbing ${isDragging ? 'opacity-40' : ''}`}
     >
-      <OrderCardBody order={order} client={client} />
+      <OrderCardBody order={order} client={client} operator={operator} />
     </button>
   );
 }
@@ -88,11 +95,13 @@ function Column({
   col,
   orders,
   clientOf,
+  operatorOf,
   onOpen,
 }: {
   col: BoardColumn;
   orders: OrderOut[];
   clientOf: (id: string) => string | null;
+  operatorOf: (id: string | null) => string | null;
   onOpen: (id: string) => void;
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: col.key });
@@ -112,7 +121,7 @@ function Column({
         className={`min-h-0 flex-1 space-y-2 overflow-y-auto px-2.5 pb-3 transition-colors ${isOver ? 'bg-accent-soft/40' : ''}`}
       >
         {orders.map((o) => (
-          <DraggableCard key={o.id} order={o} color={col.color} client={clientOf(o.customer_id)} onOpen={() => onOpen(o.id)} />
+          <DraggableCard key={o.id} order={o} color={col.color} client={clientOf(o.customer_id)} operator={operatorOf(o.assigned_operator_id)} onOpen={() => onOpen(o.id)} />
         ))}
         {orders.length === 0 && (
           <div className="mt-2 rounded-[var(--r-sm)] border border-dashed border-border py-6 text-center text-2xs text-muted">
@@ -129,6 +138,8 @@ export function OrderBoardDnd() {
   const query = useOrders(undefined, 200);
   const clients = useClients();
   const clientOf = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? null;
+  const staff = useStaff();
+  const operatorOf = (id: string | null) => (id ? staff.data?.find((u) => u.id === id)?.full_name ?? null : null);
   const setStatus = useSetOrderStatus();
   const cancelOrder = useCancelOrderAny();
   const [local, setLocal] = useState<OrderOut[]>([]);
@@ -225,13 +236,13 @@ export function OrderBoardDnd() {
       </p>
       <div className="-mx-1 flex gap-3 overflow-x-auto px-1 pb-3">
         {COLUMNS.map((col) => (
-          <Column key={col.key} col={col} orders={byCol.get(col.key) ?? []} clientOf={clientOf} onOpen={(id) => navigate(`/orders/${id}`)} />
+          <Column key={col.key} col={col} orders={byCol.get(col.key) ?? []} clientOf={clientOf} operatorOf={operatorOf} onOpen={(id) => navigate(`/orders/${id}`)} />
         ))}
       </div>
       <DragOverlay>
         {activeOrder ? (
           <div className="w-[248px] rotate-2 rounded-[var(--r-sm)] border border-l-[3px] border-accent/60 bg-surface p-3 shadow-lg">
-            <OrderCardBody order={activeOrder} client={clientOf(activeOrder.customer_id)} />
+            <OrderCardBody order={activeOrder} client={clientOf(activeOrder.customer_id)} operator={operatorOf(activeOrder.assigned_operator_id)} />
           </div>
         ) : null}
       </DragOverlay>
