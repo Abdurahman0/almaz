@@ -92,6 +92,9 @@ export interface CategoryOut {
   parent_id: string | null;
   /** Products in this category need a ring size on order (rings, etc.). */
   requires_ring_size?: boolean;
+  /** Products in this category require a gift box on order. NOTE: currently
+   *  read-only in practice — category create 500s and PATCH ignores it (backend). */
+  requires_box?: boolean;
   /** Allowed sizes (strings so decimals survive: "16.5"). null/[] = unrestricted. */
   available_sizes?: string[] | null;
 }
@@ -286,6 +289,8 @@ export interface ProductMediaCreate {
 
 // ---------- Instagram post/story <-> product (migration 0018) ----------
 export type InstagramMediaType = 'post' | 'reel' | 'story';
+/** Publish lifecycle (server enum). */
+export type ContentStatus = 'draft' | 'scheduled' | 'published';
 export interface InstagramMediaOut {
   id: string;
   product_id: string;
@@ -295,6 +300,15 @@ export interface InstagramMediaOut {
   story_ref: string | null;
   permalink: string | null;
   image_url: string | null;
+  /** Free text caption (IG's practical limit ~2200). */
+  caption: string | null;
+  status: ContentStatus;
+  /** ISO datetime the item is scheduled to publish (status='scheduled'). */
+  scheduled_at: string | null;
+  /** Engagement counters. null = not measured yet (hide), a number = real (show, incl. 0). */
+  like_count: number | null;
+  view_count: number | null;
+  comment_count: number | null;
   is_active: boolean;
   /** story past its ~24h window. */
   is_expired: boolean;
@@ -305,10 +319,24 @@ export interface InstagramMediaCreate {
   /** Full IG post/reel/story URL, or a bare shortcode / story_ref. */
   link: string;
   image_url?: string | null;
+  caption?: string | null;
+  status?: ContentStatus;
+  scheduled_at?: string | null;
 }
 export interface InstagramMediaUpdate {
   is_active?: boolean | null;
   image_url?: string | null;
+  caption?: string | null;
+  status?: ContentStatus;
+  scheduled_at?: string | null;
+}
+/** GET /catalog/instagram-media — flat array; ordering/date filters are ignored server-side. */
+export interface InstagramMediaListParams {
+  product_id?: string;
+  status?: ContentStatus;
+  media_type?: InstagramMediaType;
+  limit?: number;
+  offset?: number;
 }
 export interface VariantOut {
   id: string;
@@ -369,6 +397,8 @@ export interface ProductOut {
   available: number;
   /** Inherited from the category: does an order in this product need a ring size? */
   requires_ring_size?: boolean;
+  /** Inherited from the category: does an order need a gift box? (read-only today) */
+  requires_box?: boolean;
   /** Inherited from the category: allowed sizes (strings). null/[] = unrestricted.
    *  NOTE: the API does not return this on ProductOut yet — resolve it from the
    *  category (by category_id) as a fallback until it lands. */

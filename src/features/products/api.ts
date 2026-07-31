@@ -13,6 +13,7 @@ import type {
   ComboOut,
   ComboUpdate,
   InstagramMediaCreate,
+  InstagramMediaListParams,
   InstagramMediaOut,
   InstagramMediaUpdate,
   ListParams,
@@ -118,6 +119,17 @@ export async function deleteMedia(mediaId: string): Promise<void> {
 // ---------- Instagram post/story links (migration 0018) ----------
 export async function listProductInstagram(productId: string): Promise<InstagramMediaOut[]> {
   return (await api.get<InstagramMediaOut[]>(`/catalog/products/${productId}/instagram`)).data;
+}
+
+/** Global content list (flat array). Real filters: product_id, status, media_type,
+ *  limit, offset. ordering/date filters are ignored server-side (sort on client). */
+export async function listInstagramMedia(params: InstagramMediaListParams = {}): Promise<InstagramMediaOut[]> {
+  return (await api.get<InstagramMediaOut[]>('/catalog/instagram-media', { params: { limit: 500, ...params } })).data;
+}
+
+/** Fetch a single content item by id (deep link). 404 → thrown ApiError. */
+export async function getInstagramMedia(mediaId: string): Promise<InstagramMediaOut> {
+  return (await api.get<InstagramMediaOut>(`/catalog/instagram-media/${mediaId}`)).data;
 }
 
 export async function addProductInstagram(productId: string, body: InstagramMediaCreate): Promise<InstagramMediaOut> {

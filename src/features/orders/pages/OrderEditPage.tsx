@@ -23,9 +23,28 @@ import { useUiStore } from '@/shared/stores/ui';
 import { FEATURES } from '@/shared/config/flags';
 import type { ApiError } from '@/shared/api/client';
 import type { OrderItemCreate, OrderOut, OrderStatus } from '@/shared/api/types';
-import { useCombos, useProducts } from '@/features/products/hooks';
+import { useBoxes, useCombos, useProducts } from '@/features/products/hooks';
 import { useStaff } from '@/features/settings/rbac';
 import { useOrder, useReplaceOrderItems, useSetOrderStatus, useUpdateOrder } from '../hooks';
+
+/** Mandatory gift-box picker for a row whose product's category requires a box. */
+function RowBoxSelect({ categoryId, value, onChange, error }: { categoryId: string | null; value: string | null; onChange: (id: string) => void; error?: string }) {
+  const lang = useUiStore((s) => s.lang);
+  const boxes = useBoxes(categoryId, true);
+  const options = (boxes.data ?? [])
+    .filter((b) => b.is_active && b.available > 0)
+    .map((b) => ({
+      value: b.id,
+      label: `${pickName(b, lang)} · ${b.is_free ? 'Tekin' : formatMoney(Number(b.price))}`,
+      icon: <span className="h-3.5 w-3.5 rounded-full border border-strong" style={{ background: b.color_hex }} />,
+    }));
+  return (
+    <div className="min-w-[10rem] flex-1">
+      <Select label="Sovg'a qutisi *" size="sm" placeholder="Quti tanlang" value={value ?? ''} onChange={onChange} options={options} error={error} />
+      {boxes.isSuccess && options.length === 0 && <p className="mt-1 text-2xs text-danger">Mavjud quti yo'q — avval quti qo'shing.</p>}
+    </div>
+  );
+}
 
 const STATUS_OPTIONS = (Object.keys(orderStatusLabels) as OrderStatus[]).map((s) => ({ value: s, label: orderStatusLabels[s] }));
 // Cancellation/return releases stock — handled by /orders/{id}/cancel, never here.
@@ -46,6 +65,7 @@ interface EditRow {
   box_id: string | null;
   sizeError?: string;
   qtyError?: string;
+  boxError?: string;
 }
 
 /** Resolved product/combo facts for a variant_id. */
@@ -54,6 +74,8 @@ interface VariantMeta {
   sku: string;
   unitPrice: number;
   requiresRingSize: boolean;
+  requiresBox: boolean;
+  categoryId: string | null;
   allowedSizes: string[] | null;
   isCombo: boolean;
 }
@@ -93,6 +115,8 @@ export default function OrderEditPage() {
           sku: vr.sku,
           unitPrice: Number(p.effective_price),
           requiresRingSize: Boolean(p.requires_ring_size),
+          requiresBox: Boolean(p.requires_box),
+          categoryId: p.category_id ?? null,
           allowedSizes: p.available_sizes && p.available_sizes.length > 0 ? p.available_sizes : null,
           isCombo: false,
         });
@@ -105,6 +129,8 @@ export default function OrderEditPage() {
         sku: "To'plam",
         unitPrice: Number(c.price),
         requiresRingSize: false,
+        requiresBox: false,
+        categoryId: null,
         allowedSizes: null,
         isCombo: true,
       });
@@ -212,6 +238,7 @@ export default function OrderEditPage() {
   const notesChanged = Boolean(orig) && notes.trim() !== (orig!.notes ?? '');
   const operatorChanged = Boolean(orig) && (operatorId || null) !== (orig!.assigned_operator_id ?? null);
   const noItems = editable && rows.length === 0; // empty list → server 422; block the save
+  const boxMissing = editable && rows.some((r) => meta(r.variant_id)?.requiresBox && !r.box_id);
   const dirty = itemsChanged || statusChanged || notesChanged || operatorChanged;
   const saving = replaceItems.isPending || update.isPending || setStatus.isPending;
 
@@ -237,6 +264,7 @@ export default function OrderEditPage() {
     setRows((rs) => rs.map((r) => (r.key === key ? { ...r, ...patch } : r)));
   const setQty = (key: string, quantity: number | '') => patchRow(key, { quantity: Math.max(1, Number(quantity) || 1), qtyError: undefined });
   const setSize = (key: string, ring_size: string) => patchRow(key, { ring_size, sizeError: undefined });
+  const setBox = (key: string, box_id: string) => patchRow(key, { box_id: box_id || null, boxError: undefined });
   const addItem = (variantId: string) => {
     if (!variantId) return;
     setRows((rs) => [
@@ -272,18 +300,14 @@ export default function OrderEditPage() {
     setRows((rs) =>
       rs.map((r) => {
         const m = meta(r.variant_id);
+        let patch: Partial<EditRow> = {};
         if (m?.requiresRingSize && m.allowedSizes) {
           const val = r.ring_size.trim();
-          if (!val) {
-            ok = false;
-            return { ...r, sizeError: "O'lchamni tanlang" };
-          }
-          if (!m.allowedSizes.includes(val)) {
-            ok = false;
-            return { ...r, sizeError: `Mavjud o'lchamlar: ${m.allowedSizes.join(', ')}` };
-          }
+          if (!val) { ok = false; patch = { ...patch, sizeError: "O'lchamni tanlang" }; }
+          else if (!m.allowedSizes.includes(val)) { ok = false; patch = { ...patch, sizeError: `Mavjud o'lchamlar: ${m.allowedSizes.join(', ')}` }; }
         }
-        return r;
+        if (m?.requiresBox && !r.box_id) { ok = false; patch = { ...patch, boxError: 'Bu mahsulot uchun quti tanlang' }; }
+        return Object.keys(patch).length ? { ...r, ...patch } : r;
       }),
     );
     return ok;
@@ -449,6 +473,9 @@ export default function OrderEditPage() {
                           />
                         </div>
                         {sizeEl && <div className="min-w-[8rem] flex-1">{sizeEl}</div>}
+                        {m?.requiresBox && (
+                          <RowBoxSelect categoryId={m.categoryId} value={r.box_id} onChange={(id) => setBox(r.key, id)} error={r.boxError} />
+                        )}
                         <Button
                           variant="ghost"
                           size="sm"
@@ -510,8 +537,9 @@ export default function OrderEditPage() {
 
           <div className="flex items-center justify-end gap-3">
             {noItems && <span className="mr-auto text-2xs text-danger">Kamida bitta mahsulot kerak</span>}
+            {!noItems && boxMissing && <span className="mr-auto text-2xs text-danger">Ba'zi mahsulotlar uchun quti tanlanmagan</span>}
             <Button variant="ghost" onClick={() => navigate(`/orders/${orderId}`)}>Bekor qilish</Button>
-            <Button onClick={save} loading={saving} disabled={!dirty || noItems}>Saqlash</Button>
+            <Button onClick={save} loading={saving} disabled={!dirty || noItems || boxMissing}>Saqlash</Button>
           </div>
         </div>
 

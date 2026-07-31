@@ -16,16 +16,19 @@
 
 Fix requests for the backend: (1) handle `/reel/` links without an image, (2) set `media_type` from the URL path (`/reel/`→reel, `/stories/`→story, `/p/`→post), (3) fetch the IG thumbnail when a token is configured, (4) validate the link format.
 
-### Content ↔ product relationship (probed 2026-07-31, for the product-detail Kontentlar feature)
+### ✅ Content model — shipped & integrated (verified live 2026-07-31)
 
-"Content" is **Instagram media** — the only product-attachable content resource. Linking is a single **`product_id` FK** (one product per item; not an array/join). Endpoints: `GET/POST /catalog/products/{id}/instagram`, `PATCH/DELETE /catalog/instagram-media/{id}`. Gaps found:
+"Content" is **Instagram media** — single **`product_id` FK** per item. All the content asks landed:
 
-| Gap | Detail / impact |
-|-----|-----------------|
-| **No by-id GET** | `GET /catalog/instagram-media/{id}` → **405** (`Allow: PATCH`). A content item can't be fetched directly, so the `/social/content/{id}` deep link resolves the item **within the aggregated feed** instead of a clean detail fetch. A `GET` by id would let a real content-detail route exist. |
-| **No global content list / `?product_id` filter** | `GET /catalog/instagram-media` → 404; media is exposed **per product only**. Server-side "filter by product" = the per-product endpoint (fine for product detail). The social page's product filter is therefore **client-side** over the N+1 aggregation. A `GET /catalog/instagram-media?product_id=&media_type=` would collapse both. |
-| **Thin content model** | `InstagramMediaOut` has **no caption/text, no engagement metrics, no platform field, and no draft/scheduled/published status** — only `is_active` (+ `is_expired` for stories). The UI maps active→"E'lon qilingan", inactive→"Qoralama", expired story→"Muddati o'tgan"; there's no "Rejalashtirilgan" (no schedule field), engagement is omitted, and platform is fixed to Instagram. Add `caption`, `scheduled_at`/`status`, and engagement counters to enrich the content cards. |
-| **Image is URL-reuse (works well)** | `image_url` on create takes a plain URL and persists as-is (verified) — the product's existing photo is reused directly, no re-upload. Only genuinely new images go through `POST /files`. Not a gap; documented so it stays that way. |
+- **By-id GET** — `GET /catalog/instagram-media/{id}` → **200** (full model); missing → **404** `"Instagram media topilmadi"`. The `/social/content/{id}` deep link now fetches by id (no feed scan) and shows a "Kontent topilmadi" state on 404.
+- **Global list** — `GET /catalog/instagram-media` → **bare JSON array** (no `{items,total}` envelope). Real filters: `product_id`, `status`, `media_type`, `limit`, `offset`. The social feed uses this (one call, joined with the product list — N+1 gone) and the product filter is now **server-side**.
+- **Extended model** — `InstagramMediaOut` adds `caption: string|null`, `status: 'draft'|'scheduled'|'published'` (enum), `scheduled_at: string|null`, and `like_count`/`view_count`/`comment_count`. All writable on **create** (`POST …/instagram`) and **update** (`PATCH /catalog/instagram-media/{id}`) — verified persist. Image is still URL-reuse.
+
+**Outstanding on content:**
+| Gap | Detail |
+|-----|--------|
+| `ordering` / `sort` / `date_from` ignored | The list endpoint accepts these params but **silently ignores** them (garbage value → 200). The "Eng ko'p ko'rilgan" sort is done **client-side**. |
+| Engagement never null (always 0) | `like_count`/`view_count`/`comment_count` come back `0`, never `null`, even on a freshly created item. The UI hides the block when all three are null (defensive) but that path can't be exercised — real IG-synced numbers aren't populated yet. |
 
 ## ✅ Recently closed (verified live 2026-07-31)
 
@@ -36,7 +39,7 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
   - **Ring size** is validated against the category's `available_sizes`: invalid → **400** `"Bu kategoriyada mavjud o'lchamlar: 16, 17, 18. '20' o'lchami mavjud emas."`. Free input when the category has no `available_sizes`. Not required server-side even when `requires_ring_size`.
   - **Editable statuses:** `draft`, `pending`, `waiting_payment`, `payment_review` (all four verified 2026-07-31). Otherwise → **400** `"Bu holatda buyurtma tarkibini tahrirlab bo'lmaydi (holat=…)"`. Insufficient stock → **400** `"Zaxira yetarli emas (SKU …): mavjud N, kerak M"`. The editor maps ring-size 400 → that row's size field, stock 400 → that row's quantity field, status/box 400 → a page-level notice, and blocks saving an empty item list (would be a 422). `VITE_FEATURE_ORDER_EDITING=true` (unchanged).
   - **`assigned_operator_id` is PATCH-able** (`PATCH /orders/{id}` → 200; `null` unassigns — both verified). The order editor now has an operator select ("Tayinlanmagan" = null); the operator shows on the order detail and Kanban cards.
-  - ⚠️ **`box_id` "required when the category requires a box" is not enforceable client-side** — neither `CategoryOut` nor `ProductOut` exposes a `requires_box` flag, and ordering a product without a box succeeds (200) for the products tested. The editor maps a box-related 400 (`/quti|box/`) to a page notice reactively; **please add `requires_box` to `CategoryOut`/`ProductOut`** so the box selector can be made mandatory on the row.
+  - **`requires_box` now exists on both `CategoryOut` and `ProductOut`** (product inherits). The create wizard + edit rows read it from the product and make the box selector **mandatory** on that row (blocks save with "Bu mahsulot uchun quti tanlang"), with the reactive 400 mapping kept as a safety net. ⚠️ **BUT `requires_box` is effectively read-only** — `POST /catalog/categories` **500s** and `PATCH /catalog/categories/{id}` **silently ignores** `requires_box` (stays `False`). So no category can be made box-requiring, and the mandatory-box path is **untestable end-to-end** until the write path is fixed.
 
 ## ✅ Inbox — customer & conversation CRUD (shipped, verified live 2026-07-31)
 
@@ -75,6 +78,9 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 | **No `DELETE /orders/{id}`** | `Allow: GET` only (DELETE → 405). Orders can't be purged; a test order pushed to `completed` (**`ORD-260731-2E2E59`**, ~100 000, references a since-deleted test variant) can't be cancelled or deleted. Please purge it, and consider a soft-delete/admin-purge for orders. |
 | **`/openapi.json` not reachable with API credentials** | The spec sits behind a separate HTTP-basic gate that the Super-Admin bearer token and login/password do **not** open (`401 "Hujjatlarga kirish uchun login/parol kerak"`). Couldn't diff generated types against the spec — had to derive the whole order-editing contract from live probes. Please expose the spec to authenticated API users (or share the docs basic-auth creds). |
 | **Instagram reel-without-image 500 may be resolved** | The "Instagram media bug #1" above (reel link without `image_url` → 500) returned **200** on a 2026-07-31 probe (stored as `post`). Needs a clean re-verify; if fixed, bug #1's workaround (forcing an image on `/reel/` links) can be relaxed. |
+| 🔴 **`POST /catalog/categories` → 500 (REGRESSION)** | Category creation returns **500 "Ichki xatolik yuz berdi"** even for a minimal valid body (`{name_uz}`), verified 2026-07-31. This **breaks all category management** in the catalog. Highest priority. |
+| 🔴 **`requires_box` is not writable** | The field exists on `CategoryOut`/`ProductOut` (read), but there's no way to set it `true`: create 500s and `PATCH /catalog/categories/{id}` returns 200 while **silently ignoring** `requires_box` (stays `False`). The frontend's mandatory-box UI is built and ready but can't be exercised until this lands. |
+| **Content list `ordering`/`date_from` ignored** | `GET /catalog/instagram-media?ordering=…&date_from=…` accepts the params but ignores them (garbage → 200). "Eng ko'p ko'rilgan" sort is client-side. |
 
 ## Verified working live (2026-07-29)
 

@@ -1,6 +1,6 @@
 import { useMemo, useState } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import { ArrowLeft, Copy, Pencil, XCircle } from 'lucide-react';
+import { ArrowLeft, Copy, Gift, Pencil, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
   Button,
@@ -149,6 +149,12 @@ export default function OrderDetailPage() {
                     {variantNames.get(item.variant_id)?.sku ? `${variantNames.get(item.variant_id)!.sku} · ` : ''}
                     {item.quantity} dona{item.ring_size ? ` · o'lcham ${item.ring_size}` : ''}
                   </p>
+                  {item.box_label && (
+                    <p className="mt-0.5 flex items-center gap-1 text-2xs text-muted">
+                      <Gift className="h-3 w-3" strokeWidth={1.75} /> {item.box_label}
+                      {item.box_price && Number(item.box_price) > 0 ? <> · <Money short value={item.box_price} /></> : null}
+                    </p>
+                  )}
                 </div>
                 <p className="font-semibold text-accent-ink"><Money value={item.unit_price} /></p>
               </div>

@@ -1,16 +1,17 @@
 import { useNavigate } from 'react-router-dom';
-import { Clapperboard, Gem, Instagram, Plus } from 'lucide-react';
+import { CalendarClock, Clapperboard, Gem, Instagram, Plus } from 'lucide-react';
 import { Badge, Button, Skeleton } from '@/shared/ui';
-import { formatDate } from '@/shared/lib/format';
+import { formatDate, formatDateTime } from '@/shared/lib/format';
 import type { InstagramMediaOut, ProductOut } from '@/shared/api/types';
 import { useProductInstagram } from '@/features/products/hooks';
-import { contentStatus, deriveKind, kindLabel } from '../api';
+import { deriveKind, kindLabel, statusChip } from '../api';
+import { EngagementRow } from './Engagement';
 
-/** One content card in the product-detail Kontentlar grid → deep-links to the feed. */
+/** One content card in the product-detail Kontentlar grid → deep-links to the item. */
 function ContentCard({ item, onOpen }: { item: InstagramMediaOut; onOpen: () => void }) {
   const kind = deriveKind(item.permalink, item.media_type);
-  const status = contentStatus(item);
-  const ref = item.shortcode ?? item.story_ref ?? item.permalink ?? '';
+  const status = statusChip(item);
+  const scheduled = item.status === 'scheduled' && item.scheduled_at;
   return (
     <button
       type="button"
@@ -33,9 +34,16 @@ function ContentCard({ item, onOpen }: { item: InstagramMediaOut; onOpen: () => 
       <div className="space-y-1.5 p-2.5">
         <div className="flex items-center justify-between gap-2">
           <Badge tone={status.tone}>{status.label}</Badge>
-          <span className="tnum shrink-0 text-2xs text-muted">{formatDate(item.created_at)}</span>
+          <span className="tnum shrink-0 text-2xs text-muted">
+            {scheduled ? (
+              <span className="flex items-center gap-1"><CalendarClock className="h-3 w-3" strokeWidth={1.75} /> {formatDateTime(item.scheduled_at!)}</span>
+            ) : (
+              formatDate(item.created_at)
+            )}
+          </span>
         </div>
-        {ref && <p className="truncate font-mono text-2xs text-muted">{ref}</p>}
+        {item.caption && <p className="line-clamp-2 text-2xs text-muted">{item.caption}</p>}
+        <EngagementRow item={item} />
       </div>
     </button>
   );

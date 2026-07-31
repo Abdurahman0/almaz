@@ -43,10 +43,14 @@ export default function NewOrderPage() {
   // validate against live refs read at validation time.
   const limitRef = useRef(20);
   const sizeCtxRef = useRef<{ required: boolean; allowed: string[] | null }>({ required: false, allowed: null });
+  const boxRequiredRef = useRef(false);
   const schema = useMemo(
     () =>
       baseSchema.superRefine((v, ctx) => {
         const lim = limitRef.current;
+        if (boxRequiredRef.current && !v.box_id) {
+          ctx.addIssue({ path: ['box_id'], code: z.ZodIssueCode.custom, message: 'Bu mahsulot uchun quti tanlang' });
+        }
         if (v.engraving_text && lim > 0 && v.engraving_text.length > lim) {
           ctx.addIssue({
             path: ['engraving_text'],
@@ -94,8 +98,11 @@ export default function NewOrderPage() {
   const allowedSizes = selectedProductEarly?.available_sizes ?? null;
   const hasFixedSizes = requiresRingSize && Array.isArray(allowedSizes) && allowedSizes.length > 0;
   sizeCtxRef.current = { required: requiresRingSize, allowed: hasFixedSizes ? allowedSizes! : null };
+  // Box requirement inherited from the product's category (read from ProductOut).
+  const requiresBox = !isCombo && Boolean(selectedProductEarly?.requires_box);
+  boxRequiredRef.current = requiresBox;
   const boxesEnabled = useBoxesEnabled();
-  const boxes = useBoxes(boxesEnabled ? categoryId : null, true);
+  const boxes = useBoxes(boxesEnabled || requiresBox ? categoryId : null, true);
   const availableBoxes = (boxes.data ?? []).filter((b) => b.is_active && b.available > 0);
   // Reset the box + engraving text whenever the product (hence category) changes.
   useEffect(() => {
@@ -106,7 +113,7 @@ export default function NewOrderPage() {
 
   const fieldsPerStep: Array<Array<keyof FormValues>> = [
     ['customer_id'],
-    ['variant_id', 'quantity'],
+    ['variant_id', 'quantity', 'box_id'],
     ['ring_size'],
     [],
   ];
@@ -301,31 +308,32 @@ export default function NewOrderPage() {
                   }}
                 />
               )}
-              {boxesEnabled && values.variant_id && availableBoxes.length > 0 && (
+              {values.variant_id && (boxesEnabled || requiresBox) && (availableBoxes.length > 0 || requiresBox) && (
                 <Controller
                   control={form.control}
                   name="box_id"
-                  render={({ field }) => (
-                    <Select
-                      label="Sovg'a qutisi"
-                      placeholder="Qutisiz"
-                      value={field.value ?? ''}
-                      onChange={field.onChange}
-                      options={[
-                        { value: '', label: 'Qutisiz' },
-                        ...availableBoxes.map((b) => ({
-                          value: b.id,
-                          label: `${pickName(b, lang)} · ${b.is_free ? 'Tekin' : formatMoney(Number(b.price))}`,
-                          description: `${b.available} dona mavjud`,
-                          icon: (
-                            <span
-                              className="h-3.5 w-3.5 rounded-full border border-strong"
-                              style={{ background: b.color_hex }}
-                            />
-                          ),
-                        })),
-                      ]}
-                    />
+                  render={({ field, fieldState }) => (
+                    <>
+                      <Select
+                        label={requiresBox ? "Sovg'a qutisi *" : "Sovg'a qutisi"}
+                        placeholder={requiresBox ? 'Quti tanlang' : 'Qutisiz'}
+                        value={field.value ?? ''}
+                        onChange={field.onChange}
+                        error={fieldState.error?.message}
+                        options={[
+                          ...(requiresBox ? [] : [{ value: '', label: 'Qutisiz' }]),
+                          ...availableBoxes.map((b) => ({
+                            value: b.id,
+                            label: `${pickName(b, lang)} · ${b.is_free ? 'Tekin' : formatMoney(Number(b.price))}`,
+                            description: `${b.available} dona mavjud`,
+                            icon: <span className="h-3.5 w-3.5 rounded-full border border-strong" style={{ background: b.color_hex }} />,
+                          })),
+                        ]}
+                      />
+                      {requiresBox && availableBoxes.length === 0 && (
+                        <p className="mt-1 text-2xs text-danger">Bu kategoriyada mavjud quti yo'q — avval quti qo'shing.</p>
+                      )}
+                    </>
                   )}
                 />
               )}
