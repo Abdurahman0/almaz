@@ -171,7 +171,7 @@ export default function LoginPage() {
             {...register('password')}
           />
           {loginMutation.isError && (
-            <p className="rounded-xl border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">
+            <p className="rounded-[var(--r-md)] border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">
               {(loginMutation.error as unknown as ApiError).message}
             </p>
           )}

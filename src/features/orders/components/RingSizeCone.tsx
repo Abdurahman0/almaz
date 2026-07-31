@@ -80,13 +80,13 @@ export function RingSizeCone({ value, onChange }: RingSizeConeProps) {
           className="w-full accent-accent"
         />
         <dl className="grid grid-cols-2 gap-3 text-center sm:text-left">
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-[var(--r-sm)] border border-border p-3">
             <dt className="text-xs font-medium text-muted">Diametr</dt>
             <dd className="mt-1 text-md font-semibold text-text">
               {formatNumber(diameter)} mm
             </dd>
           </div>
-          <div className="rounded-lg border border-border p-3">
+          <div className="rounded-[var(--r-sm)] border border-border p-3">
             <dt className="text-xs font-medium text-muted">Aylana</dt>
             <dd className="mt-1 text-md font-semibold text-text">
               {circumference.toFixed(1)} mm

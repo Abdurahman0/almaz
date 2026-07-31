@@ -217,7 +217,7 @@ export default function SettingsPage() {
                     className="group flex flex-col items-center gap-1.5"
                   >
                     <span
-                      className="relative h-12 w-16 overflow-hidden rounded-lg border transition-transform group-hover:scale-105"
+                      className="relative h-12 w-16 overflow-hidden rounded-[var(--r-sm)] border transition-transform group-hover:scale-105"
                       style={{
                         background: p.bg,
                         borderColor: preset === p.id ? p.accent : 'var(--border-strong)',
@@ -263,7 +263,7 @@ export default function SettingsPage() {
                   <button
                     key={value}
                     onClick={() => setLang(value)}
-                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                    className={`rounded-[var(--r-md)] px-4 py-2 text-sm font-semibold transition-colors ${
                       lang === value
                         ? 'bg-accent-btn text-on-accent'
                         : 'bg-surface-2 text-muted hover:text-text'
@@ -288,7 +288,7 @@ export default function SettingsPage() {
                   <button
                     key={value}
                     onClick={() => setBgMode(value)}
-                    className={`rounded-xl px-4 py-2 text-sm font-semibold transition-colors ${
+                    className={`rounded-[var(--r-md)] px-4 py-2 text-sm font-semibold transition-colors ${
                       bgMode === value ? 'bg-accent-btn text-on-accent' : 'bg-surface-2 text-muted hover:text-text'
                     }`}
                   >

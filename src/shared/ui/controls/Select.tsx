@@ -28,7 +28,7 @@ export interface SelectProps {
 }
 
 export const triggerCls = (size: 'sm' | 'md', error?: string) =>
-  `flex w-full items-center justify-between gap-2 rounded-lg border bg-surface-2 px-3.5 text-left text-sm text-text transition-[border-color,box-shadow] duration-150 hover:border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-1 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-muted ${
+  `flex w-full items-center justify-between gap-2 rounded-[var(--r-sm)] border bg-surface-2 px-3.5 text-left text-sm text-text transition-[border-color,box-shadow] duration-150 hover:border-strong focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/35 focus-visible:ring-offset-1 focus-visible:ring-offset-bg disabled:cursor-not-allowed disabled:opacity-45 data-[placeholder]:text-muted ${
     size === 'sm' ? 'h-9' : 'h-10'
   } ${error ? 'border-danger' : 'border-border'}`;
 
@@ -99,7 +99,7 @@ export const Select = forwardRef<HTMLButtonElement, SelectProps>(function Select
                       key={o.value}
                       value={o.value}
                       disabled={o.disabled}
-                      className="flex min-h-9 cursor-pointer select-none items-center gap-2 rounded-md px-3 py-1.5 text-sm text-text outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-2 data-[disabled]:opacity-45 data-[state=checked]:text-accent-ink"
+                      className="flex min-h-9 cursor-pointer select-none items-center gap-2 rounded-[var(--r-xs)] px-3 py-1.5 text-sm text-text outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-2 data-[disabled]:opacity-45 data-[state=checked]:text-accent-ink"
                     >
                       {o.icon && <span className="shrink-0 text-muted">{o.icon}</span>}
                       <span className="min-w-0 flex-1">

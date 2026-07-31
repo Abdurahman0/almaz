@@ -111,7 +111,7 @@ function ProductView({
   return (
     <div className="space-y-5">
       <div className="grid gap-5 sm:grid-cols-[220px_1fr]">
-        <div className="aspect-square overflow-hidden rounded-2xl border border-border bg-surface-2">
+        <div className="aspect-square overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface-2">
           {product.media[0]?.image_url ? (
             <img src={product.media[0].image_url} alt={name} className="h-full w-full object-cover" />
           ) : (
@@ -153,7 +153,7 @@ function ProductView({
       {product.variants.length > 0 && (
         <div>
           <p className="mb-2 text-xs font-medium text-muted">Variantlar</p>
-          <div className="overflow-hidden rounded-xl border border-border">
+          <div className="overflow-hidden rounded-[var(--r-md)] border border-border">
             {product.variants.map((v) => (
               <div
                 key={v.id}
@@ -398,7 +398,7 @@ export default function ProductsPage() {
             placeholder="Nomi bo'yicha qidirish (uz/ru)..."
             aria-label="Mahsulot qidirish"
             disabled={lowStockOnly}
-            className="w-full rounded-xl border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent disabled:opacity-45"
+            className="w-full rounded-[var(--r-md)] border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent disabled:opacity-45"
           />
         </div>
         <div className="w-44">

@@ -53,7 +53,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(funct
               {chips.slice(0, 2).map((o) => (
                 <span
                   key={o.value}
-                  className="inline-flex items-center gap-1 rounded-md bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent-ink"
+                  className="inline-flex items-center gap-1 rounded-[var(--r-xs)] bg-accent-soft px-1.5 py-0.5 text-xs font-medium text-accent-ink"
                 >
                   {o.label}
                   <span
@@ -71,7 +71,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(funct
                 </span>
               ))}
               {chips.length > 2 && (
-                <span className="rounded-md bg-muted-soft px-1.5 py-0.5 text-xs font-medium text-muted">
+                <span className="rounded-[var(--r-xs)] bg-muted-soft px-1.5 py-0.5 text-xs font-medium text-muted">
                   +{chips.length - 2}
                 </span>
               )}
@@ -106,7 +106,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(funct
               {filtered.map((o) => (
                 <label
                   key={o.value}
-                  className={`flex min-h-9 cursor-pointer select-none items-center gap-2.5 rounded-md px-3 py-1.5 text-sm text-text hover:bg-surface-2 ${
+                  className={`flex min-h-9 cursor-pointer select-none items-center gap-2.5 rounded-[var(--r-xs)] px-3 py-1.5 text-sm text-text hover:bg-surface-2 ${
                     o.disabled ? 'cursor-not-allowed opacity-45' : ''
                   }`}
                 >

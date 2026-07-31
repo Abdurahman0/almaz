@@ -171,7 +171,7 @@ function TagInput({
   return (
     <div className="space-y-1.5">
       <span className="text-xs font-medium text-muted">{label}</span>
-      <div className="flex flex-wrap items-center gap-1.5 rounded-lg border border-border bg-surface-2 p-2">
+      <div className="flex flex-wrap items-center gap-1.5 rounded-[var(--r-sm)] border border-border bg-surface-2 p-2">
         {value.map((t, i) => (
           <span key={t + i} className="flex items-center gap-1 rounded-full bg-surface px-2 py-0.5 text-xs text-text">
             {t}
@@ -537,7 +537,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
 
       {/* Variant details — create only (PATCH can't change variants). */}
       {!product ? (
-        <details className="rounded-lg border border-border px-4 py-2.5">
+        <details className="rounded-[var(--r-sm)] border border-border px-4 py-2.5">
           <summary className="cursor-pointer select-none text-xs font-medium text-muted">
             Variant tafsilotlari (ixtiyoriy: SKU, shtrix-kod, tur)
           </summary>
@@ -577,7 +577,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         />
       </div>
       {engravingOn && (
-        <div className="space-y-2 rounded-lg border border-border bg-surface-2/40 p-3">
+        <div className="space-y-2 rounded-[var(--r-sm)] border border-border bg-surface-2/40 p-3">
           <div className="grid grid-cols-2 gap-4">
             <Controller
               control={form.control}
@@ -604,7 +604,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
       {product && <InstagramSection productId={product.id} />}
 
       {formError && (
-        <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">{formError}</p>
+        <p className="rounded-[var(--r-sm)] border border-danger-soft bg-danger-soft px-4 py-2.5 text-sm text-danger">{formError}</p>
       )}
 
       <div className="flex justify-end gap-3 pt-2">

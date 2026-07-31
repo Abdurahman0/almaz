@@ -143,7 +143,7 @@ export function BottomSheet({
   return (
     <div
       ref={sheetRef}
-      className="fixed inset-x-0 z-30 flex touch-none flex-col overflow-hidden rounded-t-2xl border-t border-border bg-surface shadow-[0_-8px_40px_rgba(0,0,0,0.35)]"
+      className="fixed inset-x-0 z-30 flex touch-none flex-col overflow-hidden rounded-t-[var(--r-lg)] border-t border-border bg-surface shadow-[0_-8px_40px_rgba(0,0,0,0.35)]"
       style={{ bottom: kbInset, height: snapH(snap) }}
     >
       {/* drag zone: grab handle + peek content */}

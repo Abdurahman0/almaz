@@ -12,7 +12,7 @@ const UZ_MONTHS = [
 ];
 
 const navBtn =
-  'flex h-8 w-8 items-center justify-center rounded-md text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
+  'flex h-8 w-8 items-center justify-center rounded-[var(--r-xs)] text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60';
 
 /**
  * Fully themed calendar (react-day-picker v9), Uzbek locale, Monday start.
@@ -33,7 +33,7 @@ export function Calendar(props: DayPickerProps) {
           </button>
           <button
             type="button"
-            className="rounded-md px-2 py-1 text-md font-semibold text-text hover:bg-surface-2"
+            className="rounded-[var(--r-xs)] px-2 py-1 text-md font-semibold text-text hover:bg-surface-2"
             onClick={() => { setYearBase(Math.floor(month.getFullYear() / 12) * 12); setView('years'); }}
           >
             {month.getFullYear()}
@@ -49,7 +49,7 @@ export function Calendar(props: DayPickerProps) {
               key={label}
               type="button"
               onClick={() => { setMonthState((m) => setMonth(m, i)); setView('days'); }}
-              className={`rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-surface-2 ${
+              className={`rounded-[var(--r-xs)] px-2 py-2.5 text-sm transition-colors hover:bg-surface-2 ${
                 month.getMonth() === i ? 'bg-accent-soft font-semibold text-accent-ink' : 'text-text'
               }`}
             >
@@ -81,7 +81,7 @@ export function Calendar(props: DayPickerProps) {
               key={y}
               type="button"
               onClick={() => { setMonthState((m) => setYear(m, y)); setView('months'); }}
-              className={`tnum rounded-md px-2 py-2.5 text-sm transition-colors hover:bg-surface-2 ${
+              className={`tnum rounded-[var(--r-xs)] px-2 py-2.5 text-sm transition-colors hover:bg-surface-2 ${
                 month.getFullYear() === y ? 'bg-accent-soft font-semibold text-accent-ink' : 'text-text'
               }`}
             >
@@ -106,7 +106,7 @@ export function Calendar(props: DayPickerProps) {
           <button
             type="button"
             onClick={() => setView('months')}
-            className="rounded-md px-2 py-0.5 text-md font-semibold text-text hover:bg-surface-2"
+            className="rounded-[var(--r-xs)] px-2 py-0.5 text-md font-semibold text-text hover:bg-surface-2"
           >
             {UZ_MONTHS[month.getMonth()]} {format(month, 'yyyy')}
           </button>
@@ -132,7 +132,7 @@ export function Calendar(props: DayPickerProps) {
         week: '',
         day: 'p-0 text-center',
         day_button:
-          'tnum h-9 w-9 rounded-md text-sm text-text transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 aria-selected:hover:bg-accent-btn',
+          'tnum h-9 w-9 rounded-[var(--r-xs)] text-sm text-text transition-colors hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 aria-selected:hover:bg-accent-btn',
         today: '[&>button]:outline [&>button]:outline-1 [&>button]:outline-accent',
         selected: '[&>button]:bg-accent-btn [&>button]:text-on-accent [&>button]:font-semibold',
         range_start: 'rdp-range-start [&>button]:bg-accent-btn [&>button]:text-on-accent [&>button]:rounded-r-none',

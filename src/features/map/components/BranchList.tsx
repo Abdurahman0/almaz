@@ -37,7 +37,7 @@ export function BranchList({
                 data-branch-id={b.id}
                 onClick={() => onSelect(b.id)}
                 aria-pressed={selected}
-                className={`flex min-h-16 w-full items-start gap-3 overflow-hidden rounded-xl border p-3.5 text-left transition-colors [touch-action:manipulation] ${
+                className={`flex min-h-16 w-full items-start gap-3 overflow-hidden rounded-[var(--r-md)] border p-3.5 text-left transition-colors [touch-action:manipulation] ${
                   selected
                     ? 'border-accent bg-accent-soft'
                     : nearest

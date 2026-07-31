@@ -60,7 +60,7 @@ function RefEditor({
   saving: boolean;
 }) {
   return (
-    <div className="flex flex-wrap items-end gap-2 rounded-lg border border-border p-3">
+    <div className="flex flex-wrap items-end gap-2 rounded-[var(--r-sm)] border border-border p-3">
       <div className="min-w-[140px] flex-1">
         <Input label="Nomi (uz)" value={draft.name_uz} onChange={(e) => setDraft({ ...draft, name_uz: e.target.value })} />
       </div>
@@ -130,7 +130,7 @@ function RefTab({ kind }: { kind: RefKind }) {
               }
             />
           ) : (
-            <div key={r.id} className="flex items-center justify-between gap-3 rounded-lg border border-border px-3 py-2">
+            <div key={r.id} className="flex items-center justify-between gap-3 rounded-[var(--r-sm)] border border-border px-3 py-2">
               <div className="min-w-0">
                 <p className="truncate text-sm font-medium text-text">
                   {pickName(r, lang)}
@@ -229,7 +229,7 @@ function CategoryEditor({
   };
   const removeSize = (i: number) => setDraft({ ...draft, availableSizes: sizes.filter((_, j) => j !== i) });
   return (
-    <div className="space-y-2 rounded-lg border border-border p-3">
+    <div className="space-y-2 rounded-[var(--r-sm)] border border-border p-3">
       <div className="grid grid-cols-2 gap-2">
         <Input label="Nomi (uz)" value={draft.name_uz} onChange={(e) => setDraft({ ...draft, name_uz: e.target.value })} />
         <Input label="Nomi (ru)" value={draft.name_ru} onChange={(e) => setDraft({ ...draft, name_ru: e.target.value })} />
@@ -246,7 +246,7 @@ function CategoryEditor({
       </div>
 
       {draft.requiresRingSize && (
-        <div className="space-y-2 rounded-lg bg-surface-2/50 p-2.5">
+        <div className="space-y-2 rounded-[var(--r-sm)] bg-surface-2/50 p-2.5">
           <p className="text-xs font-medium text-muted">Mavjud o'lchamlar</p>
           {sizes.length > 0 ? (
             <div className="flex flex-wrap gap-1.5">
@@ -271,7 +271,7 @@ function CategoryEditor({
             onBlur={() => { if (sizeInput.trim()) { addSize(sizeInput); setSizeInput(''); } }}
             placeholder="O'lcham yozing (17 yoki 16.5), Enter"
             inputMode="decimal"
-            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none placeholder:text-muted focus:border-accent"
+            className="h-9 w-full rounded-[var(--r-sm)] border border-border bg-surface px-3 text-sm text-text outline-none placeholder:text-muted focus:border-accent"
           />
           <div className="flex flex-wrap gap-1">
             {COMMON_SIZES.filter((s) => !sizes.includes(s)).map((s) => (
@@ -364,7 +364,7 @@ function CategoryTab() {
               }
             />
           ) : (
-            <div key={c.id} className="rounded-lg border border-border">
+            <div key={c.id} className="rounded-[var(--r-sm)] border border-border">
               <div className="flex items-center justify-between gap-3 px-3 py-2">
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-text">{pickName(c, lang)}</p>
@@ -375,7 +375,7 @@ function CategoryTab() {
                     aria-label="Qutilar"
                     aria-expanded={boxesId === c.id}
                     onClick={() => setBoxesId((id) => (id === c.id ? null : c.id))}
-                    className={`flex items-center gap-1 rounded-md px-2 py-1.5 text-xs font-medium transition-colors ${
+                    className={`flex items-center gap-1 rounded-[var(--r-xs)] px-2 py-1.5 text-xs font-medium transition-colors ${
                       boxesId === c.id ? 'bg-accent-soft text-accent-ink' : 'text-muted hover:text-text'
                     }`}
                   >

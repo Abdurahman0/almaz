@@ -37,7 +37,7 @@ export function PromptList({
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Kalit yoki tavsif bo'yicha qidirish..."
             aria-label="Promt qidirish"
-            className="w-full rounded-xl border border-border bg-surface-2 py-2.5 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
+            className="w-full rounded-[var(--r-md)] border border-border bg-surface-2 py-2.5 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
           />
         </div>
         <button

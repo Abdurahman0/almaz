@@ -56,7 +56,7 @@ export const NumberInput = forwardRef<HTMLInputElement, NumberInputProps>(functi
   return (
     <FieldWrap label={label} error={error}>
       <div
-        className={`flex items-center rounded-lg border bg-bg transition-colors duration-150 focus-within:border-accent hover:border-strong ${
+        className={`flex items-center rounded-[var(--r-sm)] border bg-bg transition-colors duration-150 focus-within:border-accent hover:border-strong ${
           size === 'sm' ? 'h-8' : 'h-10'
         } ${error ? 'border-danger' : 'border-border'} ${disabled ? 'cursor-not-allowed opacity-45' : ''}`}
       >

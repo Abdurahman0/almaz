@@ -49,7 +49,7 @@ function FullScreen({ children }: { children: React.ReactNode }) {
 function DeadLink({ message }: { message: string }) {
   return (
     <FullScreen>
-      <div className="max-w-sm rounded-2xl border border-border bg-surface p-8">
+      <div className="max-w-sm rounded-[var(--r-lg)] border border-border bg-surface p-8">
         <AlertTriangle className="mx-auto h-11 w-11 text-danger" strokeWidth={1.5} />
         <p className="mt-4 text-md font-semibold">Havola ochilmadi</p>
         <p className="mt-2 text-sm text-muted">{message}</p>
@@ -69,12 +69,12 @@ function SuccessScreen({ data }: { data: MapConfirmOut }) {
   const isBts = data.location_type === 'BTS' && data.bts_branch;
   return (
     <FullScreen>
-      <div className="flex max-w-sm flex-col items-center gap-3 rounded-2xl border border-border bg-surface p-8">
+      <div className="flex max-w-sm flex-col items-center gap-3 rounded-[var(--r-lg)] border border-border bg-surface p-8">
         <CheckCircle2 className="h-14 w-14 text-success" strokeWidth={1.5} />
         <p className="text-lg font-semibold">Qabul qilindi!</p>
         <p className="font-mono text-2xs text-muted">{data.order_no}</p>
         {isBts && data.bts_branch ? (
-          <div className="w-full rounded-xl bg-surface-2 p-4 text-left text-sm">
+          <div className="w-full rounded-[var(--r-md)] bg-surface-2 p-4 text-left text-sm">
             <p className="text-muted">Buyurtmangiz quyidagi filialga boradi:</p>
             <p className="mt-1 flex items-center gap-1.5 font-semibold text-text">
               <Store className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> {data.bts_branch.name}
@@ -89,7 +89,7 @@ function SuccessScreen({ data }: { data: MapConfirmOut }) {
             )}
           </div>
         ) : (
-          <div className="w-full rounded-xl bg-surface-2 p-4 text-left text-sm">
+          <div className="w-full rounded-[var(--r-md)] bg-surface-2 p-4 text-left text-sm">
             <p className="flex items-center gap-1.5 font-semibold text-text">
               <Truck className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> Kuryer manzilingizga yetkazadi
             </p>
@@ -115,7 +115,7 @@ function Field({
   return (
     <input
       value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} inputMode={inputMode} type={type} onFocus={onFocus}
-      className="h-12 w-full rounded-xl border border-border bg-surface-2 px-3.5 text-[16px] text-text outline-none placeholder:text-muted focus:border-accent"
+      className="h-12 w-full rounded-[var(--r-md)] border border-border bg-surface-2 px-3.5 text-[16px] text-text outline-none placeholder:text-muted focus:border-accent"
     />
   );
 }
@@ -461,7 +461,7 @@ export default function MapPage() {
       type="button"
       onClick={doResolve}
       disabled={resolve.isPending || !ready}
-      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
     >
       {resolve.isPending ? (<><Loader2 className="h-5 w-5 animate-spin" strokeWidth={2} /> Hisoblanmoqda…</>) : stale ? (<><RefreshCw className="h-5 w-5" strokeWidth={2} /> Qayta hisoblash</>) : ('Manzilni tasdiqlash')}
     </button>
@@ -469,7 +469,7 @@ export default function MapPage() {
     <button
       type="button"
       onClick={goStale}
-      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99]"
+      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99]"
     >
       <RefreshCw className="h-5 w-5" strokeWidth={2} /> Boshqa joyni belgilang
     </button>
@@ -478,7 +478,7 @@ export default function MapPage() {
       type="button"
       onClick={() => canConfirm && !confirm.isSuccess && confirm.mutate()}
       disabled={!canConfirm}
-      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-xl bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
+      className="flex h-[52px] w-full items-center justify-center gap-2 rounded-[var(--r-md)] bg-accent text-sm font-semibold text-white shadow-sm [touch-action:manipulation] active:scale-[0.99] disabled:cursor-not-allowed disabled:opacity-45"
     >
       {confirm.isPending ? (<><Loader2 className="h-5 w-5 animate-spin" strokeWidth={2} /> Yuborilmoqda…</>) : isBts && !selectedBranchId ? ('Filialni tanlang') : ('Tasdiqlash va yakunlash')}
     </button>
@@ -514,7 +514,7 @@ export default function MapPage() {
 
       {/* header */}
       <div className="pointer-events-none absolute inset-x-0 top-0 z-[500]" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
-        <div className="m-3 flex items-center justify-between rounded-xl border border-border bg-surface/95 px-4 py-2 shadow-sm backdrop-blur-sm">
+        <div className="m-3 flex items-center justify-between rounded-[var(--r-md)] border border-border bg-surface/95 px-4 py-2 shadow-sm backdrop-blur-sm">
           <div>
             <p className="brand-gradient text-sm font-bold tracking-tight">Almaz Silver</p>
             <p className="font-mono text-2xs text-muted">{ctx.data.order_no}</p>
@@ -584,7 +584,7 @@ export default function MapPage() {
               <button
                 type="button"
                 onClick={goStale}
-                className="mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-xl border border-border bg-surface text-sm font-medium text-text [touch-action:manipulation] active:scale-[0.99]"
+                className="mb-2 flex h-12 w-full items-center justify-center gap-2 rounded-[var(--r-md)] border border-border bg-surface text-sm font-medium text-text [touch-action:manipulation] active:scale-[0.99]"
               >
                 <MapPin className="h-4 w-4" strokeWidth={1.75} /> Joyni o'zgartirish
               </button>
@@ -595,7 +595,7 @@ export default function MapPage() {
       >
         {resolve.isPending ? (
           <div className="space-y-2 py-3">
-            {[0, 1, 2].map((i) => (<div key={i} className="h-16 animate-pulse rounded-xl bg-surface-2" />))}
+            {[0, 1, 2].map((i) => (<div key={i} className="h-16 animate-pulse rounded-[var(--r-md)] bg-surface-2" />))}
           </div>
         ) : !inResult ? (
           <p className="px-1 py-4 text-center text-sm text-muted">
@@ -611,7 +611,7 @@ export default function MapPage() {
               )
             )}
             {resolveData && !isBts && (
-              <p className="flex items-start gap-2 rounded-xl bg-surface-2 p-3 text-sm text-muted">
+              <p className="flex items-start gap-2 rounded-[var(--r-md)] bg-surface-2 p-3 text-sm text-muted">
                 <Truck className="mt-0.5 h-4 w-4 shrink-0 text-accent-ink" strokeWidth={1.75} /> Kuryer belgilagan manzilingizga yetkazadi.
               </p>
             )}

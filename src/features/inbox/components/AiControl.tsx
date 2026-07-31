@@ -113,7 +113,7 @@ export function AiControl({ conv }: { conv: ConversationOut }) {
   const trigger = (
     <button
       type="button"
-      className="inline-flex items-center gap-1.5 rounded-lg border border-border px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-strong"
+      className="inline-flex items-center gap-1.5 rounded-[var(--r-sm)] border border-border px-2.5 py-1.5 text-xs font-medium text-text transition-colors hover:border-strong"
       aria-label="AI boshqaruvi"
     >
       <Bot className="h-3.5 w-3.5 text-muted" strokeWidth={1.5} />

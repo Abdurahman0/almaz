@@ -61,7 +61,7 @@ function ComboCard({ combo, name, onEdit, onDelete, onView }: {
   return (
     <div
       onClick={onView}
-      className={`group relative cursor-pointer overflow-hidden rounded-2xl border border-border bg-surface transition-all duration-200 ${
+      className={`group relative cursor-pointer overflow-hidden rounded-[var(--r-lg)] border border-border bg-surface transition-all duration-200 ${
         soldOut ? 'opacity-70 hover:opacity-100' : 'hover:-translate-y-0.5 hover:shadow-md'
       }`}
     >
@@ -103,7 +103,7 @@ function ComboCard({ combo, name, onEdit, onDelete, onView }: {
         {/* component thumbnails */}
         <div className="mb-2 flex items-center gap-1.5">
           {combo.items.slice(0, 4).map((it) => (
-            <span key={it.combo_item_id} className="h-8 w-8 shrink-0 overflow-hidden rounded-md border border-border bg-surface-2">
+            <span key={it.combo_item_id} className="h-8 w-8 shrink-0 overflow-hidden rounded-[var(--r-xs)] border border-border bg-surface-2">
               {it.image_url ? (
                 <img src={it.image_url} alt="" className="h-full w-full object-cover" />
               ) : (
@@ -133,7 +133,7 @@ function ComboView({ combo, name }: { combo: ComboOut; name: string }) {
       {combo.images.length > 0 && (
         <div className="flex gap-2 overflow-x-auto pb-1">
           {combo.images.map((src, i) => (
-            <img key={src + i} src={src} alt="" className="h-40 w-40 shrink-0 rounded-2xl border border-border object-cover" />
+            <img key={src + i} src={src} alt="" className="h-40 w-40 shrink-0 rounded-[var(--r-lg)] border border-border object-cover" />
           ))}
         </div>
       )}
@@ -153,8 +153,8 @@ function ComboView({ combo, name }: { combo: ComboOut; name: string }) {
         <p className="mb-2 text-xs font-medium text-muted">Tarkibi</p>
         <div className="space-y-2">
           {combo.items.map((it) => (
-            <div key={it.combo_item_id} className="flex items-center gap-3 rounded-xl border border-border px-3 py-2">
-              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2">
+            <div key={it.combo_item_id} className="flex items-center gap-3 rounded-[var(--r-md)] border border-border px-3 py-2">
+              <span className="flex h-11 w-11 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
                 {it.image_url ? <img src={it.image_url} alt="" className="h-full w-full object-cover" /> : <Layers className="h-4 w-4 text-muted" strokeWidth={1.5} />}
               </span>
               <div className="min-w-0 flex-1">
@@ -226,7 +226,7 @@ export default function CombosPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Nomi bo'yicha qidirish..."
             aria-label="To'plam qidirish"
-            className="w-full rounded-xl border border-border bg-surface-2 py-2.5 px-4 text-sm text-text placeholder:text-muted focus:border-accent"
+            className="w-full rounded-[var(--r-md)] border border-border bg-surface-2 py-2.5 px-4 text-sm text-text placeholder:text-muted focus:border-accent"
           />
         </div>
         <div className="w-44">

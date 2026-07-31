@@ -62,7 +62,7 @@ function MediaChip({ m }: { m: Media }) {
         alt=""
         loading="lazy"
         onClick={() => window.open(m.url, '_blank')}
-        className="max-h-56 max-w-full cursor-pointer rounded-xl object-cover"
+        className="max-h-56 max-w-full cursor-pointer rounded-[var(--r-md)] object-cover"
       />
     );
   }
@@ -72,7 +72,7 @@ function MediaChip({ m }: { m: Media }) {
         href={m.url}
         target="_blank"
         rel="noreferrer"
-        className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:border-strong"
+        className="flex items-center gap-2 rounded-[var(--r-md)] border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:border-strong"
       >
         <Instagram className="h-4 w-4" style={{ color: '#E4405F' }} strokeWidth={1.75} />
         Instagram’da ochish
@@ -86,7 +86,7 @@ function MediaChip({ m }: { m: Media }) {
       href={m.url}
       target="_blank"
       rel="noreferrer"
-      className="flex items-center gap-2 rounded-xl border border-border bg-surface-2 px-3 py-2 text-sm text-text transition-colors hover:border-strong"
+      className="flex items-center gap-2 rounded-[var(--r-md)] border border-border bg-surface-2 px-3 py-2 text-sm text-text transition-colors hover:border-strong"
     >
       <Paperclip className="h-4 w-4 text-muted" strokeWidth={1.75} /> {label}
       <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
@@ -240,7 +240,7 @@ export default function InboxPage() {
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Ism / username / ID..."
                 aria-label="Suhbat qidirish"
-                className="w-full rounded-xl border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
+                className="w-full rounded-[var(--r-md)] border border-border bg-surface-2 py-2 pl-9 pr-3 text-sm text-text placeholder:text-muted focus:border-accent"
               />
             </div>
             <div className="flex gap-2">
@@ -307,8 +307,8 @@ export default function InboxPage() {
                       <div
                         className={`max-w-[72%] px-3.5 py-2.5 text-sm shadow-xs ${
                           out
-                            ? 'rounded-2xl rounded-br-md bg-accent-btn text-on-accent'
-                            : 'rounded-2xl rounded-bl-md border border-border bg-surface text-text'
+                            ? 'rounded-[var(--r-lg)] rounded-br-[var(--r-xs)] bg-accent-btn text-on-accent'
+                            : 'rounded-[var(--r-lg)] rounded-bl-[var(--r-xs)] border border-border bg-surface text-text'
                         }`}
                       >
                         {m.sender_type === 'ai' && !out && (

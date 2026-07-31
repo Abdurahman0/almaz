@@ -37,7 +37,7 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
           <h2 className="truncate text-lg font-semibold text-text">{client.name}</h2>
           {client.username && <p className="mt-1 text-sm text-muted">@{client.username}</p>}
         </div>
-        <button onClick={onClose} aria-label="Yopish" className="rounded-lg p-2 text-muted hover:text-text">
+        <button onClick={onClose} aria-label="Yopish" className="rounded-[var(--r-sm)] p-2 text-muted hover:text-text">
           <X className="h-5 w-5" strokeWidth={1.5} />
         </button>
       </div>
@@ -79,7 +79,7 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
           <Link
             key={o.id}
             to={`/orders/${o.id}`}
-            className="flex items-center justify-between rounded-lg border border-border p-3 text-sm transition-colors hover:border-strong"
+            className="flex items-center justify-between rounded-[var(--r-sm)] border border-border p-3 text-sm transition-colors hover:border-strong"
           >
             <div className="min-w-0">
               <p className="flex items-center gap-2 text-text">
@@ -124,7 +124,7 @@ export default function ClientsPage() {
             onChange={(e) => setSearch(e.target.value)}
             placeholder="Qidirish..."
             aria-label="Mijoz qidirish"
-            className="w-full rounded-xl border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent"
+            className="w-full rounded-[var(--r-md)] border border-border bg-surface-2 py-2.5 pl-10 pr-4 text-sm text-text placeholder:text-muted focus:border-accent"
           />
         </div>
       </div>

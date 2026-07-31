@@ -82,7 +82,7 @@ export function CardsSection() {
       {cards.data?.map((c) => (
         <div
           key={c.id}
-          className={`group mb-3 flex items-center justify-between rounded-lg border border-border p-4 last:mb-0 ${
+          className={`group mb-3 flex items-center justify-between rounded-[var(--r-sm)] border border-border p-4 last:mb-0 ${
             c.is_active ? '' : 'opacity-60'
           }`}
         >

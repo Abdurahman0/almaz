@@ -42,7 +42,7 @@ export function Modal({ open, onClose, heading, children, wide, size = 'lg', ini
             <Dialog.Close asChild>
               <button
                 aria-label="Yopish"
-                className="rounded-lg p-1.5 text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+                className="rounded-[var(--r-sm)] p-1.5 text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
               >
                 <X className="h-5 w-5" strokeWidth={1.5} />
               </button>
@@ -129,14 +129,14 @@ export function ConfirmDialog({
           ref={cancelRef}
           onClick={onClose}
           disabled={isBusy}
-          className="h-9 rounded-lg px-4 text-sm font-semibold text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-45"
+          className="h-9 rounded-[var(--r-sm)] px-4 text-sm font-semibold text-muted transition-colors hover:bg-accent-soft hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-45"
         >
           Bekor qilish
         </button>
         <button
           onClick={handleConfirm}
           disabled={isBusy}
-          className="flex h-9 items-center gap-2 rounded-lg border border-danger-soft px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-45"
+          className="flex h-9 items-center gap-2 rounded-[var(--r-sm)] border border-danger-soft px-4 text-sm font-semibold text-danger transition-colors hover:bg-danger-soft focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 disabled:cursor-not-allowed disabled:opacity-45"
         >
           {isBusy && <Loader2 className="h-4 w-4 animate-spin" strokeWidth={2} />}
           {confirmLabel}

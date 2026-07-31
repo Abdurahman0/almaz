@@ -23,8 +23,8 @@ function MediaRow({ m, productId }: { m: InstagramMediaOut; productId: string })
   const remove = useDeleteInstagramMedia(productId);
   const ref = m.shortcode ?? m.story_ref ?? '';
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2">
+    <div className="flex items-center gap-3 rounded-[var(--r-sm)] border border-border px-3 py-2">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
         {m.image_url ? <img src={m.image_url} alt="" className="h-full w-full object-cover" /> : <TypeIcon t={m.media_type} />}
       </span>
       <div className="min-w-0 flex-1">

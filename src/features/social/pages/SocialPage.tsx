@@ -319,7 +319,7 @@ export default function SocialPage() {
                 href={lightbox.permalink}
                 target="_blank"
                 rel="noreferrer"
-                className="flex items-center justify-center gap-1.5 rounded-lg bg-accent-btn py-2.5 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-btn-hover"
+                className="flex items-center justify-center gap-1.5 rounded-[var(--r-sm)] bg-accent-btn py-2.5 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-btn-hover"
               >
                 <ExternalLink className="h-4 w-4" strokeWidth={2} /> Instagramda ochish
               </a>

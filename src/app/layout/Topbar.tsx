@@ -22,7 +22,7 @@ function NotificationsPopover() {
       <Popover.Trigger asChild>
         <button
           aria-label="Bildirishnomalar"
-          className="relative rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+          className="relative rounded-[var(--r-sm)] p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-ink focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
         >
           <Bell className="h-5 w-5" strokeWidth={1.5} />
           {notifications && notifications.length > 0 && (
@@ -69,7 +69,7 @@ export function Topbar() {
       <button
         onClick={logout}
         aria-label={t('nav.logout')}
-        className="rounded-lg p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+        className="rounded-[var(--r-sm)] p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
         <LogOut className="h-5 w-5" strokeWidth={1.5} />
       </button>

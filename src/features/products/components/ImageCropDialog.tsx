@@ -96,7 +96,7 @@ export function ImageCropDialog({
         </p>
         <div className="mx-auto" style={{ width: VIEW }}>
           <div
-            className="relative overflow-hidden rounded-xl bg-surface-2 [touch-action:none]"
+            className="relative overflow-hidden rounded-[var(--r-md)] bg-surface-2 [touch-action:none]"
             style={{ width: VIEW, height: VIEW }}
             onPointerDown={onPointerDown}
             onPointerMove={onPointerMove}

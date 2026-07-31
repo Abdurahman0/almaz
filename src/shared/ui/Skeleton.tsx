@@ -21,7 +21,7 @@ export function SkeletonCards({ count = 4 }: { count?: number }) {
   return (
     <div className="grid gap-5 sm:grid-cols-2 xl:grid-cols-4" aria-busy="true">
       {Array.from({ length: count }, (_, i) => (
-        <Skeleton key={i} className="h-32 w-full rounded-xl" />
+        <Skeleton key={i} className="h-32 w-full rounded-[var(--r-md)]" />
       ))}
     </div>
   );

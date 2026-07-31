@@ -11,7 +11,7 @@ export interface ButtonProps extends ButtonHTMLAttributes<HTMLButtonElement> {
 }
 
 const base =
-  'inline-flex items-center justify-center gap-2 rounded-xl font-semibold transition-[background-color,box-shadow,transform,color] duration-150 ease-out2 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
+  'inline-flex items-center justify-center gap-2 rounded-[var(--r-md)] font-semibold transition-[background-color,box-shadow,transform,color] duration-150 ease-out2 active:scale-[0.97] disabled:opacity-50 disabled:pointer-events-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/45 focus-visible:ring-offset-2 focus-visible:ring-offset-bg';
 
 const variants: Record<Variant, string> = {
   /* --accent-btn is preset-tuned: raw accent on dark, darkened accent on light — keeps label AA. */

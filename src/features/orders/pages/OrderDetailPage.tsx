@@ -86,7 +86,7 @@ export default function OrderDetailPage() {
           <button
             onClick={() => navigate('/orders')}
             aria-label="Orqaga"
-            className="rounded-lg border border-border p-2 text-muted transition-colors hover:text-accent-ink"
+            className="rounded-[var(--r-sm)] border border-border p-2 text-muted transition-colors hover:text-accent-ink"
           >
             <ArrowLeft className="h-5 w-5" strokeWidth={1.5} />
           </button>
@@ -134,7 +134,7 @@ export default function OrderDetailPage() {
             {o.items.map((item) => (
               <div
                 key={item.id}
-                className="flex items-center justify-between rounded-lg border border-border p-4"
+                className="flex items-center justify-between rounded-[var(--r-sm)] border border-border p-4"
               >
                 <div className="min-w-0">
                   <p className="truncate text-sm font-medium text-text">

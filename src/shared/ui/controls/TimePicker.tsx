@@ -25,7 +25,7 @@ function Column({ items, active, onPick }: { items: string[]; active?: string; o
           key={v}
           type="button"
           onClick={() => onPick(v)}
-          className={`tnum block w-full rounded-md px-2 py-1.5 text-center text-sm transition-colors hover:bg-surface-2 ${
+          className={`tnum block w-full rounded-[var(--r-xs)] px-2 py-1.5 text-center text-sm transition-colors hover:bg-surface-2 ${
             v === active ? 'bg-accent-soft font-semibold text-accent-ink' : 'text-text'
           }`}
         >

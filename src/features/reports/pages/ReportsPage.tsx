@@ -83,7 +83,7 @@ export default function ReportsPage() {
             <Card>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium text-muted">Tushum</p>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-md)] bg-accent-soft text-accent-ink">
                   <Coins className="h-4 w-4" strokeWidth={1.75} />
                 </span>
               </div>
@@ -94,7 +94,7 @@ export default function ReportsPage() {
             <Card>
               <div className="flex items-start justify-between gap-3">
                 <p className="text-xs font-medium text-muted">Buyurtmalar</p>
-                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-accent-soft text-accent-ink">
+                <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-[var(--r-md)] bg-accent-soft text-accent-ink">
                   <ShoppingBag className="h-4 w-4" strokeWidth={1.75} />
                 </span>
               </div>

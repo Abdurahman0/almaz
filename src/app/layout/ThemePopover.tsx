@@ -23,7 +23,7 @@ export function ThemePopover() {
       <Popover.Trigger asChild>
         <button
           aria-label="Mavzu tanlash"
-          className="rounded-lg p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-ink"
+          className="rounded-[var(--r-sm)] p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-ink"
         >
           <Palette className={`h-5 w-5 ${spinning ? 'animate-spin-once' : ''}`} strokeWidth={1.5} />
         </button>
@@ -44,7 +44,7 @@ export function ThemePopover() {
                 className="group flex flex-col items-center gap-1"
               >
                 <span
-                  className="relative h-9 w-11 overflow-hidden rounded-lg border transition-transform group-hover:scale-105"
+                  className="relative h-9 w-11 overflow-hidden rounded-[var(--r-sm)] border transition-transform group-hover:scale-105"
                   style={{
                     background: p.bg,
                     borderColor: preset === p.id ? p.accent : 'var(--border-strong)',

@@ -16,7 +16,7 @@ export default function AuditLogPage() {
           {audit.data?.map((a) => (
             <div
               key={a.id}
-              className="flex items-center justify-between rounded-lg border border-border px-3 py-2 text-xs"
+              className="flex items-center justify-between rounded-[var(--r-sm)] border border-border px-3 py-2 text-xs"
             >
               <span className="text-text">
                 {a.action} · <span className="text-muted">{a.entity_type}</span>

@@ -87,8 +87,8 @@ function ComponentRow({
   onRemove: () => void;
 }) {
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-border px-3 py-2">
-      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-lg border border-border bg-surface-2">
+    <div className="flex items-center gap-3 rounded-[var(--r-sm)] border border-border px-3 py-2">
+      <span className="flex h-10 w-10 shrink-0 items-center justify-center overflow-hidden rounded-[var(--r-sm)] border border-border bg-surface-2">
         {image ? <img src={image} alt="" className="h-full w-full object-cover" /> : <Layers className="h-4 w-4 text-muted" strokeWidth={1.5} />}
       </span>
       <div className="min-w-0 flex-1">
@@ -166,7 +166,7 @@ function ComboImages({
       <p className="mb-1.5 text-xs font-medium text-muted">Combo rasmlari</p>
       <div className="flex flex-wrap items-center gap-2">
         {images.map((src, i) => (
-          <span key={src + i} className="h-14 w-14 overflow-hidden rounded-lg border border-border">
+          <span key={src + i} className="h-14 w-14 overflow-hidden rounded-[var(--r-sm)] border border-border">
             <img src={src} alt="" className="h-full w-full object-cover" />
           </span>
         ))}
@@ -178,7 +178,7 @@ function ComboImages({
           onDragLeave={() => setOver(false)}
           onDrop={(e) => { e.preventDefault(); setOver(false); onUpload(e.dataTransfer.files); }}
           disabled={uploading}
-          className={`flex h-14 w-14 items-center justify-center rounded-lg border border-dashed transition-colors disabled:opacity-50 ${
+          className={`flex h-14 w-14 items-center justify-center rounded-[var(--r-sm)] border border-dashed transition-colors disabled:opacity-50 ${
             over ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-muted hover:border-accent hover:text-accent-ink'
           }`}
         >

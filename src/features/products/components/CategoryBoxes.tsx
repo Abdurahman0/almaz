@@ -40,7 +40,7 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
       <p className="mb-1.5 text-xs font-semibold text-muted">Rang</p>
       <div className="flex flex-wrap items-center gap-2">
         <span
-          className="h-9 w-9 shrink-0 rounded-lg border border-strong"
+          className="h-9 w-9 shrink-0 rounded-[var(--r-sm)] border border-strong"
           style={{ background: /^#[0-9a-fA-F]{3,8}$/.test(value) ? value : 'transparent' }}
         />
         <div className="flex flex-wrap gap-1.5">
@@ -50,7 +50,7 @@ function ColorField({ value, onChange }: { value: string; onChange: (v: string) 
               type="button"
               aria-label={c}
               onClick={() => onChange(c)}
-              className={`h-6 w-6 rounded-md border transition-transform hover:scale-110 ${
+              className={`h-6 w-6 rounded-[var(--r-xs)] border transition-transform hover:scale-110 ${
                 value.toUpperCase() === c ? 'border-accent ring-2 ring-accent/50' : 'border-border'
               }`}
               style={{ background: c }}
@@ -197,7 +197,7 @@ function BoxMediaStrip({ box, categoryId }: { box: BoxOut; categoryId: string })
   return (
     <div className="flex flex-wrap items-center gap-2">
       {media.map((m) => (
-        <span key={m.id} className="group relative h-11 w-11 overflow-hidden rounded-lg border border-border">
+        <span key={m.id} className="group relative h-11 w-11 overflow-hidden rounded-[var(--r-sm)] border border-border">
           <img src={m.image_url} alt="" className="h-full w-full object-cover" />
           <button
             type="button"
@@ -219,7 +219,7 @@ function BoxMediaStrip({ box, categoryId }: { box: BoxOut; categoryId: string })
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); onUpload(e.dataTransfer.files); }}
         disabled={uploading}
-        className={`flex h-11 w-11 items-center justify-center rounded-lg border border-dashed transition-colors disabled:opacity-50 ${
+        className={`flex h-11 w-11 items-center justify-center rounded-[var(--r-sm)] border border-dashed transition-colors disabled:opacity-50 ${
           over ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-muted hover:border-accent hover:text-accent-ink'
         }`}
       >

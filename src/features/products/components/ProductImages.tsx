@@ -80,7 +80,7 @@ export function ProductImages({
           >
             <img src={url} alt="" className="h-full w-full object-cover" />
             {i === 0 && (
-              <span className="absolute left-0 top-0 rounded-br-md bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
+              <span className="absolute left-0 top-0 rounded-br-[var(--r-xs)] bg-accent px-1.5 py-0.5 text-[10px] font-semibold text-white">
                 Asosiy
               </span>
             )}

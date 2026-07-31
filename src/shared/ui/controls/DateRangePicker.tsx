@@ -68,7 +68,7 @@ export function DateRangePicker({ value, onChange, size = 'md', placeholder = 'M
                   key={p.label}
                   type="button"
                   onClick={() => { onChange(p.make()); setOpen(false); }}
-                  className="rounded-md px-3 py-1.5 text-left text-sm text-text transition-colors hover:bg-surface-2"
+                  className="rounded-[var(--r-xs)] px-3 py-1.5 text-left text-sm text-text transition-colors hover:bg-surface-2"
                 >
                   {p.label}
                 </button>

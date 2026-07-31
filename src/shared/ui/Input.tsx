@@ -3,7 +3,7 @@ import type { InputHTMLAttributes, TextareaHTMLAttributes, ReactNode } from 'rea
 import { Eye, EyeOff } from 'lucide-react';
 
 const fieldCls =
-  'w-full rounded-lg border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted transition-[border-color,box-shadow] duration-150 hover:border-strong focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-1 focus-visible:ring-offset-bg';
+  'w-full rounded-[var(--r-sm)] border border-border bg-surface-2 px-3.5 py-2.5 text-sm text-text placeholder:text-muted transition-[border-color,box-shadow] duration-150 hover:border-strong focus:border-accent focus:outline-none focus-visible:ring-2 focus-visible:ring-accent/30 focus-visible:ring-offset-1 focus-visible:ring-offset-bg';
 
 interface FieldWrapProps {
   label?: string;

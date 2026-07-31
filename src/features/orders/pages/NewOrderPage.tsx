@@ -334,7 +334,7 @@ export default function NewOrderPage() {
 
         {step === 2 &&
           (!requiresRingSize ? (
-            <div className="rounded-xl border border-border bg-surface-2/40 px-4 py-6 text-center text-sm text-muted">
+            <div className="rounded-[var(--r-md)] border border-border bg-surface-2/40 px-4 py-6 text-center text-sm text-muted">
               {isCombo
                 ? "To'plam uchun uzuk o'lchami talab qilinmaydi — «Keyingi»ni bosing."
                 : "Bu mahsulotда o'lcham talab qilinmaydi — «Keyingi»ni bosing."}
@@ -348,7 +348,7 @@ export default function NewOrderPage() {
                     key={s}
                     type="button"
                     onClick={() => form.setValue('ring_size', s, { shouldValidate: true })}
-                    className={`min-w-[52px] rounded-xl border px-3 py-2 text-sm font-semibold tnum transition-colors ${
+                    className={`min-w-[52px] rounded-[var(--r-md)] border px-3 py-2 text-sm font-semibold tnum transition-colors ${
                       values.ring_size === s ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text hover:border-strong'
                     }`}
                   >
@@ -380,7 +380,7 @@ export default function NewOrderPage() {
               Ma'lumotlarni o'ngdagi xulosada tekshiring va buyurtmani tasdiqlang.
             </p>
             {createOrder.isError && (
-              <p className="rounded-lg border border-danger-soft bg-danger-soft px-4 py-2.5 text-danger">
+              <p className="rounded-[var(--r-sm)] border border-danger-soft bg-danger-soft px-4 py-2.5 text-danger">
                 {(createOrder.error as unknown as ApiError).message}
               </p>
             )}

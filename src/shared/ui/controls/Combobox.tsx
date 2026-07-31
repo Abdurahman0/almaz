@@ -123,7 +123,7 @@ export const Combobox = forwardRef<HTMLButtonElement, ComboboxProps>(function Co
                   disabled={o.disabled}
                   onClick={() => commit(o)}
                   onMouseEnter={() => setHighlight(i)}
-                  className={`flex min-h-9 w-full cursor-pointer select-none items-center gap-2 rounded-md px-3 py-1.5 text-left text-sm text-text disabled:cursor-not-allowed disabled:opacity-45 ${
+                  className={`flex min-h-9 w-full cursor-pointer select-none items-center gap-2 rounded-[var(--r-xs)] px-3 py-1.5 text-left text-sm text-text disabled:cursor-not-allowed disabled:opacity-45 ${
                     i === highlight ? 'bg-surface-2' : ''
                   } ${o.value === value ? 'text-accent-ink' : ''}`}
                 >

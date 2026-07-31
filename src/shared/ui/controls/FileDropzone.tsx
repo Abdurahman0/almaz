@@ -29,7 +29,7 @@ export function FileDropzone({ files, onChange, accept = 'image/*', label }: Fil
         onDragOver={(e) => { e.preventDefault(); setOver(true); }}
         onDragLeave={() => setOver(false)}
         onDrop={(e) => { e.preventDefault(); setOver(false); add(e.dataTransfer.files); }}
-        className={`flex w-full flex-col items-center gap-2 rounded-lg border border-dashed p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
+        className={`flex w-full flex-col items-center gap-2 rounded-[var(--r-sm)] border border-dashed p-6 transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60 ${
           over ? 'border-accent bg-accent-soft' : 'border-strong hover:border-accent'
         }`}
       >
@@ -51,7 +51,7 @@ export function FileDropzone({ files, onChange, accept = 'image/*', label }: Fil
               <img
                 src={URL.createObjectURL(f)}
                 alt={f.name}
-                className="h-16 w-16 rounded-lg border border-border object-cover"
+                className="h-16 w-16 rounded-[var(--r-sm)] border border-border object-cover"
               />
               <button
                 type="button"

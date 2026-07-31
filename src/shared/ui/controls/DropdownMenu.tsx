@@ -13,7 +13,7 @@ export interface MenuItem {
 }
 
 const itemCls = (destructive?: boolean) =>
-  `flex min-h-9 w-full cursor-pointer select-none items-center gap-2 rounded-md px-3 py-1.5 text-sm outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-2 data-[disabled]:opacity-45 ${
+  `flex min-h-9 w-full cursor-pointer select-none items-center gap-2 rounded-[var(--r-xs)] px-3 py-1.5 text-sm outline-none data-[disabled]:cursor-not-allowed data-[highlighted]:bg-surface-2 data-[disabled]:opacity-45 ${
     destructive ? 'text-danger' : 'text-text'
   }`;
 
@@ -67,7 +67,7 @@ export function DropdownMenu({ items, trigger, ariaLabel = 'Amallar' }: Dropdown
         {trigger ?? (
           <button
             aria-label={ariaLabel}
-            className="flex h-8 w-8 items-center justify-center rounded-lg text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
+            className="flex h-8 w-8 items-center justify-center rounded-[var(--r-sm)] text-muted transition-colors hover:bg-surface-2 hover:text-text focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
           >
             <MoreHorizontal className="h-4 w-4" strokeWidth={1.5} />
           </button>

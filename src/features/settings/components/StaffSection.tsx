@@ -46,7 +46,7 @@ export function StaffSection() {
       {staff.isError && <ErrorCard error={staff.error} onRetry={() => staff.refetch()} />}
       <div className="space-y-3">
         {staff.data?.map((u) => (
-          <div key={u.id} className="flex items-center justify-between rounded-lg border border-border p-4">
+          <div key={u.id} className="flex items-center justify-between rounded-[var(--r-sm)] border border-border p-4">
             <div className="flex items-center gap-3">
               <span className="flex h-9 w-9 items-center justify-center rounded-full bg-accent-soft text-accent-ink">
                 <UserRound className="h-4 w-4" strokeWidth={1.5} />

@@ -102,14 +102,14 @@ export default function KnowledgePage() {
               <button
                 onClick={() => openForm(kb)}
                 aria-label="Tahrirlash"
-                className="rounded-lg p-1.5 text-muted hover:text-accent-ink"
+                className="rounded-[var(--r-sm)] p-1.5 text-muted hover:text-accent-ink"
               >
                 <Pencil className="h-4 w-4" strokeWidth={1.5} />
               </button>
               <button
                 onClick={() => remove.mutate(kb.id)}
                 aria-label="O'chirish"
-                className="rounded-lg p-1.5 text-muted hover:text-danger"
+                className="rounded-[var(--r-sm)] p-1.5 text-muted hover:text-danger"
               >
                 <Trash2 className="h-4 w-4" strokeWidth={1.5} />
               </button>

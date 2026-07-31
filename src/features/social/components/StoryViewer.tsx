@@ -90,7 +90,7 @@ export function StoryViewer({
       )}
 
       <div
-        className="relative flex aspect-[9/16] max-h-[92vh] w-full max-w-[420px] flex-col overflow-hidden rounded-2xl bg-neutral-900"
+        className="relative flex aspect-[9/16] max-h-[92vh] w-full max-w-[420px] flex-col overflow-hidden rounded-[var(--r-lg)] bg-neutral-900"
         onClick={(e) => e.stopPropagation()}
       >
         {/* segmented progress bars */}

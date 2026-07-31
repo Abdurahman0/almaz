@@ -26,7 +26,7 @@ export function Pager({ offset, limit, total, onChange }: PagerProps) {
           aria-label="Oldingi"
           disabled={!canPrev}
           onClick={() => onChange(Math.max(0, offset - limit))}
-          className="rounded-lg border border-border p-1.5 transition-colors enabled:hover:border-strong enabled:hover:text-text disabled:opacity-40"
+          className="rounded-[var(--r-sm)] border border-border p-1.5 transition-colors enabled:hover:border-strong enabled:hover:text-text disabled:opacity-40"
         >
           <ChevronLeft className="h-4 w-4" strokeWidth={1.5} />
         </button>
@@ -34,7 +34,7 @@ export function Pager({ offset, limit, total, onChange }: PagerProps) {
           aria-label="Keyingi"
           disabled={!canNext}
           onClick={() => onChange(offset + limit)}
-          className="rounded-lg border border-border p-1.5 transition-colors enabled:hover:border-strong enabled:hover:text-text disabled:opacity-40"
+          className="rounded-[var(--r-sm)] border border-border p-1.5 transition-colors enabled:hover:border-strong enabled:hover:text-text disabled:opacity-40"
         >
           <ChevronRight className="h-4 w-4" strokeWidth={1.5} />
         </button>

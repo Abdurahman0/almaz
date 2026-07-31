@@ -110,11 +110,11 @@ export default function OrdersPage() {
         subheading="Har bir uzuk — alohida hikoya"
         actions={
           <div className="flex items-center gap-2">
-            <div className="flex rounded-xl bg-surface-2 p-0.5">
+            <div className="flex rounded-[var(--r-md)] bg-surface-2 p-0.5">
               <button
                 onClick={() => setView('board')}
                 aria-label="Doska"
-                className={`flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
+                className={`flex h-9 items-center gap-1.5 rounded-[var(--r-sm)] px-3 text-xs font-semibold transition-colors ${
                   view === 'board' ? 'bg-surface text-text shadow-xs' : 'text-muted hover:text-text'
                 }`}
               >
@@ -123,7 +123,7 @@ export default function OrdersPage() {
               <button
                 onClick={() => setView('list')}
                 aria-label="Ro'yxat"
-                className={`flex h-9 items-center gap-1.5 rounded-lg px-3 text-xs font-semibold transition-colors ${
+                className={`flex h-9 items-center gap-1.5 rounded-[var(--r-sm)] px-3 text-xs font-semibold transition-colors ${
                   view === 'list' ? 'bg-surface text-text shadow-xs' : 'text-muted hover:text-text'
                 }`}
               >

@@ -159,7 +159,7 @@ function TelegramActions() {
 
   return (
     <div className="mt-4 space-y-3 border-t border-border pt-4">
-      <div className="rounded-lg border border-border p-3 text-xs">
+      <div className="rounded-[var(--r-sm)] border border-border p-3 text-xs">
         <p className="mb-1 font-semibold text-text">Webhook holati</p>
         {info.isPending && <SkeletonRows rows={1} />}
         {info.isError && <p className="text-muted">Ma'lumot yo'q (token kiritilganmi?)</p>}
@@ -224,7 +224,7 @@ function TelegramActions() {
         </Button>
       </div>
       {me.data && (
-        <p className="rounded-lg border border-border bg-surface-2/40 px-3 py-2 text-xs text-text">
+        <p className="rounded-[var(--r-sm)] border border-border bg-surface-2/40 px-3 py-2 text-xs text-text">
           @{String((me.data as Record<string, unknown>).username ?? '—')} ·{' '}
           {String((me.data as Record<string, unknown>).first_name ?? '')}
         </p>
