@@ -15,6 +15,19 @@ export interface SocialItem extends InstagramMediaOut {
   kind: SocialKind;
 }
 
+export const kindLabel: Record<SocialKind, string> = { post: 'Post', reel: 'Reel', story: 'Story' };
+
+/** Publish status derived from the thin API fields (there is no draft/scheduled/
+ *  published enum — only is_active, plus is_expired for stories). */
+export function contentStatus(item: Pick<InstagramMediaOut, 'is_active' | 'is_expired' | 'media_type'>): {
+  label: string;
+  tone: 'success' | 'muted' | 'danger';
+} {
+  if (item.media_type === 'story' && item.is_expired) return { label: "Muddati o'tgan", tone: 'danger' };
+  if (!item.is_active) return { label: 'Qoralama', tone: 'muted' };
+  return { label: "E'lon qilingan", tone: 'success' };
+}
+
 /** Post / reel / story from an Instagram URL (or a bare shortcode/ref). */
 export function deriveKind(link: string | null | undefined, fallback?: string | null): SocialKind {
   const p = (link ?? '').toLowerCase();

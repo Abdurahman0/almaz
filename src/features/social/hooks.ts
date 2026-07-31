@@ -1,9 +1,18 @@
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tanstack/react-query';
 import { addProductInstagram, deleteInstagramMedia, updateInstagramMedia } from '@/features/products/api';
 import type { InstagramMediaCreate, InstagramMediaUpdate } from '@/shared/api/types';
 import { fetchSocialFeed } from './api';
 
 const feedKey = ['social', 'feed'] as const;
+
+/** The content ↔ product relationship lives in two caches: the aggregated feed
+ *  (`['social','feed']`) and each product's own media list (`['catalog','instagram',id]`,
+ *  used by the product-detail Kontentlar section). Every content mutation must
+ *  invalidate BOTH so the relationship stays consistent in both directions. */
+function invalidateBothSides(qc: QueryClient) {
+  void qc.invalidateQueries({ queryKey: feedKey });
+  void qc.invalidateQueries({ queryKey: ['catalog', 'instagram'] });
+}
 
 /** Aggregated Instagram feed (posts + reels + stories) across all products. */
 export function useSocialFeed() {
@@ -20,10 +29,7 @@ export function useAddSocial() {
   return useMutation({
     mutationFn: ({ productId, body }: { productId: string; body: InstagramMediaCreate }) =>
       addProductInstagram(productId, body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: feedKey });
-      void qc.invalidateQueries({ queryKey: ['products', 'instagram'] });
-    },
+    onSuccess: () => invalidateBothSides(qc),
   });
 }
 
@@ -32,10 +38,7 @@ export function useUpdateSocial() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, body }: { id: string; body: InstagramMediaUpdate }) => updateInstagramMedia(id, body),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: feedKey });
-      void qc.invalidateQueries({ queryKey: ['products', 'instagram'] });
-    },
+    onSuccess: () => invalidateBothSides(qc),
   });
 }
 
@@ -44,9 +47,6 @@ export function useDeleteSocial() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: string) => deleteInstagramMedia(id),
-    onSuccess: () => {
-      void qc.invalidateQueries({ queryKey: feedKey });
-      void qc.invalidateQueries({ queryKey: ['products', 'instagram'] });
-    },
+    onSuccess: () => invalidateBothSides(qc),
   });
 }

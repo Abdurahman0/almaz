@@ -1,0 +1,106 @@
+import { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { Clapperboard, Gem, Instagram, Plus } from 'lucide-react';
+import { Badge, Button, Modal, Skeleton } from '@/shared/ui';
+import { formatDate } from '@/shared/lib/format';
+import type { InstagramMediaOut, ProductOut } from '@/shared/api/types';
+import { useProductInstagram } from '@/features/products/hooks';
+import { contentStatus, deriveKind, kindLabel } from '../api';
+import { ContentForm } from './ContentForm';
+
+/** One content card in the product-detail Kontentlar grid → deep-links to the feed. */
+function ContentCard({ item, onOpen }: { item: InstagramMediaOut; onOpen: () => void }) {
+  const kind = deriveKind(item.permalink, item.media_type);
+  const status = contentStatus(item);
+  const ref = item.shortcode ?? item.story_ref ?? item.permalink ?? '';
+  return (
+    <button
+      type="button"
+      onClick={onOpen}
+      className="group overflow-hidden rounded-[var(--r-md)] border border-border text-left transition-colors hover:border-strong"
+    >
+      <div className="relative aspect-square bg-surface-2">
+        {item.image_url ? (
+          <img src={item.image_url} alt="" className="h-full w-full object-cover transition-transform duration-300 group-hover:scale-[1.03]" />
+        ) : (
+          <div className="flex h-full w-full items-center justify-center">
+            <Gem className="h-7 w-7 text-muted/45" strokeWidth={1.25} />
+          </div>
+        )}
+        <span className="absolute left-1.5 top-1.5 flex items-center gap-1 rounded-full bg-black/55 px-2 py-0.5 text-2xs font-semibold text-white backdrop-blur">
+          {kind === 'reel' ? <Clapperboard className="h-3 w-3" strokeWidth={2} /> : <Instagram className="h-3 w-3" strokeWidth={2} />}
+          {kindLabel[kind]}
+        </span>
+      </div>
+      <div className="space-y-1.5 p-2.5">
+        <div className="flex items-center justify-between gap-2">
+          <Badge tone={status.tone}>{status.label}</Badge>
+          <span className="tnum shrink-0 text-2xs text-muted">{formatDate(item.created_at)}</span>
+        </div>
+        {ref && <p className="truncate font-mono text-2xs text-muted">{ref}</p>}
+      </div>
+    </button>
+  );
+}
+
+/** "Kontentlar" section on the product detail — the product's attached social
+ *  content, plus an "add content" flow prefilled with this product + its photo. */
+export function ProductContent({ product }: { product: ProductOut }) {
+  const navigate = useNavigate();
+  const media = useProductInstagram(product.id);
+  const [createOpen, setCreateOpen] = useState(false);
+  const items = media.data ?? [];
+
+  return (
+    <div>
+      <div className="mb-3 flex items-center justify-between">
+        <p className="text-xs font-medium text-muted">
+          Kontentlar{media.isSuccess && items.length > 0 && <span className="text-text"> · {items.length}</span>}
+        </p>
+        {media.isSuccess && items.length > 0 && (
+          <Button variant="ghost" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-3.5 w-3.5" strokeWidth={1.75} /> Kontent qo'shish
+          </Button>
+        )}
+      </div>
+
+      {media.isPending && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {Array.from({ length: 4 }).map((_, i) => (
+            <Skeleton key={i} className="aspect-square rounded-[var(--r-md)]" />
+          ))}
+        </div>
+      )}
+
+      {media.isError && (
+        <div className="flex items-center justify-between rounded-[var(--r-md)] border border-danger-soft bg-danger-soft/40 px-4 py-3 text-sm">
+          <span className="text-danger">Kontentni yuklab bo'lmadi</span>
+          <Button variant="ghost" size="sm" onClick={() => media.refetch()}>Qayta urinish</Button>
+        </div>
+      )}
+
+      {media.isSuccess && items.length === 0 && (
+        <div className="rounded-[var(--r-md)] border border-dashed border-border bg-surface-2/40 px-5 py-8 text-center">
+          <Instagram className="mx-auto mb-2 h-7 w-7 text-muted/50" strokeWidth={1.25} />
+          <p className="text-sm text-muted">Bu mahsulot uchun kontent qo'shilmagan</p>
+          <Button className="mt-4" size="sm" onClick={() => setCreateOpen(true)}>
+            <Plus className="h-4 w-4" strokeWidth={2} /> Kontent qo'shish
+          </Button>
+        </div>
+      )}
+
+      {media.isSuccess && items.length > 0 && (
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4">
+          {items.map((m) => (
+            <ContentCard key={m.id} item={m} onOpen={() => navigate(`/social/content/${m.id}`)} />
+          ))}
+        </div>
+      )}
+
+      <Modal open={createOpen} onClose={() => setCreateOpen(false)} heading="Kontent qo'shish">
+        {/* ContentForm toasts on success; here we just close and let the query refetch. */}
+        <ContentForm product={product} onDone={() => setCreateOpen(false)} />
+      </Modal>
+    </div>
+  );
+}

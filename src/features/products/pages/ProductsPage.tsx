@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Plus, Pencil, Trash2, SlidersHorizontal, Search, AlertTriangle, Gift, Gem, Layers, LayoutGrid, Rows3, Copy, Eye, Boxes } from 'lucide-react';
 import {
   Badge,
@@ -23,7 +23,8 @@ import {
 import { CatalogCard } from '../components/CatalogCard';
 import { EngravingChip } from '../components/EngravingChip';
 import { StockAdjustDialog } from '../components/StockAdjustDialog';
-import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProductsPage, useRefs } from '../hooks';
+import { useCategories, useDeleteProduct, useDuplicateProduct, useLowStock, useProduct, useProductsPage, useRefs } from '../hooks';
+import { ProductContent } from '@/features/social/components/ProductContent';
 import { useEngravingMaxChars, useEngravingPrice, useLowStockThreshold } from '@/features/settings/hooks';
 import { ProductForm } from '../components/ProductForm';
 import { CatalogManager } from '../components/CatalogManager';
@@ -166,6 +167,10 @@ function ProductView({
           </div>
         </div>
       )}
+
+      <div className="border-t border-border pt-5">
+        <ProductContent product={product} />
+      </div>
 
       <div className="flex justify-end gap-3">
         <Button variant="secondary" onClick={onStock}>
@@ -341,8 +346,20 @@ export default function ProductsPage() {
   const [boxesOpen, setBoxesOpen] = useState(false);
   const [editing, setEditing] = useState<ProductOut | undefined>();
   const [deleting, setDeleting] = useState<ProductOut | undefined>();
-  const [viewing, setViewing] = useState<ProductOut | undefined>();
   const [stockFor, setStockFor] = useState<ProductOut | undefined>();
+
+  // Product detail is URL-addressable (?product=<id>) so the social page's product
+  // chip can deep-link straight into it. Prefer a product already on the page;
+  // fall back to fetching it by id.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const viewId = searchParams.get('product');
+  const inPageProduct = products.find((p) => p.id === viewId);
+  const viewFetch = useProduct(viewId && !inPageProduct ? viewId : null);
+  const viewing = viewId ? inPageProduct ?? viewFetch.data : undefined;
+  const openView = (p: ProductOut) =>
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('product', p.id); return n; }, { replace: false });
+  const closeView = () =>
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('product'); return n; }, { replace: false });
 
   const refName = (map: Map<string, RefOut>, id: string | null) =>
     id ? pickName(map.get(id), lang) : '';
@@ -358,7 +375,7 @@ export default function ProductsPage() {
       onError: () => toast.error('Nusxalashda xatolik'),
     });
   const rowActions: RowActions = {
-    onView: (p) => setViewing(p),
+    onView: (p) => openView(p),
     onEdit: (p) => { setEditing(p); setFormOpen(true); },
     onStock: (p) => setStockFor(p),
     onDuplicate,
@@ -473,7 +490,7 @@ export default function ProductsPage() {
                   onEdit={() => { setEditing(p); setFormOpen(true); }}
                   onStock={() => setStockFor(p)}
                   onDelete={() => setDeleting(p)}
-                  onView={() => setViewing(p)}
+                  onView={() => openView(p)}
                   onDuplicate={() => onDuplicate(p)}
                 />
               ))}
@@ -511,12 +528,12 @@ export default function ProductsPage() {
       </Modal>
 
       <Modal
-        open={Boolean(viewing)}
-        onClose={() => setViewing(undefined)}
+        open={Boolean(viewId)}
+        onClose={closeView}
         heading={viewing ? pickName(viewing, lang) : ''}
         wide
       >
-        {viewing && (
+        {viewing ? (
           <ProductView
             product={viewing}
             name={pickName(viewing, lang)}
@@ -525,14 +542,18 @@ export default function ProductsPage() {
             globalEngravingPrice={globalEngravingPrice}
             onEdit={() => {
               setEditing(viewing);
-              setViewing(undefined);
+              closeView();
               setFormOpen(true);
             }}
             onStock={() => {
               setStockFor(viewing);
-              setViewing(undefined);
+              closeView();
             }}
           />
+        ) : viewFetch.isError ? (
+          <ErrorCard error={viewFetch.error} onRetry={() => viewFetch.refetch()} />
+        ) : (
+          <SkeletonCards count={1} />
         )}
       </Modal>
 

@@ -16,6 +16,17 @@
 
 Fix requests for the backend: (1) handle `/reel/` links without an image, (2) set `media_type` from the URL path (`/reel/`→reel, `/stories/`→story, `/p/`→post), (3) fetch the IG thumbnail when a token is configured, (4) validate the link format.
 
+### Content ↔ product relationship (probed 2026-07-31, for the product-detail Kontentlar feature)
+
+"Content" is **Instagram media** — the only product-attachable content resource. Linking is a single **`product_id` FK** (one product per item; not an array/join). Endpoints: `GET/POST /catalog/products/{id}/instagram`, `PATCH/DELETE /catalog/instagram-media/{id}`. Gaps found:
+
+| Gap | Detail / impact |
+|-----|-----------------|
+| **No by-id GET** | `GET /catalog/instagram-media/{id}` → **405** (`Allow: PATCH`). A content item can't be fetched directly, so the `/social/content/{id}` deep link resolves the item **within the aggregated feed** instead of a clean detail fetch. A `GET` by id would let a real content-detail route exist. |
+| **No global content list / `?product_id` filter** | `GET /catalog/instagram-media` → 404; media is exposed **per product only**. Server-side "filter by product" = the per-product endpoint (fine for product detail). The social page's product filter is therefore **client-side** over the N+1 aggregation. A `GET /catalog/instagram-media?product_id=&media_type=` would collapse both. |
+| **Thin content model** | `InstagramMediaOut` has **no caption/text, no engagement metrics, no platform field, and no draft/scheduled/published status** — only `is_active` (+ `is_expired` for stories). The UI maps active→"E'lon qilingan", inactive→"Qoralama", expired story→"Muddati o'tgan"; there's no "Rejalashtirilgan" (no schedule field), engagement is omitted, and platform is fixed to Instagram. Add `caption`, `scheduled_at`/`status`, and engagement counters to enrich the content cards. |
+| **Image is URL-reuse (works well)** | `image_url` on create takes a plain URL and persists as-is (verified) — the product's existing photo is reused directly, no re-upload. Only genuinely new images go through `POST /files`. Not a gap; documented so it stays that way. |
+
 ## ✅ Recently closed (verified live 2026-07-31)
 
 - **Manual order stage transition** — `POST /orders/{order_id}/status {status}` → full `OrderOut` with a new `history[]` entry. Kanban DnD now persists (`VITE_FEATURE_ORDERS_DND=true`). Note: `/status` **rejects** `cancelled`/`refunded`/`returned` (400 → use `/orders/{id}/cancel`), so the cancelled column routes to `/cancel`.

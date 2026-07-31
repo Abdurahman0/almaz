@@ -50,6 +50,15 @@ export function useProducts(status?: ProductStatus) {
   });
 }
 
+/** A single product by id (for URL-addressable detail — e.g. ?product=<id>). */
+export function useProduct(productId: string | null | undefined) {
+  return useQuery({
+    queryKey: ['products', 'detail', productId],
+    queryFn: () => productsApi.getProduct(productId as string),
+    enabled: Boolean(productId),
+  });
+}
+
 /** Paginated + filtered product list for the products page. */
 export function useProductsPage(params: ProductListParams, enabled = true) {
   return useQuery({
