@@ -12,10 +12,10 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
+import { ConfirmDialog, ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
-import { useOrders, useSetOrderStatus } from '../hooks';
+import { useCancelOrderAny, useOrders, useSetOrderStatus } from '../hooks';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
 
 /*
@@ -48,6 +48,8 @@ const colKeyOf = (status: OrderStatus): string | undefined =>
   COLUMNS.find((c) => c.statuses.includes(status))?.key;
 
 function OrderCardBody({ order, client }: { order: OrderOut; client: string | null }) {
+  // A jeweler needs the ring size at a glance.
+  const size = order.items.find((it) => it.ring_size)?.ring_size ?? null;
   return (
     <>
       <div className="flex items-center justify-between gap-2">
@@ -56,7 +58,10 @@ function OrderCardBody({ order, client }: { order: OrderOut; client: string | nu
       </div>
       {client && <p className="mt-1 truncate text-2xs text-text">{client}</p>}
       <div className="mt-1 flex items-center justify-between gap-2 text-2xs text-muted">
-        <span>{order.items.length} ta mahsulot</span>
+        <span className="flex items-center gap-1.5">
+          {order.items.length} ta mahsulot
+          {size && <span className="tnum rounded bg-surface-2 px-1.5 py-0.5 font-semibold text-accent-ink">⌀ {size}</span>}
+        </span>
         <span className="tnum">{formatDate(order.created_at)}</span>
       </div>
     </>
@@ -125,8 +130,12 @@ export function OrderBoardDnd() {
   const clients = useClients();
   const clientOf = (id: string) => clients.data?.find((c) => c.id === id)?.name ?? null;
   const setStatus = useSetOrderStatus();
+  const cancelOrder = useCancelOrderAny();
   const [local, setLocal] = useState<OrderOut[]>([]);
   const [activeId, setActiveId] = useState<string | null>(null);
+  // Dropping into "Bekor / qaytarilgan" cancels the order (releases stock) via
+  // /cancel — a destructive move, so it's confirmed first.
+  const [cancelTarget, setCancelTarget] = useState<{ order: OrderOut; from: OrderStatus } | null>(null);
   // Optimistic status moves are held in a ref so a background refetch can't snap a
   // dragged card back before the server round-trip settles — the override is
   // re-applied on top of every fresh payload, and dropped only on failure.
@@ -164,6 +173,12 @@ export function OrderBoardDnd() {
     if (!col || !order) return;
     if (colKeyOf(order.status) === col.key) return; // dropped in the same column
     const from = order.status;
+    // The cancelled column must go through /cancel (/status rejects cancelled with
+    // a 400). Confirm first — the card stays put until then.
+    if (col.key === 'cancelled') {
+      setCancelTarget({ order, from });
+      return;
+    }
     const to = col.primary;
     // Optimistically move the card, then persist via POST /orders/{id}/status.
     // On failure, roll the card back to its original column.
@@ -176,6 +191,25 @@ export function OrderBoardDnd() {
         onError: () => {
           overrides.current.delete(order.id);
           setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: from } : o)));
+        },
+      },
+    );
+  };
+
+  const doCancel = () => {
+    if (!cancelTarget) return;
+    const { order, from } = cancelTarget;
+    setCancelTarget(null);
+    overrides.current.set(order.id, 'cancelled');
+    setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: 'cancelled' } : o)));
+    cancelOrder.mutate(
+      { id: order.id, reason: null },
+      {
+        onSuccess: () => toast.success('Buyurtma bekor qilindi'),
+        onError: () => {
+          overrides.current.delete(order.id);
+          setLocal((cur) => cur.map((o) => (o.id === order.id ? { ...o, status: from } : o)));
+          toast.error('Bekor qilishda xatolik');
         },
       },
     );
@@ -201,6 +235,15 @@ export function OrderBoardDnd() {
           </div>
         ) : null}
       </DragOverlay>
+
+      <ConfirmDialog
+        open={Boolean(cancelTarget)}
+        onClose={() => setCancelTarget(null)}
+        heading="Buyurtmani bekor qilish"
+        description={`«${cancelTarget?.order.order_no ?? ''}» bekor qilinadi va zaxira qaytariladi.`}
+        confirmLabel="Bekor qilish"
+        onConfirm={doCancel}
+      />
     </DndContext>
   );
 }

@@ -12,6 +12,7 @@ import {
   Settings,
   UserCog,
   ScrollText,
+  Sparkles,
   Instagram,
   ChevronsLeft,
   ChevronsRight,
@@ -32,6 +33,7 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/payments', icon: CreditCard, label: 'nav.payments' },
   { to: '/reports', icon: BarChart3, label: 'nav.reports' },
   { to: '/knowledge', icon: BookOpen, label: 'nav.knowledge' },
+  { to: '/settings/ai-prompts', icon: Sparkles, label: 'nav.aiPrompts' },
   { to: '/settings/staff', icon: UserCog, label: 'nav.staff' },
   { to: '/settings/audit', icon: ScrollText, label: 'nav.audit' },
   // Integrations page hidden for now (no one may view it or its data). To

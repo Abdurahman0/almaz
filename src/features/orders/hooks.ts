@@ -1,4 +1,11 @@
-import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import {
+  keepPreviousData,
+  useMutation,
+  useQuery,
+  useQueryClient,
+  type QueryClient,
+} from '@tanstack/react-query';
+import type { Paginated } from '@/shared/api/client';
 import * as ordersApi from './api';
 import type { OrdersListParams } from './api';
 import type { OrderCreate, OrderOut, OrderStatus, OrderUpdate } from '@/shared/api/types';
@@ -11,6 +18,20 @@ export const orderKeys = {
   detail: (id: string) => ['orders', 'detail', id] as const,
   delivery: (id: string) => ['orders', 'delivery', id] as const,
 };
+
+/** Write a fresh OrderOut (with its updated history[]) into the detail cache and
+ *  every cached list/page, so status changes reflect instantly without a refetch. */
+function writeOrder(qc: QueryClient, order: OrderOut) {
+  qc.setQueryData(orderKeys.detail(order.id), order);
+  qc.setQueriesData({ queryKey: orderKeys.all }, (old: unknown) => {
+    if (Array.isArray(old)) return (old as OrderOut[]).map((o) => (o.id === order.id ? order : o));
+    const page = old as Paginated<OrderOut> | undefined;
+    if (page && Array.isArray(page.items)) {
+      return { ...page, items: page.items.map((o) => (o.id === order.id ? order : o)) };
+    }
+    return old;
+  });
+}
 
 /** Flat orders (reports / dashboard). */
 export function useOrders(status?: OrderStatus, limit = 200) {
@@ -49,7 +70,20 @@ export function useCancelOrder(orderId: string) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (reason: string | null) => ordersApi.cancelOrder(orderId, { reason }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+    onSuccess: (order) => writeOrder(qc, order),
+    onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
+  });
+}
+
+/** Cancel any order by id (kanban "Bekor" column). POST /orders/{id}/cancel
+ *  releases stock — this is why the cancelled column must NOT use /status. */
+export function useCancelOrderAny() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, reason }: { id: string; reason?: string | null }) =>
+      ordersApi.cancelOrder(id, { reason: reason ?? null }),
+    onSuccess: (order) => writeOrder(qc, order),
+    onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
   });
 }
 
@@ -92,6 +126,7 @@ export function useSetOrderStatus() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, status }: { id: string; status: OrderStatus }) => ordersApi.setOrderStatus(id, status),
+    onSuccess: (order) => writeOrder(qc, order), // full OrderOut incl. new history[]
     onError: () => toast.error("Bosqichni o'zgartirishda xatolik"),
     onSettled: () => qc.invalidateQueries({ queryKey: orderKeys.all }),
   });

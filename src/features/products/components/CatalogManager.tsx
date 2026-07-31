@@ -10,6 +10,7 @@ import {
   NumberInput,
   Select,
   SkeletonRows,
+  Switch,
   toast,
   type SelectOption,
 } from '@/shared/ui';
@@ -193,8 +194,16 @@ interface CatDraft {
   slug: string;
   parent_id: string;
   requiresRingSize: boolean;
+  availableSizes: string[];
 }
-const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '', requiresRingSize: false };
+const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '', requiresRingSize: false, availableSizes: [] };
+
+// Common ring sizes 15–22 in 0.5 steps as one-tap chips (strings so decimals survive).
+const COMMON_SIZES: string[] = Array.from({ length: 15 }, (_, i) => {
+  const s = 15 + i * 0.5;
+  return Number.isInteger(s) ? String(s) : s.toFixed(1);
+});
+const isSize = (v: string) => /^\d+(\.\d+)?$/.test(v);
 
 function CategoryEditor({
   draft,
@@ -211,6 +220,14 @@ function CategoryEditor({
   onCancel?: () => void;
   saving: boolean;
 }) {
+  const [sizeInput, setSizeInput] = useState('');
+  const sizes = draft.availableSizes;
+  const addSize = (raw: string) => {
+    const v = raw.trim().replace(/,$/, '');
+    if (!v || !isSize(v) || sizes.includes(v)) return; // number/decimal, no dupes, keep order
+    setDraft({ ...draft, availableSizes: [...sizes, v] });
+  };
+  const removeSize = (i: number) => setDraft({ ...draft, availableSizes: sizes.filter((_, j) => j !== i) });
   return (
     <div className="space-y-2 rounded-lg border border-border p-3">
       <div className="grid grid-cols-2 gap-2">
@@ -219,11 +236,58 @@ function CategoryEditor({
         <Input label="Slug (ixtiyoriy)" placeholder="nomdan avtomatik" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
         <Select label="Yuqori kategoriya" size="sm" placeholder="—" options={parentOptions} value={draft.parent_id} onChange={(v) => setDraft({ ...draft, parent_id: v })} />
       </div>
-      <Checkbox
-        checked={draft.requiresRingSize}
-        onCheckedChange={(v) => setDraft({ ...draft, requiresRingSize: v })}
-        label="Buyurtmada o'lcham talab qilinadi (uzuklar)"
-      />
+
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">O'lcham talab qilinadimi?</p>
+          <p className="text-2xs text-muted">Uzuk kabi mahsulotlarда buyurtmada o'lcham so'raladi.</p>
+        </div>
+        <Switch checked={draft.requiresRingSize} onCheckedChange={(v) => setDraft({ ...draft, requiresRingSize: v })} />
+      </div>
+
+      {draft.requiresRingSize && (
+        <div className="space-y-2 rounded-lg bg-surface-2/50 p-2.5">
+          <p className="text-xs font-medium text-muted">Mavjud o'lchamlar</p>
+          {sizes.length > 0 ? (
+            <div className="flex flex-wrap gap-1.5">
+              {sizes.map((s, i) => (
+                <span key={s + i} className="flex items-center gap-1 rounded-full border border-border bg-surface px-2.5 py-1 text-xs font-medium text-text">
+                  {s}
+                  <button type="button" aria-label="O'chirish" onClick={() => removeSize(i)}>
+                    <X className="h-3 w-3 text-muted hover:text-danger" strokeWidth={2} />
+                  </button>
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="text-2xs text-muted">Bo'sh — cheklovsiz (istalgan o'lcham qabul qilinadi).</p>
+          )}
+          <input
+            value={sizeInput}
+            onChange={(e) => setSizeInput(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addSize(sizeInput); setSizeInput(''); }
+            }}
+            onBlur={() => { if (sizeInput.trim()) { addSize(sizeInput); setSizeInput(''); } }}
+            placeholder="O'lcham yozing (17 yoki 16.5), Enter"
+            inputMode="decimal"
+            className="h-9 w-full rounded-lg border border-border bg-surface px-3 text-sm text-text outline-none placeholder:text-muted focus:border-accent"
+          />
+          <div className="flex flex-wrap gap-1">
+            {COMMON_SIZES.filter((s) => !sizes.includes(s)).map((s) => (
+              <button
+                key={s}
+                type="button"
+                onClick={() => addSize(s)}
+                className="rounded-full border border-dashed border-strong px-2 py-0.5 text-2xs text-muted transition-colors hover:border-accent hover:text-accent-ink"
+              >
+                + {s}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
+
       <div className="flex gap-2">
         <Button size="sm" onClick={onSave} loading={saving} disabled={draft.name_uz.trim().length < 1}>
           <Check className="h-4 w-4" strokeWidth={2} /> Saqlash
@@ -263,6 +327,8 @@ function CategoryTab() {
     slug: d.slug.trim() || null,
     parent_id: d.parent_id || null,
     requires_ring_size: d.requiresRingSize,
+    // Off, or on-but-empty → null (unrestricted). Never send [] (per the doc).
+    available_sizes: d.requiresRingSize && d.availableSizes.length > 0 ? d.availableSizes : null,
   });
 
   const startEdit = (c: CategoryOut) => {
@@ -273,6 +339,7 @@ function CategoryTab() {
       slug: c.slug ?? '',
       parent_id: c.parent_id ?? '',
       requiresRingSize: c.requires_ring_size ?? false,
+      availableSizes: c.available_sizes ?? [],
     });
   };
 

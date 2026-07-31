@@ -92,6 +92,8 @@ export interface CategoryOut {
   parent_id: string | null;
   /** Products in this category need a ring size on order (rings, etc.). */
   requires_ring_size?: boolean;
+  /** Allowed sizes (strings so decimals survive: "16.5"). null/[] = unrestricted. */
+  available_sizes?: string[] | null;
 }
 
 // ---------- Boxes (colored gift boxes per category, migration 0013 + media 0017) ----------
@@ -256,6 +258,7 @@ export interface CategoryCreate {
   slug?: string | null;
   parent_id?: string | null;
   requires_ring_size?: boolean;
+  available_sizes?: string[] | null;
 }
 export type CategoryUpdate = Partial<CategoryCreate>;
 
@@ -364,6 +367,12 @@ export interface ProductOut {
   low_stock_threshold: number | null;
   /** Total available stock across active stocked variants (stock - reserved). */
   available: number;
+  /** Inherited from the category: does an order in this product need a ring size? */
+  requires_ring_size?: boolean;
+  /** Inherited from the category: allowed sizes (strings). null/[] = unrestricted.
+   *  NOTE: the API does not return this on ProductOut yet — resolve it from the
+   *  category (by category_id) as a fallback until it lands. */
+  available_sizes?: string[] | null;
   ai_keywords: string[] | null;
   variants: VariantOut[];
   media: MediaOut[];

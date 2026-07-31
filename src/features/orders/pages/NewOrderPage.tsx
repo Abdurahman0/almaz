@@ -7,9 +7,8 @@ import { ArrowLeft } from 'lucide-react';
 import { Button, Card, Combobox, ErrorCard, Input, Money, NumberInput, PageHeader, Select, SkeletonRows } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib/format';
 import { useCreateOrder } from '../hooks';
-import { RingSizeCone, RING_SIZES } from '../components/RingSizeCone';
 import { useCustomers } from '@/features/inbox/hooks';
-import { useBoxes, useCombos, useProducts } from '@/features/products/hooks';
+import { useBoxes, useCategories, useCombos, useProducts } from '@/features/products/hooks';
 import { useBoxesEnabled, useEngravingMaxChars, useEngravingPrice } from '@/features/settings/hooks';
 import { resolveEngravingMax, resolveEngravingPrice } from '@/features/products/lib/engraving';
 import { pickName } from '@/shared/lib/localize';
@@ -20,7 +19,8 @@ const baseSchema = z.object({
   customer_id: z.string().uuid('Mijozni tanlang'),
   variant_id: z.string().uuid('Mahsulot variantini tanlang'),
   quantity: z.number({ invalid_type_error: 'Miqdor kiritilishi shart' }).int().min(1, 'Kamida 1 dona'),
-  ring_size: z.number().min(15).max(22),
+  // String so decimals survive ("16.5"); required/allowed validated live (superRefine).
+  ring_size: z.string(),
   box_id: z.string().optional(),
   engraving_text: z.string().optional(),
 });
@@ -35,13 +35,15 @@ export default function NewOrderPage() {
   const customers = useCustomers();
   const products = useProducts();
   const combos = useCombos({ status: 'active', limit: 100 });
+  const categories = useCategories();
   const createOrder = useCreateOrder();
   const globalEngravingMax = useEngravingMaxChars();
   const globalEngravingPrice = useEngravingPrice();
 
-  // The engraving limit depends on the chosen product, so validate against a live
-  // ref (product value → global → 20); read at validation time. 0 = unlimited.
+  // Engraving limit + ring-size rules depend on the chosen product's category, so
+  // validate against live refs read at validation time.
   const limitRef = useRef(20);
+  const sizeCtxRef = useRef<{ required: boolean; allowed: string[] | null }>({ required: false, allowed: null });
   const schema = useMemo(
     () =>
       baseSchema.superRefine((v, ctx) => {
@@ -53,13 +55,22 @@ export default function NewOrderPage() {
             message: `Eng ko'pi ${lim} ta belgi (${v.engraving_text.length} ta kiritildi)`,
           });
         }
+        const sc = sizeCtxRef.current;
+        if (sc.required) {
+          const val = (v.ring_size ?? '').trim();
+          if (!val) {
+            ctx.addIssue({ path: ['ring_size'], code: z.ZodIssueCode.custom, message: "O'lchamni tanlang" });
+          } else if (sc.allowed && sc.allowed.length > 0 && !sc.allowed.includes(val)) {
+            ctx.addIssue({ path: ['ring_size'], code: z.ZodIssueCode.custom, message: `Mavjud o'lchamlar: ${sc.allowed.join(', ')}` });
+          }
+        }
       }),
     [],
   );
 
   const form = useForm<FormValues>({
     resolver: zodResolver(schema),
-    defaultValues: { quantity: 1, ring_size: 17, box_id: '', engraving_text: '' },
+    defaultValues: { quantity: 1, ring_size: '', box_id: '', engraving_text: '' },
     mode: 'onChange',
   });
   const values = form.watch();
@@ -79,6 +90,14 @@ export default function NewOrderPage() {
       : 20;
   limitRef.current = resolvedMax;
   const categoryId = selectedProductEarly?.category_id ?? null;
+  // Ring size is a CATEGORY property. ProductOut carries requires_ring_size but not
+  // available_sizes yet, so resolve sizes from the category (by category_id).
+  const sizeCategory = categoryId ? categories.data?.find((c) => c.id === categoryId) : undefined;
+  const requiresRingSize =
+    !isCombo && Boolean(selectedProductEarly?.requires_ring_size ?? sizeCategory?.requires_ring_size ?? false);
+  const allowedSizes = selectedProductEarly?.available_sizes ?? sizeCategory?.available_sizes ?? null;
+  const hasFixedSizes = requiresRingSize && Array.isArray(allowedSizes) && allowedSizes.length > 0;
+  sizeCtxRef.current = { required: requiresRingSize, allowed: hasFixedSizes ? allowedSizes! : null };
   const boxesEnabled = useBoxesEnabled();
   const boxes = useBoxes(boxesEnabled ? categoryId : null, true);
   const availableBoxes = (boxes.data ?? []).filter((b) => b.is_active && b.available > 0);
@@ -86,6 +105,7 @@ export default function NewOrderPage() {
   useEffect(() => {
     form.setValue('box_id', '');
     form.setValue('engraving_text', '');
+    form.setValue('ring_size', '');
   }, [values.variant_id, form]);
 
   const fieldsPerStep: Array<Array<keyof FormValues>> = [
@@ -112,7 +132,7 @@ export default function NewOrderPage() {
             : {
                 variant_id: v.variant_id,
                 quantity: v.quantity,
-                ring_size: v.ring_size.toFixed(1),
+                ring_size: requiresRingSize && v.ring_size.trim() ? v.ring_size.trim() : null,
                 box_id: boxesEnabled && v.box_id ? v.box_id : null,
                 engraving_text: engravingSupported && et.trim() ? et : null,
               },
@@ -121,11 +141,14 @@ export default function NewOrderPage() {
       {
         onSuccess: (order) => navigate(`/orders/${order.id}`),
         onError: (e) => {
-          // Backend validates the limit at creation — surface it on the field.
+          // Backend validates at creation — surface field-specific errors inline.
           const msg = (e as unknown as ApiError).message ?? '';
           if (engravingSupported && /belgi|sig'?adi/i.test(msg)) {
             form.setError('engraving_text', { message: msg });
             setStep(1);
+          } else if (/o'?lcham/i.test(msg)) {
+            form.setError('ring_size', { message: msg });
+            setStep(2);
           }
         },
       },
@@ -314,15 +337,45 @@ export default function NewOrderPage() {
           ))}
 
         {step === 2 &&
-          (isCombo ? (
+          (!requiresRingSize ? (
             <div className="rounded-xl border border-border bg-surface-2/40 px-4 py-6 text-center text-sm text-muted">
-              To'plam uchun uzuk o'lchami talab qilinmaydi — «Keyingi»ni bosing.
+              {isCombo
+                ? "To'plam uchun uzuk o'lchami talab qilinmaydi — «Keyingi»ni bosing."
+                : "Bu mahsulotда o'lcham talab qilinmaydi — «Keyingi»ni bosing."}
+            </div>
+          ) : hasFixedSizes ? (
+            <div>
+              <p className="mb-2 text-sm font-medium text-text">Uzuk o'lchami</p>
+              <div className="flex flex-wrap gap-2">
+                {allowedSizes!.map((s) => (
+                  <button
+                    key={s}
+                    type="button"
+                    onClick={() => form.setValue('ring_size', s, { shouldValidate: true })}
+                    className={`min-w-[52px] rounded-xl border px-3 py-2 text-sm font-semibold tnum transition-colors ${
+                      values.ring_size === s ? 'border-accent bg-accent-soft text-accent-ink' : 'border-border text-text hover:border-strong'
+                    }`}
+                  >
+                    {s}
+                  </button>
+                ))}
+              </div>
+              {form.formState.errors.ring_size && (
+                <p className="mt-2 text-2xs text-danger">{form.formState.errors.ring_size.message}</p>
+              )}
             </div>
           ) : (
-            <RingSizeCone
-              value={RING_SIZES.includes(values.ring_size) ? values.ring_size : 17}
-              onChange={(size) => form.setValue('ring_size', size, { shouldValidate: true })}
-            />
+            <div>
+              <Input
+                label="Uzuk o'lchami"
+                placeholder="masalan 17 yoki 16.5"
+                inputMode="decimal"
+                value={values.ring_size}
+                onChange={(e) => form.setValue('ring_size', e.target.value, { shouldValidate: true })}
+                error={form.formState.errors.ring_size?.message}
+              />
+              <p className="mt-1 text-2xs text-muted">Bu kategoriyada aniq o'lchamlar belgilanmagan — istalgan o'lcham.</p>
+            </div>
           ))}
 
         {step === 3 && (
@@ -371,10 +424,10 @@ export default function NewOrderPage() {
             <dt className="text-muted">Miqdor</dt>
             <dd className="text-text">{values.quantity || 1} dona</dd>
           </div>
-          {!isCombo && (
+          {requiresRingSize && (
             <div className="flex justify-between border-b border-border pb-2">
               <dt className="text-muted">O'lcham</dt>
-              <dd className="text-text">{values.ring_size.toFixed(1)}</dd>
+              <dd className="tnum text-text">{values.ring_size || '—'}</dd>
             </div>
           )}
           {selectedBox && (

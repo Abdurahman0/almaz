@@ -118,6 +118,10 @@ export const router = createBrowserRouter([
                 lazy: page(() => import('@/features/settings/pages/SettingsPage')),
               },
               {
+                path: '/settings/ai-prompts',
+                lazy: page(() => import('@/features/ai-prompts/pages/AiPromptsPage')),
+              },
+              {
                 path: '/settings/staff',
                 lazy: page(() => import('@/features/settings/pages/StaffPage')),
               },
