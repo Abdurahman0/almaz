@@ -80,7 +80,7 @@ export function ContentEditForm({ item, onDone }: { item: SocialItem; onDone: ()
       <p className="text-sm text-muted">{kindLabel[item.kind]} · {pickName(item.product, lang)}</p>
 
       <div>
-        <Textarea label="Izoh (caption)" placeholder="Post matni…" maxLength={MAX_CAPTION} {...form.register('caption')} />
+        <Textarea label="Izoh" placeholder="Post matni…" maxLength={MAX_CAPTION} {...form.register('caption')} />
         <div className="mt-1 flex justify-between">
           {form.formState.errors.caption ? <span className="text-2xs text-danger">{form.formState.errors.caption.message}</span> : <span />}
           <span className={`tnum text-2xs ${caption.length > MAX_CAPTION - 100 ? 'text-danger' : 'text-muted'}`}>{caption.length} / {MAX_CAPTION}</span>

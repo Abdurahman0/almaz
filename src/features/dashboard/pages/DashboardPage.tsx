@@ -45,7 +45,6 @@ export default function DashboardPage() {
         <h1 className="text-xl text-text">
           {greeting()}, {user?.full_name ?? 'mehmon'}
         </h1>
-        <p className="mt-1 text-sm text-muted">Do'kon manzarasi</p>
       </div>
 
       {/* Headline totals — server-computed (/analytics/dashboard), all-time. */}
