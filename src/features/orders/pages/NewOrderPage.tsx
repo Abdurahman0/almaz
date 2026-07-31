@@ -307,7 +307,7 @@ export default function NewOrderPage() {
                   name="box_id"
                   render={({ field }) => (
                     <Select
-                      label="Sovg'a qutisi (ixtiyoriy)"
+                      label="Sovg'a qutisi"
                       placeholder="Qutisiz"
                       value={field.value ?? ''}
                       onChange={field.onChange}

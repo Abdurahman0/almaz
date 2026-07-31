@@ -70,7 +70,7 @@ function ProductSlot({ product, name, material, stone, lowStock, globalEngraving
 }) {
   // Only jeweler facts the API actually returns; weight + ring size are not on
   // ProductOut (docs/API-GAPS.md) so they're omitted rather than shown as "—".
-  const meta = [material, stone, `${product.variants.length} variant`].filter(Boolean);
+  const meta = [material, stone].filter(Boolean);
   return (
     <CatalogCard
       imageUrl={product.media[0]?.image_url}
@@ -252,7 +252,7 @@ function ProductTable({
                   {p.available}
                 </td>
                 <td>
-                  <Badge tone={p.status === 'active' ? 'success' : 'muted'}>{productStatusLabels[p.status]}</Badge>
+                  {p.status !== 'active' && <Badge tone="muted">{productStatusLabels[p.status]}</Badge>}
                 </td>
                 <td className="text-right" onClick={(e) => e.stopPropagation()}>
                   <DropdownMenu

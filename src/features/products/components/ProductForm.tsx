@@ -473,7 +473,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="discount_price"
           render={({ field, fieldState }) => (
-            <NumberInput label="Chegirmali narx (mijoz to'laydi)" value={field.value} onChange={field.onChange} min={0} step={100_000} suffix="so'm" thousands placeholder="Chegirma yo'q" error={fieldState.error?.message} />
+            <NumberInput label="Chegirmali narx" value={field.value} onChange={field.onChange} min={0} step={100_000} suffix="so'm" thousands placeholder="Chegirma yo'q" error={fieldState.error?.message} />
           )}
         />
       </div>
@@ -484,14 +484,14 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
           control={form.control}
           name="stock_qty"
           render={({ field, fieldState }) => (
-            <NumberInput label="Ombordagi miqdor (dona)" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="0" error={fieldState.error?.message} />
+            <NumberInput label="Ombordagi miqdor" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="0" error={fieldState.error?.message} />
           )}
         />
         <Controller
           control={form.control}
           name="low_stock_threshold"
           render={({ field, fieldState }) => (
-            <NumberInput label="Kam qolgan chegarasi (bo'sh — global)" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="Global" error={fieldState.error?.message} />
+            <NumberInput label="Kam qolgan chegarasi" value={field.value} onChange={field.onChange} min={0} step={1} suffix="dona" placeholder="Global" error={fieldState.error?.message} />
           )}
         />
       </div>
@@ -512,7 +512,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
         control={form.control}
         name="ai_keywords"
         render={({ field }) => (
-          <TagInput label="AI kalit so'zlari (qidiruv uchun)" value={field.value} onChange={field.onChange} placeholder="so'z yozing, Enter bosing" />
+          <TagInput label="AI kalit so'zlari" value={field.value} onChange={field.onChange} placeholder="so'z yozing, Enter bosing" />
         )}
       />
 
@@ -583,7 +583,7 @@ export function ProductForm({ product, onDone }: ProductFormProps) {
               control={form.control}
               name="engraving_price"
               render={({ field, fieldState }) => (
-                <NumberInput label="Gravirovka narxi (bo'sh — global)" value={field.value} onChange={field.onChange} min={0} step={10_000} suffix="so'm" thousands placeholder={`Global (${globalEngravingPrice.toLocaleString('ru-RU')})`} error={fieldState.error?.message} />
+                <NumberInput label="Gravirovka narxi" value={field.value} onChange={field.onChange} min={0} step={10_000} suffix="so'm" thousands placeholder={`Global (${globalEngravingPrice.toLocaleString('ru-RU')})`} error={fieldState.error?.message} />
               )}
             />
             <Controller

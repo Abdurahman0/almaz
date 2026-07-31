@@ -233,7 +233,7 @@ function CategoryEditor({
       <div className="grid grid-cols-2 gap-2">
         <Input label="Nomi (uz)" value={draft.name_uz} onChange={(e) => setDraft({ ...draft, name_uz: e.target.value })} />
         <Input label="Nomi (ru)" value={draft.name_ru} onChange={(e) => setDraft({ ...draft, name_ru: e.target.value })} />
-        <Input label="Slug (ixtiyoriy)" placeholder="nomdan avtomatik" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
+        <Input label="Slug" placeholder="nomdan avtomatik" value={draft.slug} onChange={(e) => setDraft({ ...draft, slug: e.target.value })} />
         <Select label="Yuqori kategoriya" size="sm" placeholder="—" options={parentOptions} value={draft.parent_id} onChange={(v) => setDraft({ ...draft, parent_id: v })} />
       </div>
 

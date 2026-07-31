@@ -169,7 +169,7 @@ export default function ClientsPage() {
                   <td className="text-muted">{c.channel ? channelLabels[c.channel] : 'Buyurtmadan'}</td>
                   <td className="tnum text-right text-muted">{c.ordersCount} ta</td>
                   <td className="text-right font-semibold text-accent-ink"><Money short value={c.total} /></td>
-                  <td><HallmarkBadge tier={tierForTotal(c.total)} size="sm" /></td>
+                  <td>{tierForTotal(c.total) !== '375' && <HallmarkBadge tier={tierForTotal(c.total)} size="sm" />}</td>
                 </tr>
               ))}
             </tbody>
