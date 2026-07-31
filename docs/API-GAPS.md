@@ -16,14 +16,18 @@
 
 Fix requests for the backend: (1) handle `/reel/` links without an image, (2) set `media_type` from the URL path (`/reel/`→reel, `/stories/`→story, `/p/`→post), (3) fetch the IG thumbnail when a token is configured, (4) validate the link format.
 
+## ✅ Recently closed (verified live 2026-07-31)
+
+- **Manual order stage transition** — `POST /orders/{order_id}/status {status}` → full `OrderOut` with a new `history[]` entry. Kanban DnD now persists (`VITE_FEATURE_ORDERS_DND=true`). Note: `/status` **rejects** `cancelled`/`refunded`/`returned` (400 → use `/orders/{id}/cancel`), so the cancelled column routes to `/cancel`.
+- **Edit an order** — `PATCH /orders/{order_id}` is live and returns full `OrderOut`. **Applies `notes` only** — `status` and `items` sent to PATCH are silently ignored (200, no change, no history). So the edit form sends `notes` via PATCH and routes status through `/status`; item/ring-size editing is not offered. `VITE_FEATURE_ORDER_EDITING=true`.
+- **Category ring sizes on `ProductOut`** — `ProductOut` now returns `requires_ring_size` **and** `available_sizes` (inherited from the category). The order form reads both straight from the product — the separate category lookup was removed.
+
 ## Blocking gaps (feature is built but flag-gated OFF until these land)
 
 | # | Need | Evidence | Frontend impact |
 |---|------|----------|-----------------|
-| 1 | **Edit an order** — `PATCH /orders/{order_id}` | `PATCH` and `PUT` both return **405 Method Not Allowed** live | Order editing (client, line items, ring size, price, discount, deposit terms, due date, jeweler, notes) — built behind `VITE_FEATURE_ORDER_EDITING`, OFF |
-| 2 | **Manual order stage transition** — e.g. `POST /orders/{order_id}/status {status}` | Only `POST /orders/{id}/cancel` exists; status is otherwise workflow-driven (payment approve/reject, delivery) | Kanban drag-&-drop to change stage; inline stage change from a row — built behind `VITE_FEATURE_ORDERS_DND`, OFF (board stays read-only until this lands) |
-| 3 | **Clients CRUD** — `GET/POST/PATCH/DELETE /clients` (or `/customers`) | No `/clients` or `/customers` path exists; clients are derived from `/inbox/conversations` | Cannot create/edit/delete a client from the CRM; the Clients page is read-only (derived) |
-| 4 | **CORS origins** — allow the frontend origin(s) | `OPTIONS /auth/login` with `Origin: http://localhost:4173` → **400, no `access-control-allow-origin`** | Browser app cannot reach the API from local dev or any un-allowlisted deploy; add `http://localhost:4173` + the prod frontend origin to `CORS_ORIGINS` |
+| 1 | **Clients CRUD** — `GET/POST/PATCH/DELETE /clients` (or `/customers`) | No `/clients` or `/customers` path exists; clients are derived from `/inbox/conversations` | Cannot create/edit/delete a client from the CRM; the Clients page is read-only (derived) |
+| 2 | **CORS origins** — allow the frontend origin(s) | `OPTIONS /auth/login` with `Origin: http://localhost:4173` → **400, no `access-control-allow-origin`** | Browser app cannot reach the API from local dev or any un-allowlisted deploy; add `http://localhost:4173` + the prod frontend origin to `CORS_ORIGINS` |
 
 ## Non-blocking / nice-to-have
 
@@ -31,8 +35,8 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 |------|------|
 | **Order list sorting** — a `sort` / `order_by` param on `GET /orders` | No sort param; the UI relies on the default (confirmed newest-first). Explicit sorting would make it robust. |
 | **Server-side dashboard time-series** — today/weekly revenue + trends on `/analytics/dashboard` | The endpoint returns all-time totals + KPIs only (no time-windowing). The weekly chart is currently a fully-paginated `/orders?date_from=…` window (correct, but N requests for a busy week). A `range` param on analytics would collapse it to one call. |
-| **`ProductOut` spec drift** — real response occasionally carries extra keys not in `/openapi.json` | Non-breaking (extra keys ignored), but the spec should document them so generated types stay accurate. (`requires_ring_size` is on **Category**, now wired: types + a toggle in the category form.) |
-| **Product weight + ring size on `ProductOut`** | Jewelers want og'irlik (g) and o'lcham on the product card, but `ProductOut` returns neither (ring size lives only on `OrderItemOut`). The card omits them rather than printing "—"; add `weight_grams` + a size/size-range to `ProductOut` and they'll appear automatically. |
+| **`ProductOut` spec drift** — real response occasionally carries extra keys not in `/openapi.json` | Non-breaking (extra keys ignored), but the spec should document them so generated types stay accurate. (`requires_ring_size` + `available_sizes` are inherited from **Category** and now returned on `ProductOut` — wired everywhere.) |
+| **Product weight on `ProductOut`** | Jewelers want og'irlik (g) on the product card, but `ProductOut` doesn't return it. The card omits it rather than printing "—"; add `weight_grams` to `ProductOut` and it'll appear automatically. (Ring size/`available_sizes` now shipped.) |
 | **Shared product image (seed-data quality, not an API gap)** | Live `/catalog/products` returns `.../static/uzuk.jpg` as `media[0].image_url` for 12 of 13 products (verified 2026-07-29). The frontend renders exactly what the API sends — no client-side default-image substitution. Point each product at its own photo (upload endpoint works) to fix the "every product looks the same" effect. |
 | **Report export** — `GET /analytics/report/export` (CSV/PDF) | No export endpoint exists. The dead "Eksport" button (was permanently disabled behind a "Tez orada" tooltip) was **removed** rather than faked; re-add it the moment an export endpoint lands. |
 | **Global Instagram feed** — `GET /catalog/instagram-media` (all media, filter by `media_type`) | Instagram media exists only per product (`GET /catalog/products/{id}/instagram`); there is no global list, `/social-posts`, or feed endpoint (all 404, verified 2026-07-29). The new **Instagram** page (`/social`) therefore aggregates real data client-side — page products, then fetch each product's media in parallel (N+1). A global list (optionally `?media_type=reel|story|post`) would collapse it to one call. |

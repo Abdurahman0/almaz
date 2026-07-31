@@ -514,6 +514,8 @@ export interface OrderOut {
   items_total: string;
   delivery_fee: string;
   grand_total: string;
+  /** Internal note, editable via PATCH /orders/{id}. */
+  notes?: string | null;
   created_at: string;
   items: OrderItemOut[];
   history: OrderStatusHistoryOut[];
@@ -521,7 +523,9 @@ export interface OrderOut {
 export interface OrderCancel {
   reason?: string | null;
 }
-/** Shape for the not-yet-existing PATCH /orders/{id} (see docs/API-GAPS.md). */
+/** PATCH /orders/{id}. Live: only `notes` (and customer_id) actually apply —
+ *  `status` and `items` are ignored by the server, so status goes via
+ *  POST /orders/{id}/status (history-preserving) instead. */
 export interface OrderUpdate {
   customer_id?: string;
   items?: OrderItemCreate[];

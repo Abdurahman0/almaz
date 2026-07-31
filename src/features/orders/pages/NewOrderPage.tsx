@@ -8,7 +8,7 @@ import { Button, Card, Combobox, ErrorCard, Input, Money, NumberInput, PageHeade
 import { formatMoney } from '@/shared/lib/format';
 import { useCreateOrder } from '../hooks';
 import { useCustomers } from '@/features/inbox/hooks';
-import { useBoxes, useCategories, useCombos, useProducts } from '@/features/products/hooks';
+import { useBoxes, useCombos, useProducts } from '@/features/products/hooks';
 import { useBoxesEnabled, useEngravingMaxChars, useEngravingPrice } from '@/features/settings/hooks';
 import { resolveEngravingMax, resolveEngravingPrice } from '@/features/products/lib/engraving';
 import { pickName } from '@/shared/lib/localize';
@@ -35,7 +35,6 @@ export default function NewOrderPage() {
   const customers = useCustomers();
   const products = useProducts();
   const combos = useCombos({ status: 'active', limit: 100 });
-  const categories = useCategories();
   const createOrder = useCreateOrder();
   const globalEngravingMax = useEngravingMaxChars();
   const globalEngravingPrice = useEngravingPrice();
@@ -90,12 +89,9 @@ export default function NewOrderPage() {
       : 20;
   limitRef.current = resolvedMax;
   const categoryId = selectedProductEarly?.category_id ?? null;
-  // Ring size is a CATEGORY property. ProductOut carries requires_ring_size but not
-  // available_sizes yet, so resolve sizes from the category (by category_id).
-  const sizeCategory = categoryId ? categories.data?.find((c) => c.id === categoryId) : undefined;
-  const requiresRingSize =
-    !isCombo && Boolean(selectedProductEarly?.requires_ring_size ?? sizeCategory?.requires_ring_size ?? false);
-  const allowedSizes = selectedProductEarly?.available_sizes ?? sizeCategory?.available_sizes ?? null;
+  // Ring size rules come straight from ProductOut (inherited from its category).
+  const requiresRingSize = !isCombo && Boolean(selectedProductEarly?.requires_ring_size);
+  const allowedSizes = selectedProductEarly?.available_sizes ?? null;
   const hasFixedSizes = requiresRingSize && Array.isArray(allowedSizes) && allowedSizes.length > 0;
   sizeCtxRef.current = { required: requiresRingSize, allowed: hasFixedSizes ? allowedSizes! : null };
   const boxesEnabled = useBoxesEnabled();
