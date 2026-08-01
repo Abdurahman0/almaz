@@ -67,7 +67,7 @@ export function enrichMedia(m: InstagramMediaOut, products: Map<string, Pick<Pro
 export async function fetchSocialFeed(params: InstagramMediaListParams = {}): Promise<SocialItem[]> {
   const [media, productPage] = await Promise.all([
     listInstagramMedia(params),
-    listProducts({ limit: 500 }),
+    listProducts({ limit: 200 }),
   ]);
   const pmap = new Map(productPage.items.map((p) => [p.id, p] as const));
   return media
