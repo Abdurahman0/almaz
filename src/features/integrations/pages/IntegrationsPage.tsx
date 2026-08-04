@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Link2, RefreshCw, Send, Trash2, XCircle } from 'lucide-react';
+import { ArrowDownLeft, ArrowUpRight, CheckCircle2, Link2, RefreshCw, Send, Trash2, XCircle } from 'lucide-react';
 import {
   Badge,
   Button,
@@ -10,6 +10,7 @@ import {
   Input,
   PageHeader,
   PasswordInput,
+  Select,
   SkeletonRows,
   Switch,
   toast,
@@ -256,37 +257,62 @@ function InstagramActions() {
 }
 
 function EventsLog() {
-  const events = useIntegrationEvents({ limit: 20 });
+  const [provider, setProvider] = useState('');
+  const events = useIntegrationEvents({ limit: 20, provider: provider || undefined });
+  const total = events.data?.total;
   return (
     <Card className="overflow-x-auto p-0">
-      <h2 className="px-6 pt-6 text-md font-semibold text-text">Kelgan eventlar</h2>
+      <div className="flex flex-wrap items-center justify-between gap-3 px-6 pt-6">
+        <h2 className="text-md font-semibold text-text">
+          Eventlar{total != null && <span className="text-muted"> · {total}</span>}
+        </h2>
+        <div className="w-44">
+          <Select
+            size="sm"
+            placeholder="Barcha providerlar"
+            options={[
+              { value: '', label: 'Barcha providerlar' },
+              ...PROVIDERS.map((p) => ({ value: p.id, label: p.label })),
+            ]}
+            value={provider}
+            onChange={setProvider}
+          />
+        </div>
+      </div>
       {events.isPending && <div className="p-6"><SkeletonRows rows={4} /></div>}
       {events.isError && <div className="p-6"><ErrorCard error={events.error} onRetry={() => events.refetch()} /></div>}
       {events.isSuccess && events.data.items.length === 0 && (
         <EmptyState heading="Eventlar yo'q" hint="Kelgan webhook payloadlari shu yerda ko'rinadi" />
       )}
       {events.isSuccess && events.data.items.length > 0 && (
-        <table className="data-table mt-3 min-w-[480px]">
+        <table className="data-table mt-3 min-w-[560px]">
           <tbody>
-            {events.data.items.map((e) => (
-              <tr key={e.id}>
-                <td>
-                  <Badge tone="muted">{e.provider}</Badge>
-                </td>
-                <td>
-                  {e.status === 'ok' || e.status === 'processed' ? (
-                    <span className="inline-flex items-center gap-1 text-success">
-                      <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.5} /> {e.status}
+            {events.data.items.map((e) => {
+              const failed = !(e.status === 'ok' || e.status === 'processed' || e.status === 'received');
+              return (
+                <tr key={e.id}>
+                  <td><Badge tone="muted">{e.provider}</Badge></td>
+                  <td className="text-muted">
+                    <span className="inline-flex items-center gap-1">
+                      {e.direction === 'inbound'
+                        ? <ArrowDownLeft className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        : <ArrowUpRight className="h-3.5 w-3.5" strokeWidth={1.5} />}
+                      {e.direction === 'inbound' ? 'Kirish' : 'Chiqish'}
                     </span>
-                  ) : (
-                    <span className="inline-flex items-center gap-1 text-danger">
-                      <XCircle className="h-3.5 w-3.5" strokeWidth={1.5} /> {e.status}
+                  </td>
+                  <td>
+                    <span className={`inline-flex items-center gap-1 ${failed ? 'text-danger' : 'text-success'}`}>
+                      {failed
+                        ? <XCircle className="h-3.5 w-3.5" strokeWidth={1.5} />
+                        : <CheckCircle2 className="h-3.5 w-3.5" strokeWidth={1.5} />}
+                      {e.status}
                     </span>
-                  )}
-                </td>
-                <td className="tnum text-right text-muted">{formatDateTime(e.created_at)}</td>
-              </tr>
-            ))}
+                    {failed && e.note && <p className="mt-0.5 max-w-[260px] truncate text-2xs text-muted">{e.note}</p>}
+                  </td>
+                  <td className="tnum text-right text-muted">{formatDateTime(e.created_at)}</td>
+                </tr>
+              );
+            })}
           </tbody>
         </table>
       )}

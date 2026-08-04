@@ -122,9 +122,10 @@ export async function listProductInstagram(productId: string): Promise<Instagram
 }
 
 /** Global content list (flat array). Real filters: product_id, status, media_type,
- *  limit, offset. ordering/date filters are ignored server-side (sort on client). */
+ *  limit, offset. ordering/date filters are ignored server-side (sort on client).
+ *  NOTE: the API hard-caps limit at 200 (422 above it). */
 export async function listInstagramMedia(params: InstagramMediaListParams = {}): Promise<InstagramMediaOut[]> {
-  return (await api.get<InstagramMediaOut[]>('/catalog/instagram-media', { params: { limit: 500, ...params } })).data;
+  return (await api.get<InstagramMediaOut[]>('/catalog/instagram-media', { params: { limit: 200, ...params } })).data;
 }
 
 /** Fetch a single content item by id (deep link). 404 → thrown ApiError. */

@@ -1,5 +1,5 @@
 import { lazy, Suspense, type ComponentType, type ReactElement } from 'react';
-import { createBrowserRouter, Navigate } from 'react-router-dom';
+import { createBrowserRouter } from 'react-router-dom';
 
 // The CRM shell (app chrome + framer-motion ring transition + auth guard) is
 // lazy-loaded so it stays OUT of the entry chunk. Public customer routes
@@ -130,16 +130,10 @@ export const router = createBrowserRouter([
                 path: '/settings/audit',
                 lazy: page(() => import('@/features/settings/pages/AuditLogPage')),
               },
-              // Integrations page is hidden for now — no one may view it or its
-              // data. The page module is no longer imported (its chunk isn't
-              // built and its endpoints are never called); direct URLs redirect
-              // to Settings. To restore: re-enable the route below + the Sidebar
-              // nav item in src/app/layout/Sidebar.tsx.
-              // {
-              //   path: '/settings/integrations',
-              //   lazy: page(() => import('@/features/integrations/pages/IntegrationsPage')),
-              // },
-              { path: '/settings/integrations', element: <Navigate to="/settings" replace /> },
+              {
+                path: '/settings/integrations',
+                lazy: page(() => import('@/features/integrations/pages/IntegrationsPage')),
+              },
               // Dev-only visual QA for the UI kit
               ...(import.meta.env.DEV
                 ? [{ path: '/dev/ui', lazy: page(() => import('@/features/dev/UiDemoPage')) }]

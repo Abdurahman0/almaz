@@ -227,7 +227,6 @@ export interface IntegrationConfigOut {
   /** Sensitive — only returned to holders of settings:manage_integrations. */
   value: string;
   is_active: boolean;
-  created_at: string;
   updated_at: string;
 }
 export interface IntegrationConfigCreate {
@@ -243,8 +242,13 @@ export interface IntegrationConfigUpdate {
 export interface IntegrationEventOut {
   id: string;
   provider: string;
+  /** inbound (webhook received) | outbound (API call made). */
+  direction: string;
   status: string;
-  payload: unknown;
+  /** Raw webhook/API payload as stored. */
+  raw: unknown;
+  /** Error/processing note (null when clean). */
+  note: string | null;
   created_at: string;
 }
 export interface TelegramWebhookInfo {

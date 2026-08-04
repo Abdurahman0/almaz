@@ -14,10 +14,12 @@ import {
   ScrollText,
   Sparkles,
   Instagram,
+  Cable,
   ChevronsLeft,
   ChevronsRight,
 } from 'lucide-react';
 import { useUiStore } from '@/shared/stores/ui';
+import { useAuthStore } from '@/shared/stores/auth';
 import { useIntroStore } from '@/shared/stores/intro';
 import { useT, type TranslationKey } from '@/shared/lib/i18n';
 import { RingCanvas } from '@/shared/ui/RingCanvas';
@@ -36,9 +38,7 @@ export const navItems: Array<{ to: string; icon: typeof Gem; label: TranslationK
   { to: '/settings/ai-prompts', icon: Sparkles, label: 'nav.aiPrompts' },
   { to: '/settings/staff', icon: UserCog, label: 'nav.staff' },
   { to: '/settings/audit', icon: ScrollText, label: 'nav.audit' },
-  // Integrations page hidden for now (no one may view it or its data). To
-  // restore, re-add this item + re-enable its route in src/app/router.tsx:
-  // { to: '/settings/integrations', icon: Cable, label: 'nav.integrations', perm: 'settings:manage_integrations' },
+  { to: '/settings/integrations', icon: Cable, label: 'nav.integrations', perm: 'settings:manage_integrations' },
   { to: '/settings', icon: Settings, label: 'nav.settings' },
 ];
 
@@ -69,7 +69,12 @@ export function Sidebar() {
   const activePath = useActivePath();
   // Reduced motion → instant snap; otherwise a gentle spring (~260ms, no overshoot).
   const spring = reduce ? { duration: 0 } : ({ type: 'spring', stiffness: 380, damping: 32 } as const);
-  const items = navItems.filter((it) => !it.perm);
+  // Permission-gated items show only when the user holds the permission
+  // (admin/owner roles hold everything) — mirrors useHasPermission.
+  const user = useAuthStore((s) => s.user);
+  const hasPerm = (perm: string) =>
+    Boolean(user && (user.roles.includes('admin') || user.roles.includes('owner') || user.permissions.includes(perm)));
+  const items = navItems.filter((it) => !it.perm || hasPerm(it.perm));
 
   return (
     <aside
