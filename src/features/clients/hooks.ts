@@ -15,6 +15,8 @@ export interface ClientRow {
   name: string;
   username: string | null;
   phone: string | null;
+  /** Customer created_at when the API returns it (see docs/API-GAPS.md). */
+  createdAt: string | null;
   /** Conversation to deep-link back into the Inbox (null if none visible). */
   conversationId: string | null;
   channel: Channel | null;
@@ -53,6 +55,7 @@ export function useClients() {
         name: c.full_name ?? (c.username ? `@${c.username}` : `Mijoz ${c.external_id.slice(0, 6)}`),
         username: c.username,
         phone: c.phone,
+        createdAt: c.created_at ?? null,
         conversationId: conv.id,
         channel: c.channel,
         language: c.language,
@@ -72,6 +75,7 @@ export function useClients() {
           name: `Mijoz ${order.customer_id.slice(0, 8)}`,
           username: null,
           phone: null,
+          createdAt: null,
           conversationId: null,
           channel: null,
           language: null,

@@ -195,8 +195,9 @@ interface CatDraft {
   parent_id: string;
   requiresRingSize: boolean;
   availableSizes: string[];
+  requiresBox: boolean;
 }
-const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '', requiresRingSize: false, availableSizes: [] };
+const emptyCat: CatDraft = { name_uz: '', name_ru: '', slug: '', parent_id: '', requiresRingSize: false, availableSizes: [], requiresBox: false };
 
 // Common ring sizes 15–22 in 0.5 steps as one-tap chips (strings so decimals survive).
 const COMMON_SIZES: string[] = Array.from({ length: 15 }, (_, i) => {
@@ -243,6 +244,16 @@ function CategoryEditor({
           <p className="text-2xs text-muted">Uzuk kabi mahsulotlarда buyurtmada o'lcham so'raladi.</p>
         </div>
         <Switch checked={draft.requiresRingSize} onCheckedChange={(v) => setDraft({ ...draft, requiresRingSize: v })} />
+      </div>
+
+      <div className="flex items-center justify-between gap-4 border-t border-border pt-2">
+        <div className="min-w-0">
+          <p className="text-sm font-medium text-text">Quti talab qilinadimi?</p>
+          <p className="text-2xs text-muted">
+            Bu kategoriyadagi mahsulotlar buyurtmasida sovg'a qutisi tanlash majburiy bo'ladi.
+          </p>
+        </div>
+        <Switch checked={draft.requiresBox} onCheckedChange={(v) => setDraft({ ...draft, requiresBox: v })} />
       </div>
 
       {draft.requiresRingSize && (
@@ -329,6 +340,7 @@ function CategoryTab() {
     requires_ring_size: d.requiresRingSize,
     // Off, or on-but-empty → null (unrestricted). Never send [] (per the doc).
     available_sizes: d.requiresRingSize && d.availableSizes.length > 0 ? d.availableSizes : null,
+    requires_box: d.requiresBox,
   });
 
   const startEdit = (c: CategoryOut) => {
@@ -340,6 +352,7 @@ function CategoryTab() {
       parent_id: c.parent_id ?? '',
       requiresRingSize: c.requires_ring_size ?? false,
       availableSizes: c.available_sizes ?? [],
+      requiresBox: c.requires_box ?? false,
     });
   };
 

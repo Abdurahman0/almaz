@@ -100,3 +100,25 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 | 4 | **Customer `created_at`** | `CustomerOut` has no created/joined timestamp | "Mijoz bo'lgan sana" is approximated by the earliest order date (labelled "Birinchi buyurtma") |
 | 5 | **Discount on `OrderOut`** | Totals are `items_total`/`delivery_fee`/`grand_total` only — no discount field | The totals panel has no discount row (nothing to show) |
 | 6 | **Product/image on `OrderItemOut`** | Items carry only `variant_id` (+ box/engraving snapshots) | Product name/photo/material/stone resolved client-side from the single cached `/catalog/products` list + the two reference dictionaries; box photos from one `/catalog/categories/{id}/boxes` call per unique category with a boxed item — no N+1 |
+
+## Gap-fix batch announced 2026-08-06 — integration shipped, LIVE VERIFICATION PENDING
+
+The backend reports all four order-detail gaps fixed. This workspace currently has
+**no API credentials** (the OpenAPI docs endpoint itself now requires login), so the
+fixes could not be probed. Everything below is integrated behind feature detection
+and lights up as soon as the fields actually appear; run the one-shot probe when
+credentials are available and update this section with real findings:
+
+```bash
+ALMAZ_EMAIL=... ALMAZ_PASSWORD=... node scripts/probe-gaps.mjs
+```
+
+| # | Announced fix | Integrated (feature-detected) | Probe checks |
+|---|---------------|-------------------------------|--------------|
+| 1 | BTS branch on `GET /delivery/orders/{id}` | `DeliveryOut.bts_branch{name,region,district,address,landmark,phone,work_hours,lat,lng}` typed optional; delivery card renders the full branch block; map preview draws customer pin + branch marker + dashed connector + "Masofa ≈ N km" | exact field name/shape; whether `OrderOut` carries anything usable for the Kanban/list compact branch label (without it, per-row branch names would be an N+1 — **not** wired yet) |
+| 2 | `CustomerOut.created_at` | typed optional; client card shows "Mijoz: <sana>dan beri" when present, first-order date only as fallback | field presence + format |
+| 3 | Category create 500 / PATCH regression | form already sends the full body; nothing to change client-side | minimal + full create round-trip, PATCH each field, `available_sizes: null` clearing, cleanup |
+| 4 | `requires_box` writable | "Quti talab qilinadimi?" switch added to the category form (create + edit, partial PATCH) | round-trip on create/PATCH; propagation to `ProductOut` (unconditional vs only-when-true); end-to-end: box-less order against a box-requiring product — expects a 4xx, reports a server-side enforcement gap if accepted |
+
+Still open (unchanged): `PaymentOut.amount`, order discount field, content list
+`ordering`/`date_from` ignored, engagement counters always 0.

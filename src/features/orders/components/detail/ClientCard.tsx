@@ -109,10 +109,16 @@ export function ClientCard({ customerId, client, clientsPending, currentOrderId 
               @{client.username} · {client.channel === 'telegram' ? 'Telegram' : 'Instagram'}
             </p>
           )}
-          {firstOrderAt && (
+          {client?.createdAt ? (
             <p className="mt-0.5 text-xs text-muted">
-              Birinchi buyurtma: <span className="tnum">{formatDate(firstOrderAt)}</span>
+              Mijoz: <span className="tnum">{formatDate(client.createdAt)}</span>dan beri
             </p>
+          ) : (
+            firstOrderAt && (
+              <p className="mt-0.5 text-xs text-muted">
+                Birinchi buyurtma: <span className="tnum">{formatDate(firstOrderAt)}</span>
+              </p>
+            )
           )}
         </div>
       </div>

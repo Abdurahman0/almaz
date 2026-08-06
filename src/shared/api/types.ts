@@ -266,6 +266,8 @@ export interface CategoryCreate {
   parent_id?: string | null;
   requires_ring_size?: boolean;
   available_sizes?: string[] | null;
+  /** Writable since the backend regression fix (was: create 500 / PATCH ignored). */
+  requires_box?: boolean;
 }
 export type CategoryUpdate = Partial<CategoryCreate>;
 
@@ -459,6 +461,9 @@ export interface CustomerOut {
    *  object inside GET /inbox/conversations. */
   phone: string | null;
   language: string;
+  /** When the customer first appeared. Announced by the backend gap-fix; the UI
+   *  feature-detects it (falls back to the first-order date when absent). */
+  created_at?: string | null;
 }
 /** PATCH /inbox/customers/{id} — partial; only the given fields apply. Unknown
  *  fields → 422. Sending null clears the field. */
@@ -607,7 +612,10 @@ export interface DeliveryOut {
   bts_branch?: {
     id: string;
     name: string;
+    region?: string | null;
+    district?: string | null;
     address?: string | null;
+    landmark?: string | null;
     work_hours?: string | null;
     phone?: string | null;
     lat?: number | string | null;

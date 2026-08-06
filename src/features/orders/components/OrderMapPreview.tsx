@@ -5,6 +5,17 @@ import { ExternalLink, Maximize2 } from 'lucide-react';
 import { Modal } from '@/shared/ui';
 
 const TILES = 'https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png';
+
+/** Great-circle distance in km (same figure the /map page shows per branch). */
+function distanceKm(aLat: number, aLng: number, bLat: number, bLng: number): number {
+  const R = 6371;
+  const dLat = ((bLat - aLat) * Math.PI) / 180;
+  const dLng = ((bLng - aLng) * Math.PI) / 180;
+  const s =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos((aLat * Math.PI) / 180) * Math.cos((bLat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
 const ATTRIB = '&copy; OpenStreetMap';
 
 function pinIcon(): L.DivIcon {
@@ -116,7 +127,12 @@ export function OrderMapPreview({ lat, lng, branch }: OrderMapPreviewProps) {
           <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.5} />
         </span>
       </button>
-      <div className="flex gap-3 text-xs">
+      <div className="flex items-center gap-3 text-xs">
+        {branch && (
+          <span className="tnum text-muted">
+            Masofa ≈ {distanceKm(lat, lng, branch.lat, branch.lng).toFixed(1)} km
+          </span>
+        )}
         <a href={gmaps} target="_blank" rel="noreferrer" className="inline-flex items-center gap-1 text-accent-ink hover:underline">
           <ExternalLink className="h-3 w-3" strokeWidth={1.5} /> Google xarita
         </a>

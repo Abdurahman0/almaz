@@ -68,7 +68,12 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
           {branch && (
             <div className="rounded-[var(--r-sm)] border border-border bg-surface-2 p-3">
               <p className="text-sm font-semibold text-text">{branch.name}</p>
-              {branch.address && <p className="mt-0.5 text-xs text-muted">{branch.address}</p>}
+              {(branch.region || branch.district || branch.address) && (
+                <p className="mt-0.5 text-xs text-muted">
+                  {[branch.region, branch.district, branch.address].filter(Boolean).join(', ')}
+                </p>
+              )}
+              {branch.landmark && <p className="mt-0.5 text-xs text-muted">Orientir: {branch.landmark}</p>}
               <p className="tnum mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
                 {branch.work_hours && <span>{branch.work_hours}</span>}
                 {branch.phone && (
