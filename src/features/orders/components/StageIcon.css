@@ -1,5 +1,6 @@
-/* Workshop stage icons — container states + subtle looping motion (active+lg
- * only). All motion is transform / opacity / stroke-dashoffset. */
+/* Order-stage icon containers — done / active / pending states shared by the
+ * detail stepper and any inline stage marker. The active step's icon pulses
+ * via the tailwind pulse-soft utility (reduced-motion safe). */
 
 .stage-icon {
   display: inline-flex;
@@ -12,7 +13,7 @@
 .stage-icon--lg {
   width: 62px;
   height: 62px;
-  border-radius: 16px;
+  border-radius: var(--r-lg);
   border: 1px solid var(--border);
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
@@ -36,108 +37,3 @@
 
 .stage-icon--pending { color: var(--text-muted); }
 .stage-icon--lg.stage-icon--pending { opacity: 0.4; }
-
-/* ================= animations (svg.si-anim only) ================= */
-
-/* Eskiz — the arc draws in while the pencil rides along it. */
-.si-anim[data-stage='sketch'] .si-stroke {
-  stroke-dasharray: 1;
-  animation: si-sketch-draw 2.6s ease-in-out infinite;
-}
-.si-anim[data-stage='sketch'] .si-pencil {
-  animation: si-sketch-pencil 2.6s ease-in-out infinite;
-}
-@keyframes si-sketch-draw {
-  0% { stroke-dashoffset: 1; }
-  48% { stroke-dashoffset: 0; }
-  80% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: 1; }
-}
-@keyframes si-sketch-pencil {
-  0% { transform: translate(-13px, 13px); }
-  48% { transform: translate(0, 0); }
-  80% { transform: translate(0, 0); }
-  100% { transform: translate(-13px, 13px); }
-}
-
-/* Quyish — crucible tips, a droplet falls, the mold rim glows. */
-.si-anim[data-stage='casting'] .si-crucible {
-  transform-box: fill-box;
-  transform-origin: 92% 96%;
-  animation: si-cast-tip 2.6s ease-in-out infinite;
-}
-.si-anim[data-stage='casting'] .si-droplet { animation: si-cast-drop 2.6s ease-in infinite; }
-.si-anim[data-stage='casting'] .si-rim { animation: si-cast-glow 2.6s ease-in-out infinite; }
-@keyframes si-cast-tip {
-  0%, 12% { transform: rotate(0deg); }
-  40%, 68% { transform: rotate(15deg); }
-  100% { transform: rotate(0deg); }
-}
-@keyframes si-cast-drop {
-  0%, 32% { transform: translateY(-2px); opacity: 0; }
-  44% { opacity: 1; }
-  66% { transform: translateY(6px); opacity: 1; }
-  74%, 100% { transform: translateY(6px); opacity: 0; }
-}
-@keyframes si-cast-glow {
-  0%, 58% { opacity: 0.5; }
-  72% { opacity: 1; stroke-width: 2.4; }
-  100% { opacity: 0.5; }
-}
-
-/* Tosh o'rnatish — tweezers + gem descend and settle, then a sparkle pops. */
-.si-anim[data-stage='setting'] .si-descend { animation: si-set-descend 2.6s ease-in-out infinite; }
-.si-anim[data-stage='setting'] .si-sparkle {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: si-set-sparkle 2.6s ease-out infinite;
-}
-@keyframes si-set-descend {
-  0% { transform: translateY(-4px); }
-  38% { transform: translateY(0); }
-  48% { transform: translateY(-1.5px); }
-  58%, 100% { transform: translateY(0); }
-}
-@keyframes si-set-sparkle {
-  0%, 55% { opacity: 0; transform: scale(0.4); }
-  66% { opacity: 1; transform: scale(1); }
-  82%, 100% { opacity: 0; transform: scale(0.6); }
-}
-
-/* Sayqal — the wheel spins, a shine fades in and out on the band. */
-.si-anim[data-stage='polish'] .si-wheel {
-  transform-box: fill-box;
-  transform-origin: center;
-  animation: si-spin 2.8s linear infinite;
-}
-.si-anim[data-stage='polish'] .si-shine { animation: si-polish-shine 2.6s ease-in-out infinite; }
-@keyframes si-spin {
-  to { transform: rotate(360deg); }
-}
-@keyframes si-polish-shine {
-  0%, 100% { opacity: 0; }
-  50% { opacity: 1; }
-}
-
-/* Topshirildi — the lid settles down, then the check draws in. */
-.si-anim[data-stage='delivered'] .si-lid { animation: si-deliver-lid 2.6s ease-in-out infinite; }
-.si-anim[data-stage='delivered'] .si-check {
-  stroke-dasharray: 1;
-  animation: si-deliver-check 2.6s ease-in-out infinite;
-}
-@keyframes si-deliver-lid {
-  0% { transform: translateY(-4px); }
-  28%, 100% { transform: translateY(0); }
-}
-@keyframes si-deliver-check {
-  0%, 34% { stroke-dashoffset: 1; }
-  62% { stroke-dashoffset: 0; }
-  90% { stroke-dashoffset: 0; }
-  100% { stroke-dashoffset: 1; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .si-anim * {
-    animation: none !important;
-  }
-}

@@ -56,10 +56,10 @@ export default function OrderDetailPage() {
 
   if (order.isPending) {
     return (
-      <div className="mx-auto max-w-[1400px] space-y-6">
+      <div className="space-y-6">
         <Skeleton className="h-9 w-72" />
         <Skeleton className="h-24 w-full" />
-        <div className="grid gap-6 lg:grid-cols-[1fr_380px]">
+        <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
           <div className="space-y-6">
             <Skeleton className="h-72 w-full" />
             <Skeleton className="h-40 w-full" />
@@ -142,7 +142,7 @@ export default function OrderDetailPage() {
   );
 
   return (
-    <div className="mx-auto max-w-[1400px]">
+    <div>
       {/* Sticky header: number + status + stepper + actions stay reachable */}
       <div className="print-header sticky top-[57px] z-20 -mx-2 mb-6 rounded-b-[var(--r-md)] border-b border-border bg-glass px-2 pb-3 pt-1 backdrop-blur">
         <div className="flex flex-wrap items-center justify-between gap-3">
@@ -164,12 +164,12 @@ export default function OrderDetailPage() {
           </div>
           <div className="print-hide hidden flex-wrap items-center gap-2 md:flex">{actions}</div>
         </div>
-        <div className="mt-3 max-w-2xl">
-          <StageStepper status={o.status} />
+        <div className="mt-3 max-w-3xl">
+          <StageStepper status={o.status} history={o.history} />
         </div>
       </div>
 
-      <div className="grid items-start gap-6 lg:grid-cols-[1fr_380px]">
+      <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,1fr)_420px]">
         {/* Left — the order itself */}
         <div className="min-w-0 space-y-6">
           <ItemsCard

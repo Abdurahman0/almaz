@@ -35,20 +35,20 @@ export function ItemsCard({ order, variantMap, boxMap, productsPending, zoneLabe
             (Number(item.unit_price) + Number(item.engraving_price || 0) + Number(item.box_price || 0)) *
             item.quantity;
           return (
-            <div key={item.id} className="flex gap-4 py-4 first:pt-0 last:pb-0">
+            <div key={item.id} className="flex gap-4 py-5 first:pt-0 last:pb-0">
               {/* photo */}
               {productsPending && !rv ? (
-                <Skeleton className="h-20 w-20 shrink-0 rounded-[var(--r-sm)]" />
+                <Skeleton className="h-24 w-24 shrink-0 rounded-[var(--r-sm)]" />
               ) : rv?.image ? (
                 <Link to={`/products/${rv.product.id}`} className="shrink-0" aria-label={rv.name}>
                   <img
                     src={rv.image}
                     alt={rv.name}
-                    className="h-20 w-20 rounded-[var(--r-sm)] border border-border bg-surface-2 object-contain"
+                    className="h-24 w-24 rounded-[var(--r-sm)] border border-border bg-surface-2 object-contain"
                   />
                 </Link>
               ) : (
-                <span className="flex h-20 w-20 shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-border bg-surface-2 text-muted">
+                <span className="flex h-24 w-24 shrink-0 items-center justify-center rounded-[var(--r-sm)] border border-border bg-surface-2 text-muted">
                   <Gem className="h-7 w-7" strokeWidth={1.25} />
                 </span>
               )}

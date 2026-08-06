@@ -72,13 +72,6 @@ const uz = {
   'orders.paymentRing': "To'lov holati",
   'orders.delivery': 'Yetkazib berish',
   'orders.checkoutLink': 'Checkout havola',
-  // stages
-  'stage.eskiz': 'Eskiz',
-  'stage.quyish': 'Quyish',
-  'stage.tosh': "Tosh o'rnatish",
-  'stage.sayqal': 'Sayqal',
-  'stage.topshirildi': 'Topshirildi',
-  'stage.bekor': 'Bekor qilingan',
   // products
   'products.title': 'Mahsulotlar',
   'products.new': 'Yangi mahsulot',

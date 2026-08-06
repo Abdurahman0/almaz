@@ -12,13 +12,14 @@ import {
   type DragEndEvent,
   type DragStartEvent,
 } from '@dnd-kit/core';
-import { User } from 'lucide-react';
+import { User, XCircle, type LucideIcon } from 'lucide-react';
 import { ConfirmDialog, ErrorCard, Money, SkeletonRows, toast } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
 import { useStaff } from '@/features/settings/rbac';
 import { useCancelOrderAny, useOrders, useSetOrderStatus } from '../hooks';
 import type { OrderOut, OrderStatus } from '@/shared/api/types';
+import { ORDER_STAGES, TERMINAL_STATUSES } from '../stages';
 
 /*
  * Drag-&-drop order board built on the REAL order statuses (not invented craft
@@ -30,21 +31,19 @@ interface BoardColumn {
   key: string;
   label: string;
   color: string;
+  icon?: LucideIcon;
   /** Status a drop into this column assigns. */
   primary: OrderStatus;
   /** Real statuses that live in this column. */
   statuses: OrderStatus[];
 }
 
+/* Columns = the shared ORDER_STAGES (one lifecycle definition everywhere)
+ * plus the terminal column, which is not a stage — drops there route via
+ * /cancel, not /status. */
 const COLUMNS: BoardColumn[] = [
-  { key: 'new', label: 'Yangi', color: '#8b929e', primary: 'pending', statuses: ['draft', 'pending'] },
-  { key: 'payment', label: "To'lov kutilmoqda", color: '#c69a4a', primary: 'waiting_payment', statuses: ['waiting_payment', 'payment_review'] },
-  // "Tayyorlanmoqda" column removed from the board; preparing/packed orders fold
-  // into "Tasdiqlangan" so none disappear (they're confirmed, not yet shipped).
-  { key: 'confirmed', label: 'Tasdiqlangan', color: '#5b86c4', primary: 'confirmed', statuses: ['confirmed', 'preparing', 'packed'] },
-  { key: 'shipping', label: "Yo'lda", color: '#4aa3c8', primary: 'shipping', statuses: ['shipping'] },
-  { key: 'done', label: 'Yakunlangan', color: '#4caf7d', primary: 'delivered', statuses: ['delivered', 'completed'] },
-  { key: 'cancelled', label: 'Bekor / qaytarilgan', color: '#d06868', primary: 'cancelled', statuses: ['cancelled', 'refunded', 'returned'] },
+  ...ORDER_STAGES,
+  { key: 'cancelled', label: 'Bekor / qaytarilgan', color: '#d06868', icon: XCircle, primary: 'cancelled', statuses: TERMINAL_STATUSES },
 ];
 
 const colKeyOf = (status: OrderStatus): string | undefined =>
@@ -111,7 +110,11 @@ function Column({
     <div className="glass-2 flex h-[calc(100dvh-250px)] max-h-[620px] w-[264px] shrink-0 flex-col rounded-[var(--r-md)]">
       <div className="flex items-center justify-between gap-2 px-3 py-2.5">
         <span className="flex min-w-0 items-center gap-2 text-sm font-semibold text-text">
-          <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.color }} />
+          {col.icon ? (
+            <col.icon className="h-4 w-4 shrink-0" style={{ color: col.color }} strokeWidth={1.75} aria-hidden />
+          ) : (
+            <span className="h-2.5 w-2.5 shrink-0 rounded-full" style={{ background: col.color }} />
+          )}
           <span className="truncate">{col.label}</span>
         </span>
         <span className="tnum shrink-0 rounded-full bg-surface-2 px-2 py-0.5 text-2xs font-semibold text-muted">{orders.length}</span>

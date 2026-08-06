@@ -18,19 +18,29 @@ import {
 import { formatDateTime } from '@/shared/lib/format';
 import { useClients } from '@/features/clients/hooks';
 import { useOrdersPage } from '../hooks';
+import { ORDER_STAGES, TERMINAL_STATUSES, stageOf } from '../stages';
 import { OrderBoardDnd } from '../components/OrderBoardDnd';
 import type { OrderStatus } from '@/shared/api/types';
 
 const PAGE_SIZE = 30;
 
-const STATUS_FILTERS: OrderStatus[] = [
-  'pending', 'waiting_payment', 'payment_review', 'confirmed',
-  'preparing', 'shipping', 'completed', 'cancelled',
-];
+/* Filter options grouped by the shared lifecycle stages (one definition
+ * everywhere) — the API filters by a single real status. */
 const statusOptions: SelectOption[] = [
   { value: '', label: 'Barcha holatlar' },
-  ...STATUS_FILTERS.map((s) => ({ value: s, label: orderStatusLabels[s] })),
+  ...ORDER_STAGES.flatMap((stage) =>
+    stage.statuses.map((s) => ({ value: s, label: orderStatusLabels[s], group: stage.label })),
+  ),
+  ...TERMINAL_STATUSES.map((s) => ({ value: s, label: orderStatusLabels[s], group: 'Yakun topgan' })),
 ];
+
+/** Tiny lifecycle icon (shared ORDER_STAGES) next to the raw status chip. */
+function StageDot({ status }: { status: OrderStatus }) {
+  const stage = stageOf(status);
+  if (!stage) return null;
+  const Icon = stage.icon;
+  return <Icon className="h-3.5 w-3.5 shrink-0 text-muted" strokeWidth={1.75} aria-hidden />;
+}
 
 function OrderList() {
   const navigate = useNavigate();
@@ -82,7 +92,12 @@ function OrderList() {
                       {order.order_no}
                     </Link>
                   </td>
-                  <td><OrderStatusBadge status={order.status} /></td>
+                  <td>
+                    <span className="flex items-center gap-1.5">
+                      <StageDot status={order.status} />
+                      <OrderStatusBadge status={order.status} />
+                    </span>
+                  </td>
                   <td className="tnum text-right text-muted">{order.items.length} ta</td>
                   <td className="text-right font-semibold text-accent-ink"><Money value={order.grand_total} /></td>
                   <td className="tnum text-right text-muted">{formatDateTime(order.created_at)}</td>
