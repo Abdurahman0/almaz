@@ -143,8 +143,8 @@ export default function OrderDetailPage() {
 
   return (
     <div>
-      {/* Sticky header: number + status + stepper + actions stay reachable */}
-      <div className="print-header sticky top-[57px] z-20 -mx-2 mb-6 rounded-b-[var(--r-md)] border-b border-border bg-glass px-2 pb-3 pt-1 backdrop-blur">
+      {/* Page header: number + status + stepper + actions (scrolls with the page) */}
+      <div className="print-header mb-6 border-b border-border pb-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex min-w-0 items-center gap-3">
             <button
