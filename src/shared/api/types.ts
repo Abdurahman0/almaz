@@ -599,6 +599,20 @@ export interface DeliveryOut {
   phone: string | null;
   landmark: string | null;
   apartment: string | null;
+  /** Chosen BTS pickup branch. NOT returned by the live API yet (docs/API-GAPS.md
+   *  order-detail #2) — today branch data exists only inside the one-time /map
+   *  flow. The delivery card renders the branch block automatically once these
+   *  land on the order's delivery. */
+  bts_branch_id?: string | null;
+  bts_branch?: {
+    id: string;
+    name: string;
+    address?: string | null;
+    work_hours?: string | null;
+    phone?: string | null;
+    lat?: number | string | null;
+    lng?: number | string | null;
+  } | null;
   status: DeliveryStatus;
 }
 export interface CheckoutLinkOut {
@@ -645,6 +659,10 @@ export interface PaymentOut {
   id: string;
   order_id: string;
   card_id: string | null;
+  /** Paid amount, Numeric as string. NOT returned by the live API yet (see
+   *  docs/API-GAPS.md order-detail #1) — the UI lights up money-based paid/
+   *  remaining automatically once this lands. */
+  amount?: string | null;
   status: PaymentStatus;
   receipt_url: string | null;
   payer_name: string | null;

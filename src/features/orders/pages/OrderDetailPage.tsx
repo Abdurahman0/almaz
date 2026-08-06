@@ -179,7 +179,7 @@ export default function OrderDetailPage() {
             productsPending={detail.productsPending}
             zoneLabel={zoneLabel}
           />
-          <PaymentsCard orderId={o.id} />
+          <PaymentsCard orderId={o.id} grandTotal={o.grand_total} />
           <TimelineCard order={o} staff={staff.data} />
         </div>
 

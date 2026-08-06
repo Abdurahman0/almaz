@@ -16,6 +16,7 @@ import {
   Textarea,
   orderStatusLabels,
   toast,
+  Tooltip,
 } from '@/shared/ui';
 import { formatMoney } from '@/shared/lib/format';
 import { pickName } from '@/shared/lib/localize';
@@ -476,16 +477,24 @@ export default function OrderEditPage() {
                         {m?.requiresBox && (
                           <RowBoxSelect categoryId={m.categoryId} value={r.box_id} onChange={(id) => setBox(r.key, id)} error={r.boxError} />
                         )}
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          className="text-muted hover:text-danger"
-                          disabled={rows.length === 1}
-                          title={rows.length === 1 ? "Oxirgi mahsulotni o'chirib bo'lmaydi" : undefined}
-                          onClick={() => setConfirmRemove({ key: r.key, name: m ? m.name : 'Mahsulot' })}
-                        >
-                          <Trash2 className="h-4 w-4" strokeWidth={1.5} /> O'chirish
-                        </Button>
+                        {rows.length === 1 ? (
+                          <Tooltip content="Oxirgi mahsulotni o'chirib bo'lmaydi">
+                            <span>
+                              <Button variant="ghost" size="sm" className="text-muted" disabled>
+                                <Trash2 className="h-4 w-4" strokeWidth={1.5} /> O'chirish
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-muted hover:text-danger"
+                            onClick={() => setConfirmRemove({ key: r.key, name: m ? m.name : 'Mahsulot' })}
+                          >
+                            <Trash2 className="h-4 w-4" strokeWidth={1.5} /> O'chirish
+                          </Button>
+                        )}
                       </div>
                     )}
 

@@ -10,6 +10,7 @@ import {
   Select,
   SkeletonRows,
   toast,
+  Tooltip,
 } from '@/shared/ui';
 import { uploadFile, UPLOAD_ACCEPT } from '@/shared/api/files';
 import { pickName } from '@/shared/lib/localize';
@@ -350,9 +351,9 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
         >
           <Minus className="h-3 w-3" strokeWidth={2} />
         </button>
-        <span className="tnum w-10 text-center text-2xs text-text" title="Mavjud">
-          {b.available}
-        </span>
+        <Tooltip content="Mavjud">
+          <span className="tnum w-10 cursor-default text-center text-2xs text-text">{b.available}</span>
+        </Tooltip>
         <button
           aria-label="Ko'paytirish"
           onClick={() => bump(b, 1)}
@@ -414,11 +415,12 @@ export function CategoryBoxes({ categoryId }: { categoryId: string }) {
               placeholderIcon={<Gift className="h-8 w-8 text-muted/45" strokeWidth={1.25} />}
               tintHex={b.color_hex}
               leading={
-                <span
-                  className="h-3 w-3 shrink-0 rounded-full border border-strong"
-                  style={{ background: b.color_hex }}
-                  title={b.color_hex}
-                />
+                <Tooltip content={b.color_hex}>
+                  <span
+                    className="h-3 w-3 shrink-0 rounded-full border border-strong"
+                    style={{ background: b.color_hex }}
+                  />
+                </Tooltip>
               }
               name={pickName(b, lang)}
               price={Number(b.price)}

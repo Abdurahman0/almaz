@@ -1,6 +1,8 @@
 import { useRef, useState } from 'react';
 import { AlertTriangle, ArrowLeft, Check, Copy, GitCompare, Info, RotateCcw, Save } from 'lucide-react';
-import { Badge, Button, ConfirmDialog } from '@/shared/ui';
+import { Badge, Button, ConfirmDialog,
+  Tooltip,
+} from '@/shared/ui';
 import type { AiPromptOut } from '../types';
 import { missingPlaceholders, parsePlaceholders, promptName } from '../lib';
 import { PromptDiff } from './PromptDiff';
@@ -155,19 +157,23 @@ export function PromptEditor({
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {tokens.map((tk) => {
                   const isMissing = missing.includes(tk);
-                  return (
+                  const tokenBtn = (
                     <button
                       key={tk}
                       type="button"
                       onClick={() => insertToken(tk)}
                       disabled={!canEdit}
-                      title={canEdit ? 'Kursorga qo‘shish' : undefined}
                       className={`rounded-full border px-2 py-0.5 font-mono text-2xs transition-colors disabled:cursor-default ${
                         isMissing ? 'border-danger bg-danger-soft text-danger' : 'border-border bg-surface-2 text-accent-ink hover:border-accent'
                       }`}
                     >
                       {tk}
                     </button>
+                  );
+                  return canEdit ? (
+                    <Tooltip key={tk} content="Kursorga qo‘shish">{tokenBtn}</Tooltip>
+                  ) : (
+                    tokenBtn
                   );
                 })}
               </div>

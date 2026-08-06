@@ -86,7 +86,7 @@ export function ItemsCard({ order, variantMap, boxMap, productsPending, zoneLabe
                         <img
                           src={boxImage}
                           alt=""
-                          className="h-4 w-4 rounded-sm border border-border object-cover"
+                          className="h-4 w-4 rounded-[var(--r-xs)] border border-border object-cover"
                         />
                       )}
                       Quti: {item.box_label}

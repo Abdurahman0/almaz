@@ -7,8 +7,8 @@ export function PromptDiff({ defaultValue, current }: { defaultValue: string; cu
   return (
     <div className="rounded-[var(--r-md)] border border-border bg-surface-2">
       <div className="flex items-center gap-3 border-b border-border px-3 py-2 text-2xs text-muted">
-        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-danger" /> Standart</span>
-        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-sm bg-success" /> Hozirgi</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-[var(--r-xs)] bg-danger" /> Standart</span>
+        <span className="inline-flex items-center gap-1"><span className="h-2 w-2 rounded-[var(--r-xs)] bg-success" /> Hozirgi</span>
         {!changed && <span className="ml-auto">Farq yo'q — standart bilan bir xil</span>}
       </div>
       <div className="max-h-[420px] overflow-auto p-1 font-mono text-xs leading-relaxed">

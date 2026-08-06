@@ -18,6 +18,7 @@ import {
   toast,
   type Range,
   type SelectOption,
+  Tooltip,
 } from '@/shared/ui';
 import { formatDateTime } from '@/shared/lib/format';
 import { useApprovePayment, usePayments, useRejectPayment } from '../hooks';
@@ -115,7 +116,11 @@ export default function PaymentsPage() {
                   <tr key={p.id}>
                     <td>
                       <PaymentStatusBadge status={p.status} />
-                      {p.reject_reason && <p className="mt-1 max-w-[180px] truncate text-2xs text-danger" title={p.reject_reason}>{p.reject_reason}</p>}
+                      {p.reject_reason && (
+                        <Tooltip content={p.reject_reason}>
+                          <p className="mt-1 max-w-[180px] cursor-default truncate text-2xs text-danger">{p.reject_reason}</p>
+                        </Tooltip>
+                      )}
                     </td>
                     <td>
                       <Link to={`/orders/${p.order_id}`} className="font-mono text-xs font-semibold text-text hover:text-accent-ink">

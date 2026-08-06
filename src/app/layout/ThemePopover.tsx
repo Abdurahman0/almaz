@@ -51,7 +51,7 @@ export function ThemePopover() {
                     borderWidth: preset === p.id ? 2 : 1,
                   }}
                 >
-                  <span className="absolute inset-x-1.5 bottom-1 top-3.5 rounded-sm" style={{ background: p.surface }} />
+                  <span className="absolute inset-x-1.5 bottom-1 top-3.5 rounded-[var(--r-xs)]" style={{ background: p.surface }} />
                   <span className="absolute right-1 top-1 h-2 w-2 rounded-full" style={{ background: p.accent }} />
                   {preset === p.id && (
                     <Check className="absolute bottom-0.5 left-1 h-3 w-3" style={{ color: p.accent }} strokeWidth={3} />

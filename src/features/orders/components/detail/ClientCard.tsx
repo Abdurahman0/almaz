@@ -69,7 +69,7 @@ export function ClientCard({ customerId, client, clientsPending, currentOrderId 
                 onKeyDown={(e) => e.key === 'Enter' && name.trim() && rename.mutate(name.trim())}
                 aria-label="Mijoz ismi"
                 autoFocus
-                className="w-full rounded-md border border-border bg-bg px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
+                className="w-full rounded-[var(--r-xs)] border border-border bg-bg px-2 py-1 text-sm text-text focus:border-accent focus:outline-none"
               />
               <button
                 aria-label="Saqlash"

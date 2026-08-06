@@ -64,7 +64,7 @@ export const MultiSelect = forwardRef<HTMLButtonElement, MultiSelectProps>(funct
                     onKeyDown={(e) => {
                       if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); toggle(o.value); }
                     }}
-                    className="rounded-sm hover:text-danger"
+                    className="rounded-[var(--r-xs)] hover:text-danger"
                   >
                     <X className="h-3 w-3" strokeWidth={2} />
                   </span>

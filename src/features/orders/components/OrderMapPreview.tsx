@@ -16,7 +16,22 @@ function pinIcon(): L.DivIcon {
   });
 }
 
-function mount(el: HTMLElement, lat: number, lng: number, interactive: boolean): L.Map {
+function branchIcon(): L.DivIcon {
+  return L.divIcon({
+    className: '',
+    html: `<svg width="26" height="26" viewBox="0 0 26 26"><rect x="3" y="8" width="20" height="14" rx="2" fill="var(--surface)" stroke="var(--accent-strong)" stroke-width="2"/><path d="M3 12 h20 M9 8 v-3 h8 v3" fill="none" stroke="var(--accent-strong)" stroke-width="2"/></svg>`,
+    iconSize: [26, 26],
+    iconAnchor: [13, 24],
+  });
+}
+
+function mount(
+  el: HTMLElement,
+  lat: number,
+  lng: number,
+  interactive: boolean,
+  branch?: { lat: number; lng: number } | null,
+): L.Map {
   const map = L.map(el, {
     zoomControl: interactive,
     dragging: interactive,
@@ -29,17 +44,33 @@ function mount(el: HTMLElement, lat: number, lng: number, interactive: boolean):
   }).setView([lat, lng], 15);
   L.tileLayer(TILES, { attribution: ATTRIB }).addTo(map);
   L.marker([lat, lng], { icon: pinIcon(), interactive: false }).addTo(map);
+  if (branch) {
+    L.marker([branch.lat, branch.lng], { icon: branchIcon(), interactive: false }).addTo(map);
+    L.polyline(
+      [
+        [lat, lng],
+        [branch.lat, branch.lng],
+      ],
+      { dashArray: '6 6', weight: 2, color: 'var(--accent-strong)', opacity: 0.8 },
+    ).addTo(map);
+    map.fitBounds(
+      L.latLngBounds([lat, lng], [branch.lat, branch.lng]).pad(0.25),
+      { animate: false },
+    );
+  }
   return map;
 }
 
 interface OrderMapPreviewProps {
   lat: number;
   lng: number;
+  /** BTS branch marker + dashed connector (drawn when the API exposes it). */
+  branch?: { lat: number; lng: number } | null;
 }
 
 /** Non-interactive ~200px map preview with the customer pin; click expands to a
  *  full modal map. Deep links let a courier navigate (Google / Yandex). */
-export function OrderMapPreview({ lat, lng }: OrderMapPreviewProps) {
+export function OrderMapPreview({ lat, lng, branch }: OrderMapPreviewProps) {
   const previewRef = useRef<HTMLDivElement>(null);
   const modalRef = useRef<HTMLDivElement>(null);
   const [expanded, setExpanded] = useState(false);
@@ -47,9 +78,9 @@ export function OrderMapPreview({ lat, lng }: OrderMapPreviewProps) {
   useEffect(() => {
     const el = previewRef.current;
     if (!el) return;
-    const map = mount(el, lat, lng, false);
+    const map = mount(el, lat, lng, false, branch);
     return () => { map.remove(); };
-  }, [lat, lng]);
+  }, [lat, lng, branch]);
 
   useEffect(() => {
     if (!expanded) return;
@@ -57,7 +88,7 @@ export function OrderMapPreview({ lat, lng }: OrderMapPreviewProps) {
     const t = window.setTimeout(() => {
       const el = modalRef.current;
       if (!el) return;
-      const map = mount(el, lat, lng, true);
+      const map = mount(el, lat, lng, true, branch);
       el.dataset.mounted = '1';
       (el as HTMLElement & { _map?: L.Map })._map = map;
     }, 60);
@@ -67,7 +98,7 @@ export function OrderMapPreview({ lat, lng }: OrderMapPreviewProps) {
       el?._map?.remove();
       if (el) delete el.dataset.mounted;
     };
-  }, [expanded, lat, lng]);
+  }, [expanded, lat, lng, branch]);
 
   const gmaps = `https://www.google.com/maps?q=${lat},${lng}`;
   const ymaps = `https://yandex.com/maps/?pt=${lng},${lat}&z=16`;
@@ -81,7 +112,7 @@ export function OrderMapPreview({ lat, lng }: OrderMapPreviewProps) {
         className="group relative block h-[200px] w-full overflow-hidden rounded-[var(--r-sm)] border border-border focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/60"
       >
         <div ref={previewRef} className="pointer-events-none h-full w-full" />
-        <span className="absolute right-2 top-2 z-[500] rounded-md border border-border bg-surface p-1.5 text-muted opacity-0 transition-opacity group-hover:opacity-100">
+        <span className="absolute right-2 top-2 z-[500] rounded-[var(--r-xs)] border border-border bg-surface p-1.5 text-muted opacity-0 transition-opacity group-hover:opacity-100">
           <Maximize2 className="h-3.5 w-3.5" strokeWidth={1.5} />
         </span>
       </button>

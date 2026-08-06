@@ -43,7 +43,14 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
           <ErrorCard error={delivery.error} onRetry={() => delivery.refetch()} />
         ))}
 
-      {delivery.isSuccess && (
+      {delivery.isSuccess && (() => {
+        const d = delivery.data;
+        const branch = d.bts_branch ?? null;
+        const branchPin =
+          branch?.lat != null && branch?.lng != null
+            ? { lat: Number(branch.lat), lng: Number(branch.lng) }
+            : null;
+        return (
         <div className="space-y-3">
           <div className="flex items-center gap-2">
             {delivery.data.zone === 'tashkent' && <Badge tone="gold">Toshkent — kuryer</Badge>}
@@ -55,6 +62,23 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
               {statusLabels[delivery.data.status] ?? delivery.data.status}
             </Badge>
           </div>
+
+          {/* BTS branch block — renders automatically once the API returns
+              bts_branch on the delivery (docs/API-GAPS.md order-detail #2). */}
+          {branch && (
+            <div className="rounded-[var(--r-sm)] border border-border bg-surface-2 p-3">
+              <p className="text-sm font-semibold text-text">{branch.name}</p>
+              {branch.address && <p className="mt-0.5 text-xs text-muted">{branch.address}</p>}
+              <p className="tnum mt-1 flex flex-wrap gap-x-3 text-xs text-muted">
+                {branch.work_hours && <span>{branch.work_hours}</span>}
+                {branch.phone && (
+                  <a href={`tel:${branch.phone}`} className="text-accent-ink hover:underline">
+                    {branch.phone}
+                  </a>
+                )}
+              </p>
+            </div>
+          )}
 
           <dl className="space-y-1.5">
             {delivery.data.address_text && <Row label="Manzil">{delivery.data.address_text}</Row>}
@@ -73,14 +97,19 @@ export function DeliveryCard({ delivery }: DeliveryCardProps) {
           </dl>
 
           {delivery.data.lat && delivery.data.lng ? (
-            <OrderMapPreview lat={Number(delivery.data.lat)} lng={Number(delivery.data.lng)} />
+            <OrderMapPreview
+              lat={Number(delivery.data.lat)}
+              lng={Number(delivery.data.lng)}
+              branch={branchPin}
+            />
           ) : (
             <p className="rounded-[var(--r-sm)] border border-dashed border-border py-4 text-center text-xs text-muted">
               Lokatsiya hali yuborilmagan
             </p>
           )}
         </div>
-      )}
+        );
+      })()}
     </Card>
   );
 }

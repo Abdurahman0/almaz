@@ -225,7 +225,7 @@ export default function SettingsPage() {
                       }}
                     >
                       <span
-                        className="absolute inset-x-2 bottom-1.5 top-5 rounded-sm"
+                        className="absolute inset-x-2 bottom-1.5 top-5 rounded-[var(--r-xs)]"
                         style={{ background: p.surface }}
                       />
                       <span
