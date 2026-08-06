@@ -1,4 +1,5 @@
-import { format, parseISO, differenceInCalendarDays } from 'date-fns';
+import { format, parseISO, differenceInCalendarDays, formatDistanceToNow } from 'date-fns';
+import { uz } from 'date-fns/locale';
 
 const THIN_SPACE = ' ';
 
@@ -73,4 +74,13 @@ export function daysUntilAnniversary(iso: string, from = new Date()): number {
   const next = new Date(from.getFullYear(), d.getMonth(), d.getDate());
   if (next < from) next.setFullYear(next.getFullYear() + 1);
   return differenceInCalendarDays(next, from);
+}
+
+/** "2 soat oldin" — relative time in Uzbek (falls back to the date on parse issues). */
+export function formatRelative(iso: string): string {
+  try {
+    return formatDistanceToNow(parseISO(iso), { addSuffix: true, locale: uz });
+  } catch {
+    return formatDate(iso);
+  }
 }

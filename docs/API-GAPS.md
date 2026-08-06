@@ -89,3 +89,14 @@ Fix requests for the backend: (1) handle `/reel/` links without an image, (2) se
 - Orders: `POST /orders` persists; `POST /orders/{id}/cancel` → status `cancelled`.
 - Payments: `GET /payments` OK (shape matches). Approve/reject exist (not exercised on real data).
 - Server-side filters on `/orders`: `status`, `date_from`, `date_to`, `customer_id`, `limit`/`offset` with a real `total` — all correct.
+
+## Order detail page (2026-08-06) — gaps found while building the full order view
+
+| # | Need | Evidence | Frontend behavior today |
+|---|------|----------|--------------------------|
+| 1 | **Payment amount on `PaymentOut`** | `PaymentOut` has receipt/status/payer but **no `amount`** field | "Paid vs remaining" in so'm is impossible; the order page shows an honest receipts progress (approved-of-total count), never an invented sum |
+| 2 | **BTS branch details on the order** | The chosen branch (name/address/work hours/phone) exists only inside the one-time `/map/{token}` flow (`MapBranch` in resolve/confirm); `DeliveryOut` returns only zone/provider/lat/lng/address fields | The delivery card shows the "BTS — filialdan olib ketish" badge + the pin coordinates; branch name/hours can't be displayed. Ask: persist `bts_branch_id` (+ a `GET /delivery/branches/{id}` or embed) on the delivery |
+| 3 | **`GET /inbox/customers/{id}`** | Only PATCH/DELETE exist; customer objects are reachable solely via the conversations list | Client card resolves the customer from the cached conversations+orders join (`useClients`); a customer with no conversation shows as a placeholder id |
+| 4 | **Customer `created_at`** | `CustomerOut` has no created/joined timestamp | "Mijoz bo'lgan sana" is approximated by the earliest order date (labelled "Birinchi buyurtma") |
+| 5 | **Discount on `OrderOut`** | Totals are `items_total`/`delivery_fee`/`grand_total` only — no discount field | The totals panel has no discount row (nothing to show) |
+| 6 | **Product/image on `OrderItemOut`** | Items carry only `variant_id` (+ box/engraving snapshots) | Product name/photo/material/stone resolved client-side from the single cached `/catalog/products` list + the two reference dictionaries; box photos from one `/catalog/categories/{id}/boxes` call per unique category with a boxed item — no N+1 |

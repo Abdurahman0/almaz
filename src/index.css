@@ -619,3 +619,36 @@
 
 /* branch chip text never overflows the pill (long name fallbacks ellipsize) */
 .mapx-branch > span { max-width: 130px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+/* ---------- Print: order sheet for the workshop (items, sizes, engraving, box) ---------- */
+@media print {
+  aside,
+  header,
+  nav,
+  .print-hide {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+    color: #111 !important;
+  }
+  main {
+    padding: 0 !important;
+  }
+  .card-velvet,
+  .print-block {
+    box-shadow: none !important;
+    border-color: #ccc !important;
+    background: #fff !important;
+    break-inside: avoid;
+  }
+  .print-header {
+    position: static !important;
+    background: #fff !important;
+    backdrop-filter: none !important;
+  }
+  a {
+    text-decoration: none !important;
+    color: inherit !important;
+  }
+}

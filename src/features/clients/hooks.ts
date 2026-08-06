@@ -14,6 +14,9 @@ export interface ClientRow {
   id: string;
   name: string;
   username: string | null;
+  phone: string | null;
+  /** Conversation to deep-link back into the Inbox (null if none visible). */
+  conversationId: string | null;
   channel: Channel | null;
   language: string | null;
   externalId: string | null;
@@ -49,6 +52,8 @@ export function useClients() {
         id: c.id,
         name: c.full_name ?? (c.username ? `@${c.username}` : `Mijoz ${c.external_id.slice(0, 6)}`),
         username: c.username,
+        phone: c.phone,
+        conversationId: conv.id,
         channel: c.channel,
         language: c.language,
         externalId: c.external_id,
@@ -66,6 +71,8 @@ export function useClients() {
           id: order.customer_id,
           name: `Mijoz ${order.customer_id.slice(0, 8)}`,
           username: null,
+          phone: null,
+          conversationId: null,
           channel: null,
           language: null,
           externalId: null,
