@@ -5,6 +5,7 @@ import { Badge, Card, Checkbox, ConfirmDialog, DropdownMenu, EmptyState, ErrorCa
 import { formatTime } from '@/shared/lib/format';
 import { useConversations, useDeleteConversation, useMarkRead, useMessages, useSendMessage } from '../hooks';
 import { ConversationHeader } from '../components/ConversationHeader';
+import { VoiceMessage } from '../components/VoiceMessage';
 import { formatPhone } from '../phone';
 import type { AiState, Channel, ConversationOut, ConversationStatus } from '@/shared/api/types';
 
@@ -55,7 +56,8 @@ function attKind(a: unknown, url: string): Media['kind'] {
   return 'file';
 }
 
-function MediaChip({ m }: { m: Media }) {
+function MediaChip({ m, out }: { m: Media; out: boolean }) {
+  if (m.kind === 'audio') return <VoiceMessage url={m.url} out={out} />;
   if (m.kind === 'image') {
     return (
       <img
@@ -81,7 +83,7 @@ function MediaChip({ m }: { m: Media }) {
       </a>
     );
   }
-  const label = m.kind === 'video' ? 'Video' : m.kind === 'audio' ? 'Ovozli xabar' : 'Fayl';
+  const label = m.kind === 'video' ? 'Video' : 'Fayl';
   return (
     <a
       href={m.url}
@@ -112,7 +114,7 @@ function MessageBody({ content, attachments, out }: { content: string | null; at
   return (
     <div className="space-y-2">
       {media.map((m, i) => (
-        <MediaChip key={i} m={m} />
+        <MediaChip key={i} m={m} out={out} />
       ))}
       {text && (
         <p className="whitespace-pre-wrap break-words">
