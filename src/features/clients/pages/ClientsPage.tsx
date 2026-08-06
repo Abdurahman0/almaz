@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { Search, X } from 'lucide-react';
 import {
@@ -102,7 +102,14 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
 export default function ClientsPage() {
   const clients = useClients();
   const [search, setSearch] = useState('');
-  const [selectedId, setSelectedId] = useState<string | null>(null);
+  // Drawer is URL-addressable (?client=<id>) so other pages (e.g. the order
+  // detail) can deep-link straight to a client.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get('client');
+  const openClient = (id: string) =>
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.set('client', id); return n; });
+  const closeClient = () =>
+    setSearchParams((prev) => { const n = new URLSearchParams(prev); n.delete('client'); return n; });
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -154,7 +161,7 @@ export default function ClientsPage() {
             </thead>
             <tbody>
               {filtered.map((c) => (
-                <tr key={c.id} className="cursor-pointer" onClick={() => setSelectedId(c.id)}>
+                <tr key={c.id} className="cursor-pointer" onClick={() => openClient(c.id)}>
                   <td>
                     <span className="flex items-center gap-3">
                       <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full bg-accent-soft text-sm font-semibold text-accent-ink">
@@ -178,7 +185,7 @@ export default function ClientsPage() {
       )}
 
       <AnimatePresence>
-        {selected && <ClientDrawer client={selected} onClose={() => setSelectedId(null)} />}
+        {selected && <ClientDrawer client={selected} onClose={closeClient} />}
       </AnimatePresence>
     </div>
   );

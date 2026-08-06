@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { useParams, useNavigate } from 'react-router-dom';
+import { Link, useParams, useNavigate } from 'react-router-dom';
 import { ArrowLeft, Copy, Gift, Pencil, XCircle } from 'lucide-react';
 import { useQuery } from '@tanstack/react-query';
 import {
@@ -98,7 +98,18 @@ export default function OrderDetailPage() {
           <div>
             <h1 className="text-xl text-text">{o.order_no}</h1>
             <p className="text-sm text-muted">
-              {clientName ? `${clientName} · ` : ''}{formatDateTime(o.created_at)}
+              {clientName && (
+                <>
+                  <Link
+                    to={`/clients?client=${o.customer_id}`}
+                    className="font-semibold text-accent-ink hover:underline"
+                  >
+                    {clientName}
+                  </Link>
+                  {' · '}
+                </>
+              )}
+              {formatDateTime(o.created_at)}
             </p>
           </div>
           <OrderStatusBadge status={o.status} />
