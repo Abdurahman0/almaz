@@ -56,10 +56,10 @@ function OrderCardBody({ order, client, operator }: { order: OrderOut; client: s
   return (
     <>
       <div className="flex items-center justify-between gap-2">
-        <span className="font-mono text-xs font-semibold text-text">{order.order_no}</span>
-        <span className="tnum text-sm font-semibold text-accent-ink"><Money short value={order.grand_total} /></span>
+        <span className="min-w-0 truncate text-sm font-bold text-text">{client ?? order.order_no}</span>
+        <span className="tnum shrink-0 text-sm font-semibold text-accent-ink"><Money short value={order.grand_total} /></span>
       </div>
-      {client && <p className="mt-1 truncate text-2xs text-text">{client}</p>}
+      {client && <p className="mt-1 truncate font-mono text-2xs text-muted">{order.order_no}</p>}
       {operator && (
         <p className="mt-0.5 flex items-center gap-1 truncate text-2xs text-muted">
           <User className="h-3 w-3 shrink-0" strokeWidth={1.75} /> {operator}

@@ -61,8 +61,8 @@ function OrderList() {
           <table className="data-table min-w-[640px]">
             <thead>
               <tr>
-                <th>Raqam</th>
                 <th>Mijoz</th>
+                <th>Raqam</th>
                 <th>Holat</th>
                 <th className="!text-right">Mahsulotlar</th>
                 <th className="!text-right">Summa</th>
@@ -72,16 +72,16 @@ function OrderList() {
             <tbody>
               {orders.map((order) => (
                 <tr key={order.id} className="cursor-pointer" onClick={() => navigate(`/orders/${order.id}`)}>
+                  <td className="text-sm font-bold text-text">{clientName(order.customer_id) ?? <span className="font-normal text-muted">—</span>}</td>
                   <td>
                     <Link
                       to={`/orders/${order.id}`}
-                      className="font-mono text-xs font-semibold text-text hover:text-accent-ink"
+                      className="font-mono text-2xs text-muted hover:text-accent-ink"
                       onClick={(e) => e.stopPropagation()}
                     >
                       {order.order_no}
                     </Link>
                   </td>
-                  <td className="text-text">{clientName(order.customer_id) ?? <span className="text-muted">—</span>}</td>
                   <td><OrderStatusBadge status={order.status} /></td>
                   <td className="tnum text-right text-muted">{order.items.length} ta</td>
                   <td className="text-right font-semibold text-accent-ink"><Money value={order.grand_total} /></td>
