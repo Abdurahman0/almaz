@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { createPortal } from 'react-dom';
 import { motion } from 'framer-motion';
-import { ChevronLeft, ChevronRight, ExternalLink, Gem, X } from 'lucide-react';
+import { ChevronLeft, ChevronRight, ExternalLink, Gem, Pencil, Trash2, X } from 'lucide-react';
 import { pickName } from '@/shared/lib/localize';
 import { useUiStore } from '@/shared/stores/ui';
 import type { SocialItem } from '../api';
@@ -18,10 +18,15 @@ export function StoryViewer({
   groups,
   start,
   onClose,
+  onEdit,
+  onDelete,
 }: {
   groups: StoryGroup[];
   start: number;
   onClose: () => void;
+  /** Edit/delete the story currently on screen (the caller closes the viewer). */
+  onEdit?: (story: SocialItem) => void;
+  onDelete?: (story: SocialItem) => void;
 }) {
   const lang = useUiStore((s) => s.lang);
   const [gi, setGi] = useState(start);
@@ -125,6 +130,16 @@ export function StoryViewer({
           <span className="min-w-0 flex-1 truncate text-sm font-semibold text-white">
             {pickName(story.product, lang)}
           </span>
+          {onEdit && (
+            <button onClick={(e) => { e.stopPropagation(); onEdit(story); }} aria-label="Tahrirlash" className="rounded-full p-1 text-white/90 hover:bg-white/15">
+              <Pencil className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </button>
+          )}
+          {onDelete && (
+            <button onClick={(e) => { e.stopPropagation(); onDelete(story); }} aria-label="O'chirish" className="rounded-full p-1 text-white/90 hover:bg-white/15">
+              <Trash2 className="h-[18px] w-[18px]" strokeWidth={1.75} />
+            </button>
+          )}
           <button onClick={onClose} aria-label="Yopish" className="rounded-full p-1 text-white/90 hover:bg-white/15">
             <X className="h-5 w-5" strokeWidth={2} />
           </button>

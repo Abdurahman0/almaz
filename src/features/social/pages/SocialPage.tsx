@@ -201,14 +201,23 @@ export default function SocialPage() {
   const closeViewer = () => { setViewerStart(null); clearDeepLink(); };
   const notFound = Boolean(contentId) && contentQuery.isError;
 
+  // Open edit / confirm-delete for a single item from ANY surface (tile, scheduled
+  // card, lightbox, story viewer). Closes whatever overlay is open first so only one
+  // modal is ever up.
+  const requestEdit = (item: SocialItem) => { setLightbox(null); setViewerStart(null); clearDeepLink(); setEditing(item); };
+  const requestDelete = (item: SocialItem) => {
+    setLightbox(null); setViewerStart(null); clearDeepLink();
+    setDeleteTarget({ ids: [item.id], label: `${kindLabel[item.kind]} — ${pickName(item.product, lang)}` });
+  };
+
   const tileMenu = (item: SocialItem): MenuItem[] => [
     { label: "Ko'rish", icon: <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => setLightbox(item) },
-    { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => setEditing(item) },
-    { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, destructive: true, separatorBefore: true, onSelect: () => setDeleteTarget({ ids: [item.id], label: `${kindLabel[item.kind]} — ${pickName(item.product, lang)}` }) },
+    { label: 'Tahrirlash', icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => requestEdit(item) },
+    { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, destructive: true, separatorBefore: true, onSelect: () => requestDelete(item) },
   ];
   const ringMenu = (g: StoryGroup, i: number): MenuItem[] => [
     { label: "Ko'rish", icon: <Eye className="h-3.5 w-3.5" strokeWidth={1.5} />, onSelect: () => setViewerStart(i) },
-    { label: "O'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, destructive: true, separatorBefore: true, onSelect: () => setDeleteTarget({ ids: g.stories.map((s) => s.id), label: `${pickName(g.product, lang)} — story (${g.stories.length} ta)` }) },
+    { label: "Barchasini o'chirish", icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />, destructive: true, separatorBefore: true, onSelect: () => setDeleteTarget({ ids: g.stories.map((s) => s.id), label: `${pickName(g.product, lang)} — story (${g.stories.length} ta)` }) },
   ];
 
   return (
@@ -263,16 +272,18 @@ export default function SocialPage() {
                   <p className="mb-2 flex items-center gap-1.5 text-xs font-semibold text-text"><CalendarClock className="h-4 w-4 text-accent-ink" strokeWidth={1.75} /> Rejalashtirilgan · {scheduled.length}</p>
                   <div className="-mx-1 flex gap-2 overflow-x-auto px-1 pb-1">
                     {scheduled.map((item) => (
-                      <button key={item.id} type="button" onClick={() => setLightbox(item)}
-                        className="w-40 shrink-0 overflow-hidden rounded-[var(--r-sm)] border border-border text-left transition-colors hover:border-strong">
-                        <div className="aspect-square bg-surface-2">
-                          {item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Gem className="h-6 w-6 text-muted/45" strokeWidth={1.25} /></div>}
-                        </div>
-                        <div className="p-2">
-                          <p className="tnum flex items-center gap-1 text-2xs text-accent-ink"><CalendarClock className="h-3 w-3" strokeWidth={1.75} /> {item.scheduled_at ? formatDateTime(item.scheduled_at) : '—'}</p>
-                          {item.caption && <p className="mt-0.5 line-clamp-1 text-2xs text-muted">{item.caption}</p>}
-                        </div>
-                      </button>
+                      <div key={item.id} className="group relative w-40 shrink-0 overflow-hidden rounded-[var(--r-sm)] border border-border transition-colors hover:border-strong">
+                        <button type="button" onClick={() => setLightbox(item)} className="block w-full text-left">
+                          <div className="aspect-square bg-surface-2">
+                            {item.image_url ? <img src={item.image_url} alt="" className="h-full w-full object-cover" /> : <div className="flex h-full w-full items-center justify-center"><Gem className="h-6 w-6 text-muted/45" strokeWidth={1.25} /></div>}
+                          </div>
+                          <div className="p-2">
+                            <p className="tnum flex items-center gap-1 text-2xs text-accent-ink"><CalendarClock className="h-3 w-3" strokeWidth={1.75} /> {item.scheduled_at ? formatDateTime(item.scheduled_at) : '—'}</p>
+                            {item.caption && <p className="mt-0.5 line-clamp-1 text-2xs text-muted">{item.caption}</p>}
+                          </div>
+                        </button>
+                        <ActionMenu items={tileMenu(item)} className="absolute right-1.5 top-1.5 opacity-100 transition-opacity md:opacity-0 md:group-hover:opacity-100" />
+                      </div>
                     ))}
                   </div>
                 </div>
@@ -300,7 +311,7 @@ export default function SocialPage() {
 
       {/* Story viewer */}
       <AnimatePresence>
-        {viewerStart != null && <StoryViewer groups={storyGroups} start={viewerStart} onClose={closeViewer} />}
+        {viewerStart != null && <StoryViewer groups={storyGroups} start={viewerStart} onClose={closeViewer} onEdit={requestEdit} onDelete={requestDelete} />}
       </AnimatePresence>
 
       {/* Post/Reel lightbox */}
@@ -335,6 +346,16 @@ export default function SocialPage() {
             <EngagementRow item={lightbox} className="justify-center border-y border-border py-2 !text-sm" />
 
             {lightbox.caption && <p className="whitespace-pre-wrap text-sm text-text">{lightbox.caption}</p>}
+
+            {/* edit / delete — available on every item (post, reel, story still, planned) */}
+            <div className="flex gap-2 border-t border-border pt-3">
+              <Button variant="secondary" size="sm" className="flex-1" onClick={() => requestEdit(lightbox)}>
+                <Pencil className="h-4 w-4" strokeWidth={1.5} /> Tahrirlash
+              </Button>
+              <Button variant="ghost" size="sm" className="flex-1 !text-danger hover:!bg-danger-soft" onClick={() => requestDelete(lightbox)}>
+                <Trash2 className="h-4 w-4" strokeWidth={1.5} /> O'chirish
+              </Button>
+            </div>
 
             {lightbox.permalink && (
               <a href={lightbox.permalink} target="_blank" rel="noreferrer" className="flex items-center justify-center gap-1.5 rounded-[var(--r-sm)] bg-accent-btn py-2.5 text-sm font-semibold text-on-accent transition-colors hover:bg-accent-btn-hover">
