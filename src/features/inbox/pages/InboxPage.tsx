@@ -190,6 +190,9 @@ function ConversationRow({ conv, active, onClick, onDelete }: {
     <div className={`group relative flex items-stretch border-b border-border transition-colors last:border-0 ${
       active ? 'bg-accent-soft' : 'hover:bg-surface-2'
     }`}>
+      {conv.ai_state === 'handed_off' && (
+        <span aria-hidden className="w-[3px] shrink-0 bg-danger" />
+      )}
       <button onClick={onClick} className="min-w-0 flex-1 px-4 py-3 text-left">
         <div className="flex items-center justify-between gap-2">
           <span className="truncate text-sm font-semibold text-text">{name}</span>
@@ -210,9 +213,13 @@ function ConversationRow({ conv, active, onClick, onDelete }: {
         )}
         <div className="mt-1.5 flex flex-wrap gap-1.5">
           <Badge tone="muted">{conv.channel === 'telegram' ? 'Telegram' : 'Instagram'}</Badge>
-          <Badge tone={conv.ai_state === 'handed_off' ? 'rose' : 'gold'}>
-            {aiStateLabels[conv.ai_state]}
-          </Badge>
+          {conv.ai_state === 'handed_off' ? (
+            <Badge tone="danger">
+              Operator kerak{conv.assigned_operator_id ? '' : ' · olinmagan'}
+            </Badge>
+          ) : (
+            <Badge tone="gold">{aiStateLabels[conv.ai_state]}</Badge>
+          )}
           {!conv.ai_enabled ? (
             <Badge tone="rose">AI o'chiq</Badge>
           ) : (
@@ -260,6 +267,19 @@ export default function InboxPage() {
   );
 
   const conversations = useConversations(convParams);
+  // Chats waiting for a human (ai_state=handed_off) pin to the top — unassigned
+  // ones first — then everything by latest activity, as before.
+  const sortedConvs = useMemo(() => {
+    const arr = [...(conversations.data ?? [])];
+    const rank = (c: ConversationOut) =>
+      c.ai_state === 'handed_off' ? (c.assigned_operator_id ? 1 : 0) : 2;
+    arr.sort((a, b) => {
+      const r = rank(a) - rank(b);
+      if (r !== 0) return r;
+      return b.last_activity_at.localeCompare(a.last_activity_at);
+    });
+    return arr;
+  }, [conversations.data]);
   const messages = useMessages(conversationId);
   const sendMessage = useSendMessage(conversationId);
   const markRead = useMarkRead();
@@ -341,7 +361,7 @@ export default function InboxPage() {
           {conversations.isSuccess && conversations.data.length === 0 && (
             <EmptyState heading="Suhbatlar yo'q" hint="Telegram va Instagram xabarlari shu yerda" />
           )}
-          {conversations.data?.map((c) => (
+          {sortedConvs.map((c) => (
             <ConversationRow
               key={c.id}
               conv={c}
