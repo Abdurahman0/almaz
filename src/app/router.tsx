@@ -25,28 +25,30 @@ const shell = (el: ReactElement) => <Suspense fallback={null}>{el}</Suspense>;
 // A new deploy replaces the hashed chunk files; a tab opened against the OLD
 // deploy still references the old names, so a lazy import 404s with "Failed to
 // fetch dynamically imported module". We retry once (transient blip), then do a
-// one-time full reload to pick up the fresh index.html + chunk map. A
-// sessionStorage flag prevents a reload loop if the failure is genuine; it is
-// cleared the moment any chunk loads successfully, so a later deploy can reload
-// again.
-const RELOAD_FLAG = 'almaz-chunk-reload';
+// full reload to pick up the fresh index.html + chunk map.
+//
+// The reload is RATE-LIMITED (one per 30s, timestamp in sessionStorage), never
+// re-armed by successful loads: the old boolean flag was cleared whenever any
+// other chunk loaded, so alternating success/failure (e.g. a dev server with a
+// stale module graph) reloaded the page in an endless loop.
+const RELOAD_STAMP = 'almaz-chunk-reload-at';
+const RELOAD_MIN_INTERVAL_MS = 30_000;
 
 async function loadPage(
   load: () => Promise<{ default: ComponentType }>,
 ): Promise<{ Component: ComponentType }> {
   try {
     const mod = await load();
-    sessionStorage.removeItem(RELOAD_FLAG);
     return { Component: mod.default };
   } catch {
     try {
       await new Promise((r) => setTimeout(r, 350));
       const mod = await load();
-      sessionStorage.removeItem(RELOAD_FLAG);
       return { Component: mod.default };
     } catch (err) {
-      if (!sessionStorage.getItem(RELOAD_FLAG)) {
-        sessionStorage.setItem(RELOAD_FLAG, '1');
+      const last = Number(sessionStorage.getItem(RELOAD_STAMP) ?? 0);
+      if (Date.now() - last > RELOAD_MIN_INTERVAL_MS) {
+        sessionStorage.setItem(RELOAD_STAMP, String(Date.now()));
         window.location.reload();
         // hang until the reload happens so the router doesn't flash its error UI
         return new Promise<{ Component: ComponentType }>(() => {});
