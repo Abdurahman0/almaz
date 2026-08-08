@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
-import { Bot, ExternalLink, Instagram, MoreVertical, Paperclip, Phone, Search, Send, Trash2 } from 'lucide-react';
+import { Bot, ExternalLink, Instagram, MoreVertical, Paperclip, Phone, Reply, Search, Send, Trash2 } from 'lucide-react';
 import { Badge, Card, Checkbox, ConfirmDialog, DropdownMenu, EmptyState, ErrorCard, Select, SkeletonRows, toast, type SelectOption } from '@/shared/ui';
 import { formatTime } from '@/shared/lib/format';
 import { useConversations, useDeleteConversation, useMarkRead, useMessages, useSendMessage } from '../hooks';
@@ -33,8 +33,16 @@ const aiStateLabels: Record<AiState, string> = {
 };
 
 // ---------------- message media / links ----------------
-type Media = { kind: 'image' | 'video' | 'audio' | 'ig' | 'file'; url: string };
+type Media = { kind: 'image' | 'video' | 'audio' | 'ig' | 'file'; url: string; igLabel?: string };
 const IG_RE = /instagram\.com\//i;
+/** Meta messaging CDN hosts — an ig_post/ig_story share's `url` here is a plain image. */
+const IG_CDN_RE = /(lookaside\.fbsbx\.com|cdninstagram\.com|fbcdn\.net)/i;
+
+function igLabelOf(rawType: string, url: string): string {
+  if (rawType === 'ig_reel' || /\/reel\//i.test(url)) return 'Instagram Reel';
+  if (rawType === 'ig_story' || /\/stories\//i.test(url)) return 'Instagram Story';
+  return 'Instagram post';
+}
 
 function attUrl(a: unknown): string | null {
   if (typeof a === 'string') return a;
@@ -49,6 +57,9 @@ function attUrl(a: unknown): string | null {
 function attKind(a: unknown, url: string): Media['kind'] {
   const o = a && typeof a === 'object' ? (a as Record<string, unknown>) : {};
   const raw = String(o.type ?? o.kind ?? o.mime_type ?? '').toLowerCase();
+  // IG shares (ig_post / ig_reel / ig_story / share): a CDN url is a renderable
+  // image; an instagram.com permalink gets the IG card.
+  if ((raw.startsWith('ig_') || raw === 'share') && IG_CDN_RE.test(url)) return 'image';
   if (IG_RE.test(url)) return 'ig';
   if (raw.startsWith('image') || raw === 'photo' || /\.(png|jpe?g|gif|webp|avif)(\?|$)/i.test(url)) return 'image';
   if (raw.startsWith('video') || /\.(mp4|mov|webm|m4v)(\?|$)/i.test(url)) return 'video';
@@ -56,33 +67,41 @@ function attKind(a: unknown, url: string): Media['kind'] {
   return 'file';
 }
 
+function IgCard({ url, label }: { url: string; label: string }) {
+  return (
+    <a
+      href={url}
+      target="_blank"
+      rel="noreferrer"
+      className="flex items-center gap-2 rounded-[var(--r-md)] border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:border-strong"
+    >
+      <Instagram className="h-4 w-4" style={{ color: '#E4405F' }} strokeWidth={1.75} />
+      {label}
+      <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
+    </a>
+  );
+}
+
+/** Attachment image with a graceful card fallback — Meta CDN links expire. */
+function AttachmentImage({ m }: { m: Media }) {
+  const [broken, setBroken] = useState(false);
+  if (broken) return <IgCard url={m.url} label={m.igLabel ?? 'Media'} />;
+  return (
+    <img
+      src={m.url}
+      alt={m.igLabel ?? ''}
+      loading="lazy"
+      onError={() => setBroken(true)}
+      onClick={() => window.open(m.url, '_blank')}
+      className="max-h-56 max-w-full cursor-pointer rounded-[var(--r-md)] object-cover"
+    />
+  );
+}
+
 function MediaChip({ m, out }: { m: Media; out: boolean }) {
   if (m.kind === 'audio') return <VoiceMessage url={m.url} out={out} />;
-  if (m.kind === 'image') {
-    return (
-      <img
-        src={m.url}
-        alt=""
-        loading="lazy"
-        onClick={() => window.open(m.url, '_blank')}
-        className="max-h-56 max-w-full cursor-pointer rounded-[var(--r-md)] object-cover"
-      />
-    );
-  }
-  if (m.kind === 'ig') {
-    return (
-      <a
-        href={m.url}
-        target="_blank"
-        rel="noreferrer"
-        className="flex items-center gap-2 rounded-[var(--r-md)] border border-border bg-surface-2 px-3 py-2 text-sm font-medium text-text transition-colors hover:border-strong"
-      >
-        <Instagram className="h-4 w-4" style={{ color: '#E4405F' }} strokeWidth={1.75} />
-        Instagram’da ochish
-        <ExternalLink className="ml-auto h-3.5 w-3.5 text-muted" strokeWidth={1.75} />
-      </a>
-    );
-  }
+  if (m.kind === 'image') return <AttachmentImage m={m} />;
+  if (m.kind === 'ig') return <IgCard url={m.url} label={m.igLabel ?? "Instagram'da ochish"} />;
   const label = m.kind === 'video' ? 'Video' : 'Fayl';
   return (
     <a
@@ -99,9 +118,24 @@ function MediaChip({ m, out }: { m: Media; out: boolean }) {
 
 function MessageBody({ content, attachments, out }: { content: string | null; attachments: unknown[] | null; out: boolean }) {
   const media: Media[] = [];
+  let isReply = false;
   for (const a of attachments ?? []) {
+    const o = a && typeof a === 'object' ? (a as Record<string, unknown>) : {};
+    const rawType = String(o.type ?? '').toLowerCase();
+    if (rawType === 'reply') {
+      // reply refs carry no url — just mark the bubble as an answer
+      isReply = true;
+      continue;
+    }
     const url = attUrl(a);
-    if (url) media.push({ kind: attKind(a, url), url });
+    if (url) {
+      const kind = attKind(a, url);
+      media.push({
+        kind,
+        url,
+        igLabel: rawType.startsWith('ig_') || kind === 'ig' ? igLabelOf(rawType, url) : undefined,
+      });
+    }
   }
   let text = content ?? '';
   // pull Instagram links out of the text into proper cards
@@ -113,6 +147,11 @@ function MessageBody({ content, attachments, out }: { content: string | null; at
   const parts = text.split(/(https?:\/\/[^\s]+)/gi);
   return (
     <div className="space-y-2">
+      {isReply && (
+        <p className={`flex items-center gap-1 text-2xs ${out ? 'text-on-accent/60' : 'text-muted'}`}>
+          <Reply className="h-3 w-3" strokeWidth={1.75} /> Oldingi xabarga javoban
+        </p>
+      )}
       {media.map((m, i) => (
         <MediaChip key={i} m={m} out={out} />
       ))}
@@ -227,7 +266,12 @@ export default function InboxPage() {
   const deleteConversation = useDeleteConversation();
   const [rowDelete, setRowDelete] = useState<ConversationOut | null>(null);
   const [text, setText] = useState('');
-  const bottomRef = useRef<HTMLDivElement>(null);
+  const listRef = useRef<HTMLDivElement>(null);
+  // Which conversation is already pinned to the bottom, and how many messages
+  // it had — so opening a chat JUMPS straight to the newest message (no
+  // scrolling animation), while later arrivals scroll smoothly.
+  const pinnedConv = useRef('');
+  const pinnedLen = useRef(0);
 
   const selected = conversations.data?.find((c) => c.id === conversationId);
 
@@ -236,9 +280,22 @@ export default function InboxPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [conversationId, selected?.unread_count]);
 
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages.data?.length]);
+  useLayoutEffect(() => {
+    const el = listRef.current;
+    if (!el || !messages.data) return;
+    const len = messages.data.length;
+    if (pinnedConv.current !== conversationId) {
+      // first paint of this chat: open already at the bottom, no animation
+      pinnedConv.current = conversationId;
+      pinnedLen.current = len;
+      el.scrollTop = el.scrollHeight;
+    } else if (len > pinnedLen.current) {
+      pinnedLen.current = len;
+      el.scrollTo({ top: el.scrollHeight, behavior: 'smooth' });
+    } else {
+      pinnedLen.current = len;
+    }
+  }, [conversationId, messages.data]);
 
   const send = () => {
     const trimmed = text.trim();
@@ -312,7 +369,7 @@ export default function InboxPage() {
                 />
               )}
 
-              <div className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-bg p-4">
+              <div ref={listRef} className="min-h-0 flex-1 space-y-2 overflow-y-auto bg-bg p-4">
                 {messages.isPending && <SkeletonRows rows={5} />}
                 {messages.data?.map((m) => {
                   const out = m.direction === 'outgoing';
@@ -338,7 +395,6 @@ export default function InboxPage() {
                     </div>
                   );
                 })}
-                <div ref={bottomRef} />
               </div>
 
               <div className="flex items-center gap-2 border-t border-border p-3">
