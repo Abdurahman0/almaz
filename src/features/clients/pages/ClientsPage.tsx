@@ -1,9 +1,11 @@
 import { useMemo, useState } from 'react';
 import { Link, useSearchParams } from 'react-router-dom';
 import { AnimatePresence, motion } from 'framer-motion';
-import { Search, X } from 'lucide-react';
+import { Pencil, Phone, Search, Trash2, X } from 'lucide-react';
 import {
   Card,
+  ConfirmDialog,
+  DropdownMenu,
   EmptyState,
   ErrorCard,
   HallmarkBadge,
@@ -11,17 +13,30 @@ import {
   PageHeader,
   SkeletonRows,
   Money,
+  toast,
   tierForTotal,
 } from '@/shared/ui';
 import { formatDate } from '@/shared/lib/format';
-import { useClients, type ClientRow } from '../hooks';
+import type { ApiError } from '@/shared/api/client';
+import { useClients, useDeleteClient, type ClientRow } from '../hooks';
+import { ClientEditModal } from '../components/ClientEditModal';
 
 const channelLabels: Record<string, string> = {
   telegram: 'Telegram',
   instagram: 'Instagram',
 };
 
-function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => void }) {
+function ClientDrawer({
+  client,
+  onClose,
+  onEdit,
+  onDelete,
+}: {
+  client: ClientRow;
+  onClose: () => void;
+  onEdit: () => void;
+  onDelete: () => void;
+}) {
   return (
     <motion.aside
       initial={{ x: '100%' }}
@@ -37,9 +52,25 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
           <h2 className="truncate text-lg font-semibold text-text">{client.name}</h2>
           {client.username && <p className="mt-1 text-sm text-muted">@{client.username}</p>}
         </div>
-        <button onClick={onClose} aria-label="Yopish" className="rounded-[var(--r-sm)] p-2 text-muted hover:text-text">
-          <X className="h-5 w-5" strokeWidth={1.5} />
-        </button>
+        <div className="flex shrink-0 items-center gap-1">
+          <button
+            onClick={onEdit}
+            aria-label="Tahrirlash"
+            className="rounded-[var(--r-sm)] p-2 text-muted transition-colors hover:bg-accent-soft hover:text-accent-ink"
+          >
+            <Pencil className="h-4 w-4" strokeWidth={1.5} />
+          </button>
+          <button
+            onClick={onDelete}
+            aria-label="O'chirish"
+            className="rounded-[var(--r-sm)] p-2 text-muted transition-colors hover:bg-danger-soft hover:text-danger"
+          >
+            <Trash2 className="h-4 w-4" strokeWidth={1.5} />
+          </button>
+          <button onClick={onClose} aria-label="Yopish" className="rounded-[var(--r-sm)] p-2 text-muted hover:text-text">
+            <X className="h-5 w-5" strokeWidth={1.5} />
+          </button>
+        </div>
       </div>
 
       <div className="mb-6 flex items-center gap-4">
@@ -53,6 +84,18 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
       </div>
 
       <dl className="mb-6 space-y-3 text-sm">
+        <div className="flex justify-between">
+          <dt className="text-muted">Telefon</dt>
+          <dd>
+            {client.phone ? (
+              <a href={`tel:${client.phone}`} className="tnum flex items-center gap-1.5 text-accent-ink hover:underline">
+                <Phone className="h-3.5 w-3.5" strokeWidth={1.5} /> {client.phone}
+              </a>
+            ) : (
+              <span className="text-muted">—</span>
+            )}
+          </dd>
+        </div>
         <div className="flex justify-between">
           <dt className="text-muted">Kanal</dt>
           <dd className="font-semibold text-text">
@@ -101,7 +144,10 @@ function ClientDrawer({ client, onClose }: { client: ClientRow; onClose: () => v
 
 export default function ClientsPage() {
   const clients = useClients();
+  const deleteClient = useDeleteClient();
   const [search, setSearch] = useState('');
+  const [editing, setEditing] = useState<ClientRow | null>(null);
+  const [deleting, setDeleting] = useState<ClientRow | null>(null);
   // Drawer is URL-addressable (?client=<id>) so other pages (e.g. the order
   // detail) can deep-link straight to a client.
   const [searchParams, setSearchParams] = useSearchParams();
@@ -157,6 +203,7 @@ export default function ClientsPage() {
                 <th className="!text-right">Buyurtmalar</th>
                 <th className="!text-right">Jami</th>
                 <th>Daraja</th>
+                <th className="w-10" aria-label="Amallar" />
               </tr>
             </thead>
             <tbody>
@@ -177,6 +224,25 @@ export default function ClientsPage() {
                   <td className="tnum text-right text-muted">{c.ordersCount} ta</td>
                   <td className="text-right font-semibold text-accent-ink"><Money short value={c.total} /></td>
                   <td>{tierForTotal(c.total) !== '375' && <HallmarkBadge tier={tierForTotal(c.total)} size="sm" />}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <DropdownMenu
+                      ariaLabel={`${c.name} amallari`}
+                      items={[
+                        {
+                          label: 'Tahrirlash',
+                          icon: <Pencil className="h-3.5 w-3.5" strokeWidth={1.5} />,
+                          onSelect: () => setEditing(c),
+                        },
+                        {
+                          label: "O'chirish",
+                          icon: <Trash2 className="h-3.5 w-3.5" strokeWidth={1.5} />,
+                          destructive: true,
+                          separatorBefore: true,
+                          onSelect: () => setDeleting(c),
+                        },
+                      ]}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -185,8 +251,36 @@ export default function ClientsPage() {
       )}
 
       <AnimatePresence>
-        {selected && <ClientDrawer client={selected} onClose={closeClient} />}
+        {selected && (
+          <ClientDrawer
+            client={selected}
+            onClose={closeClient}
+            onEdit={() => setEditing(selected)}
+            onDelete={() => setDeleting(selected)}
+          />
+        )}
       </AnimatePresence>
+
+      <ClientEditModal client={editing} onClose={() => setEditing(null)} />
+
+      <ConfirmDialog
+        open={Boolean(deleting)}
+        onClose={() => setDeleting(null)}
+        heading="Mijozni o'chirish"
+        description={`«${deleting?.name ?? ''}» suhbati, xabarlari va lokatsiyasi bilan butunlay o'chiriladi. Buyurtmalari bor mijozni server rad etadi.`}
+        onConfirm={async () => {
+          if (!deleting) return;
+          try {
+            await deleteClient.mutateAsync(deleting.id);
+          } catch (e) {
+            // ApiError is a plain object — rethrow as Error so the dialog shows the server's message inline
+            throw new Error((e as ApiError).message ?? "O'chirib bo'lmadi");
+          }
+          toast.success("Mijoz o'chirildi");
+          if (selectedId === deleting.id) closeClient();
+          setDeleting(null);
+        }}
+      />
     </div>
   );
 }

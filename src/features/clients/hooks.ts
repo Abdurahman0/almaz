@@ -1,8 +1,8 @@
 import { useMemo } from 'react';
-import { useQueries } from '@tanstack/react-query';
-import { listConversations } from '@/features/inbox/api';
+import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import { deleteCustomer, listConversations, updateCustomer } from '@/features/inbox/api';
 import { listOrders } from '@/features/orders/api';
-import type { Channel, OrderOut } from '@/shared/api/types';
+import type { Channel, CustomerUpdate, OrderOut } from '@/shared/api/types';
 
 /*
  * The backend has no /customers CRUD resource. Clients are assembled from
@@ -109,4 +109,26 @@ export function useClients() {
       void ordersQ.refetch();
     },
   };
+}
+
+/** Edit a client's name/phone — the live PATCH /inbox/customers/{id}. */
+export function useUpdateClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, body }: { id: string; body: CustomerUpdate }) => updateCustomer(id, body),
+    onSuccess: () => qc.invalidateQueries({ queryKey: clientKeys.conversations }),
+  });
+}
+
+/** Delete a client entirely (DELETE /inbox/customers/{id}) — the server rejects
+ *  with 400 + an Uzbek message when the customer still has orders. */
+export function useDeleteClient() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: string) => deleteCustomer(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: clientKeys.conversations });
+      qc.invalidateQueries({ queryKey: clientKeys.orders });
+    },
+  });
 }
